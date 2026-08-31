@@ -80,7 +80,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html lang="en">
 
-<head>+
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>transaksi - Pemandian</title>
@@ -136,10 +136,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <label for="contact-info-horizontal">ANAK</label>
                             </div>
                             <div class="col-md-8 form-group">
-                                <input type="number" id="anak" class="form-control" name="quantity3" min="0" value="<?php echo $detail_data[2]['quantity']; ?>" onchange="hitungTotal()">
+                                <input type="number" id="anak" class="form-control" name="quantity2" min="0" value="<?php echo $detail_data[1]['quantity']; ?>" onchange="hitungTotal()">
                                 <input type="number" style="display: none;" id="hargaAnak" class="form-control"  min="0" value="5000" onchange="hitungTotal()">
-                                <input type="number" style="display: none;" id="subtotalAnak" class="form-control"  min="0" value="<?php echo $detail_data[2]['sub_total']; ?>" name="sub_total2" onchange="hitungTotal()"> 
-                                <input type="text" style="display: none;" class="form-control"  min="0" value="<?php echo $detail_data[2]['jenis_tiket']; ?>" name="jenis_tiket2" onchange="hitungTotal()"> 
+                                <input type="number" style="display: none;" id="subtotalAnak" class="form-control"  min="0" value="<?php echo $detail_data[1]['sub_total']; ?>" name="sub_total2" onchange="hitungTotal()"> 
+                                <input type="text" style="display: none;" class="form-control"  min="0" value="<?php echo $detail_data[1]['jenis_tiket']; ?>" name="jenis_tiket2" onchange="hitungTotal()"> 
                             </div>
                             <div class="col-md-4">
                               <label for="contact-info-horizontal">TOTAL HARGA</label>
@@ -215,22 +215,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Calculate subtotal for each ticket type
     let dewasa = document.getElementById("dewasa").value;
     let hargadewasa = document.getElementById("hargaDewasa").value;
-    let remaja = document.getElementById("remaja").value;
-    let hargaremaja = document.getElementById("hargaRemaja").value;
     let anak = document.getElementById("anak").value;
     let hargaanak = document.getElementById("hargaAnak").value;
 
     let sub_totalDewasa = dewasa * hargadewasa;
-    let sub_totalRemaja = remaja * hargaremaja;
     let sub_totalAnak = anak * hargaanak;
 
     // Update the subtotals in the input fields
     document.getElementById("subtotalDewasa").value = sub_totalDewasa;
-    document.getElementById("subtotalRemaja").value = sub_totalRemaja;
     document.getElementById("subtotalAnak").value = sub_totalAnak;
 
     // Calculate the total
-    let total = sub_totalDewasa + sub_totalRemaja + sub_totalAnak;
+    let total = sub_totalDewasa + sub_totalAnak;
 
     // Update the total in the input field
     document.getElementById("total").value = total;
