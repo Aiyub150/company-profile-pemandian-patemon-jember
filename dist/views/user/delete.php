@@ -1,32 +1,25 @@
 <?php
-
-session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
-
-if(isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')){
-
-// Pengguna dengan level 1 atau 2 diizinkan mengakses dashboard.php
-
-} else {
-
-header('Location: ../index.php'); exit();
-
-}
-
-
 require '../../app/config.php';
 
-if (isset($_GET["id"])) {
-    $id_user = $_GET["id"];
-    
-    // Delete data from the database
-    $sql = "DELETE FROM users WHERE id_user='$id_user'";
-    
-    if ($conn->query($sql) === true) {
-        header("Location: user.php"); // Redirect to the page after deletion
-        exit;
-    } else {
-        echo "Error deleting record: " . $conn->error;
+// Hak Akses Khusus: Hanya Administrator (Level 1)
+check_auth([1]);
+
+$id_user = (int)($_GET["id"] ?? 0);
+$csrf = $_GET["csrf"] ?? '';
+
+if ($id_user > 0 && validate_csrf($csrf)) {
+    // Larang menghapus akun yang sedang aktif login
+    if ($id_user === (int)$_SESSION['id_user']) {
+        header("Location: user.php?err=self_delete");
+        exit();
     }
+
+    $stmt = $conn->prepare("DELETE FROM users WHERE id_user = ?");
+    $stmt->bind_param("i", $id_user);
+    $stmt->execute();
+    $stmt->close();
 }
 
+header("Location: user.php");
+exit();
 ?>

@@ -1,9 +1,11 @@
--- Database untuk Aplikasi Web Pemandian
+-- Database untuk Aplikasi Web Pemandian Patemon
 -- Sesuai dengan konfigurasi di dist/app/config.php: database = 'pemandian'
--- Login contoh:
---   admin  / admin123
---   staff  / staff123
---   aiyub  / user123
+-- Akun demo bawaan (password sudah dienkripsi BCRYPT demi keamanan):
+--   admin  / admin123   (Level 1 - Administrator)
+--   staff  / staff123   (Level 2 - Staff Kasir/Loket)
+--   aiyub  / user123    (Level 0 - Pengguna/Pengunjung)
+--   amanda / user123    (Level 0 - Pengguna/Pengunjung)
+--   alvi   / user123    (Level 0 - Pengguna/Pengunjung)
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -25,7 +27,7 @@ CREATE TABLE `users` (
   `id_user` int(11) NOT NULL AUTO_INCREMENT,
   `nama` varchar(100) DEFAULT NULL,
   `username` varchar(50) NOT NULL,
-  `password` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
   `email` varchar(100) NOT NULL,
   `no_telepon` varchar(20) DEFAULT NULL,
   `level` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=pengguna, 1=admin, 2=staff',
@@ -82,36 +84,36 @@ CREATE TABLE `ulasan` (
   PRIMARY KEY (`id_ulasan`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Seed Data Akun Bawaan (Hashed Passwords)
 INSERT INTO `users` (`id_user`, `nama`, `username`, `password`, `email`, `no_telepon`, `level`) VALUES
-(1, 'Administrator Pemandian', 'admin', 'admin123', 'admin@pemandian.local', '081234567001', 1),
-(2, 'Staff Loket', 'staff', 'staff123', 'staff@pemandian.local', '081234567002', 2),
-(3, 'Aiyub', 'aiyub', 'user123', 'aiyub@example.com', '081234567003', 0),
-(4, 'Amanda Putri', 'amanda', 'user123', 'amanda@example.com', '081234567004', 0),
-(5, 'Alvi Ramadhan', 'alvi', 'user123', 'alvi@example.com', '081234567005', 0);
+(1, 'Administrator Pemandian', 'admin', '$2y$10$Ry3tAysvVxQ1Ejiv5NcM8OWUMoNlc6ZBfblXGoIks4HwFKaxirFTS', 'admin@pemandian.local', '081234567001', 1),
+(2, 'Staff Loket', 'staff', '$2y$10$1TfoEwR4N8/nf0nD62eAaudVVW/OC/NsL7ruaKObukC3rscSxDzRy', 'staff@pemandian.local', '081234567002', 2),
+(3, 'Aiyub', 'aiyub', '$2y$10$eFmS1zwaaGhxCbfC5gh2hus2JZESVYLogIOvE4nFy/MDSI1EWJMr6', 'aiyub@example.com', '081234567003', 0),
+(4, 'Amanda Putri', 'amanda', '$2y$10$zlGkpxlqCJyD/pA4MPutseIAxC2AQhFBVlBZ7MSSi.a74DH4WE1IC', 'amanda@example.com', '081234567004', 0),
+(5, 'Alvi Ramadhan', 'alvi', '$2y$10$G.tALcgdjx6tVwuw281WvervdeMiP1XuVtOemFEPSrEdHee4WdZv6', 'alvi@example.com', '081234567005', 0);
 
+-- Seed Data Tiket
 INSERT INTO `tiket` (`id_tiket`, `nama_tiket`, `harga`) VALUES
 (1, 'Dewasa', 10000),
 (2, 'Anak-Anak', 5000);
 
+-- Seed Data Transaksi
 INSERT INTO `transaksi` (`id_transaksi`, `id_user`, `tgl_pemesanan`, `total_harga`, `metode_pembayaran`, `bukti_pembayaran`, `status`) VALUES
 (1, 3, '2026-08-28', 25000, 'Qris', 'logo2.png', 'done'),
-(2, 4, '2026-08-29', 20000, 'Bayar Di Loket', 'Bayar Di Loket', 'notyet'),
-(3, 5, '2026-08-30', 30000, 'Loket 1', 'bayar di loket', 'done'),
-(4, 2, '2026-08-31', 15000, 'Loket 2', 'bayar di loket', 'done');
+(2, 4, '2026-08-29', 20000, 'Bayar Di Loket', NULL, 'notyet'),
+(3, 5, '2026-08-30', 30000, 'Loket 1', NULL, 'done'),
+(4, 2, '2026-08-31', 15000, 'Loket 2', NULL, 'done');
 
+-- Seed Data Detail Transaksi
 INSERT INTO `detail_transaksi` (`id_detail`, `id_transaksi`, `jenis_tiket`, `quantity`, `sub_total`) VALUES
 (1, 1, 'Dewasa', 2, 20000),
 (2, 1, 'Anak-Anak', 1, 5000),
-(3, 2, 'Dewasa', 1, 10000),
-(4, 2, 'Anak-Anak', 2, 10000),
-(5, 3, 'Dewasa', 3, 30000),
-(6, 3, 'Anak-Anak', 0, 0),
-(7, 4, 'Dewasa', 1, 10000),
-(8, 4, 'Anak-Anak', 1, 5000);
+(3, 2, 'Dewasa', 2, 20000),
+(4, 3, 'Dewasa', 3, 30000),
+(5, 4, 'Anak-Anak', 3, 15000);
 
+-- Seed Data Ulasan
 INSERT INTO `ulasan` (`id_ulasan`, `username`, `email`, `no_telepon`, `ulasan`, `tgl_ulasan`) VALUES
-(1, 'Aiyub', 'aiyub@example.com', '081234567003', 'Tempatnya nyaman dan cocok untuk liburan keluarga.', '2026-08-28'),
-(2, 'Amanda Putri', 'amanda@example.com', '081234567004', 'Air kolam bersih, pelayanan loket juga cepat.', '2026-08-29'),
-(3, 'Alvi Ramadhan', 'alvi@example.com', '081234567005', 'Harga tiket terjangkau. Semoga fasilitas bilas bisa ditambah.', '2026-08-30');
+(1, 'Pengunjung Setia', 'visitor@example.com', '081298765432', 'Air pemandian sangat jernih dan segar, tempatnya bersih!', '2026-08-31');
 
 COMMIT;

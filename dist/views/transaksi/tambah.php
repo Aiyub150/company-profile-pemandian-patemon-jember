@@ -1,322 +1,405 @@
 <?php
-
-session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
-
-if(isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')){
-
-// Pengguna dengan level 1 atau 2 diizinkan mengakses dashboard.php
-
-} else {
-
-header('Location: ../index.php'); exit();
-
-}
-
 require '../../app/config.php';
+check_auth([1, 2]);
+
+$active_menu = ($_SESSION['level'] === 2) ? 'staf' : 'transaksi';
+$base_view = '..';
+
+// Ambil tarif tiket dari DB
+$harga_tiket = [];
+$res_t = $conn->query("SELECT nama_tiket, harga FROM tiket");
+while ($r = $res_t->fetch_assoc()) {
+    $harga_tiket[$r['nama_tiket']] = (int)$r['harga'];
+}
+$harga_dewasa = $harga_tiket['Dewasa'] ?? 10000;
+$harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
+
+// Ambil daftar pengguna untuk dropdown
+$users_list = $conn->query("SELECT id_user, nama, username FROM users ORDER BY nama ASC");
+
+$error_msg = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-  $secret_key = "6LcUfDsoAAAAAOuwYSk9i_ZoQwCgIexCeVMJ31Vb";
-  // Disini kita akan melakukan komunkasi dengan google recpatcha
-  // dengan mengirimkan scret key dan hasil dari response recaptcha nya
-  $verify = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret='.$secret_key.'&response='.$_POST['token']);
-  $response = json_decode($verify);
-  if($response == true){
-    $sql = $conn->query("SELECT MAX(id_transaksi) as max_id FROM transaksi;");
-    $result = $sql->fetch_assoc();
-    $id_transaksi =  $result["max_id"] + 1;
-    $id_user = $_SESSION['id_user'];
-    $tgl_pemesanan = date('Y-m-d');
-    $total_harga = $_POST['totaltiket'];
-    $metode_pembayaran = $_POST['metode_pembayaran'];
-    $status = $_POST['status'];
-
-    $transaksi = "INSERT INTO transaksi (id_transaksi, id_user, tgl_pemesanan, total_harga, metode_pembayaran, bukti_pembayaran, status) VALUES ('$id_transaksi', '$id_user', '$tgl_pemesanan', '$total_harga', '$metode_pembayaran',  'bayar di loket','$status')";
-    if ($conn->query($transaksi) === true) {
-      // Lakukan loop untuk memasukkan data-detail tiket sebanyak tiga kali
-      for ($i = 1; $i <= 2; $i++) {
-        $jenis_tiket = $_POST['jenis_tiket'.$i];
-        $quantity = $_POST['quantity'.$i];
-        $sub_total = $_POST['sub_total'.$i];
-        $detail_transaksi = "INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES ('$id_transaksi', '$jenis_tiket', '$quantity', '$sub_total')";
-        
-        if ($conn->query($detail_transaksi) !== true) {
-          echo "Error: " . $conn->error;
-          break; // Keluar dari loop jika terjadi error
-        }
-      }
-       header("location: ../transaksi/transaksi.php");
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $error_msg = "Token keamanan sesi kedaluwarsa. Silakan muat ulang halaman.";
     } else {
-        echo "Error: " . $sql . "<br>" . $conn->error ;
-    }
-  }
-}
+        $id_user_transaksi = (int)($_POST['id_user'] ?? $_SESSION['id_user']);
+        $nama_pemesan_custom = trim($_POST['nama_pemesan_custom'] ?? '');
+        $qty_dewasa = max(0, (int)($_POST['quantity1'] ?? 0));
+        $qty_anak   = max(0, (int)($_POST['quantity2'] ?? 0));
+        $metode_pembayaran = trim($_POST['metode_pembayaran'] ?? 'Tunai');
+        $status = trim($_POST['status'] ?? 'done');
 
+        if ($qty_dewasa === 0 && $qty_anak === 0) {
+            $error_msg = "Jumlah tiket minimal 1 lembar (Dewasa atau Anak-Anak).";
+        } else {
+            $subtotal_dewasa = $qty_dewasa * $harga_dewasa;
+            $subtotal_anak   = $qty_anak * $harga_anak;
+            $total_harga     = $subtotal_dewasa + $subtotal_anak;
+            $tgl_pemesanan   = date('Y-m-d');
+            $nama_gambar     = null;
+
+            $conn->begin_transaction();
+            try {
+                $stmt = $conn->prepare("INSERT INTO transaksi (id_user, tgl_pemesanan, total_harga, metode_pembayaran, bukti_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("isisss", $id_user_transaksi, $tgl_pemesanan, $total_harga, $metode_pembayaran, $nama_gambar, $status);
+                $stmt->execute();
+                $new_id = $conn->insert_id;
+                $stmt->close();
+
+                $stmt_d = $conn->prepare("INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES (?, ?, ?, ?)");
+                if ($qty_dewasa > 0) {
+                    $t_dew = 'Dewasa';
+                    $stmt_d->bind_param("isii", $new_id, $t_dew, $qty_dewasa, $subtotal_dewasa);
+                    $stmt_d->execute();
+                }
+                if ($qty_anak > 0) {
+                    $t_ank = 'Anak-Anak';
+                    $stmt_d->bind_param("isii", $new_id, $t_ank, $qty_anak, $subtotal_anak);
+                    $stmt_d->execute();
+                }
+                $stmt_d->close();
+
+                $conn->commit();
+                
+                // Langsung arahkan ke halaman nota cetak atau daftar transaksi
+                header("Location: ../tiket/nota.php?id_transaksi=" . $new_id);
+                exit();
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error_msg = "Gagal memproses transaksi: " . e($e->getMessage());
+            }
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>transaksi - Pemandian</title>
+    <title>Kasir Loket (POS) - Pemandian Patemon</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app-dark.css">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.svg" type="image/x-icon">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.png" type="image/png">
-    
-<link rel="stylesheet" href="../../../public/assets/css/shared/iconly.css">
-
+    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <style>
+        .pos-ticket-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.25rem;
+            transition: all 0.2s ease;
+            background: #ffffff;
+        }
+        .pos-ticket-card.active {
+            border-color: #0284c7;
+            background: #f0f9ff;
+        }
+        .summary-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.06);
+            position: sticky;
+            top: 2rem;
+        }
+        .payment-method-selector label {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.15s ease;
+            color: #334155;
+            background: #fff;
+        }
+        .payment-method-selector input[type="radio"]:checked + label {
+            border-color: #0284c7;
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+    </style>
 </head>
-<style>
-    .hidden{
-        display: none;
-    }
-</style>
+
 <body>
     <div id="app">
-        <div id="sidebar" class="active">
-            <div class="sidebar-wrapper active">
-    <div class="sidebar-header position-relative">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="logo">
-                <a href="index.html"><img src="../../../public/img/logo_pemandian_transparant.png" alt="Logo" srcset=""></a>
-            </div>
-            <div class="theme-toggle d-flex gap-2  align-items-center mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--system-uicons" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 21 21"><g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 14.5c2.219 0 4-1.763 4-3.982a4.003 4.003 0 0 0-4-4.018c-2.219 0-4 1.781-4 4c0 2.219 1.781 4 4 4zM4.136 4.136L5.55 5.55m9.9 9.9l1.414 1.414M1.5 10.5h2m14 0h2M4.135 16.863L5.55 15.45m9.899-9.9l1.414-1.415M10.5 19.5v-2m0-14v-2" opacity=".3"></path><g transform="translate(-210 -1)"><path d="M220.5 2.5v2m6.5.5l-1.5 1.5"></path><circle cx="220.5" cy="11.5" r="4"></circle><path d="m214 5l1.5 1.5m5 14v-2m6.5-.5l-1.5-1.5M214 18l1.5-1.5m-4-5h2m14 0h2"></path></g></g></svg>
-                <div class="form-check form-switch fs-6">
-                    <input class="form-check-input  me-0" type="checkbox" id="toggle-dark" >
-                    <label class="form-check-label" ></label>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--mdi" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><path fill="currentColor" d="m17.75 4.09l-2.53 1.94l.91 3.06l-2.63-1.81l-2.63 1.81l.91-3.06l-2.53-1.94L12.44 4l1.06-3l1.06 3l3.19.09m3.5 6.91l-1.64 1.25l.59 1.98l-1.7-1.17l-1.7 1.17l.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95l2.06.05m-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85c-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14c.4-.4.82-.76 1.27-1.08c.75-.53 1.93.36 1.85 1.19c-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82c-2.81 3.14-2.7 7.96.31 10.98c3.02 3.01 7.84 3.12 10.98.31Z"></path></svg>
-            </div>
-            <div class="sidebar-toggler  x">
-                <a href="#" class="sidebar-hide d-xl-none d-block"><i class="bi bi-x bi-middle"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="sidebar-menu">
-        <ul class="menu">
-            <li
-                class="sidebar-item">
-                <a href="../index.php" class='sidebar-link'>
-                    <i class="fa fa-desktop"></i>
-                    <span>Halaman utama</span>
-                </a>
-            </li>
-            <li class="sidebar-title">Menu</li>
-            <li
-                class="sidebar-item">
-                <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                    <i class="bi bi-grid-fill"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li
-            class="sidebar-item has-sub active">
-            <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                <i class="fa fa-ticket" aria-hidden="true"></i>
-                <span>Tiket</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item active">
-                    <a href="transaksi.php">Transaksi</a>
-                </li>
-            </ul>
-        </li>
-        <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-comment" aria-hidden="true"></i>
-                <span>Ulasan</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../ulasan/ulasan.php">kritik & saran</a>
-                </li>
-            </ul>
-        </ul>
-        <?php
-        if(isset($_SESSION['level']) && $_SESSION['level'] == '1') {
-            echo "
-        <ul class='menu'>
-            <li class='sidebar-title'>Manage User</li>
-            <li
-                class='sidebar-item'>
-                <a href='../user/user.php' class='sidebar-link'>
-                    <i class='fa fa-user'></i>
-                    <span>user</span>
-                </a>
-            </li>
-        </ul>";
-        }
-        ?>
-        <ul class="menu">
-            <li class="sidebar-title">Authentication</li>
-            <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-user-circle-o" aria-hidden="true"></i>
-                    <span><?= $_SESSION['username'] ?></span>
-                </a>
-            </li>
-            <!-- <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-cogs" aria-hidden="true"></i>
-                    <span>Pengaturan</span>
-                </a>
-            </li> -->
-            <li 
-                class="sidebar-item">
-                <a href="../logout.php" class='sidebar-link'>
-                    <i class="bi bi-door-open"></i>
-                    <span>Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
-        </div>
+        <?php include '../../app/partials/sidebar.php'; ?>
+
         <div id="main">
-            <header class="mb-3">
-                <a href="#" class="burger-btn d-block d-xl-none">
-                    <i class="bi bi-justify fs-3"></i>
+            <!-- Header Topbar -->
+            <header class="mb-4 d-flex justify-content-between align-items-center">
+                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+                    <i class="fa-solid fa-bars fs-3"></i>
                 </a>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <a href="<?= ($_SESSION['level'] == 2) ? 'staf.php' : 'transaksi.php' ?>" class="btn btn-sm btn-outline-secondary">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Riwayat
+                    </a>
+                </div>
             </header>
-            
-<div class="page-heading">
-    <h3>Tiket - Transaksi</h3>
-</div>
-<div class="page-content">
-    <section class="row">
-                <div class="card">
-                    <div class="col-md-6 col-12">
-                <div class="card">
-                  <div class="card-header">
-                    <h4 class="card-title">Tambah Data Transaksi</h4>
-                  </div>
-                  <div class="card-content">
-                    <div class="card-body">
-                      <form class="form form-horizontal" method="post">
-                        <div class="form-body">
-                          <div class="row">
-                            <div class="col-md-4">
-                              <label for="email-horizontal">NAMA</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="text" id="email-horizontal" class="form-control" name="nama" placeholder="nama">
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">DEWASA</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="number" id="dewasa" class="form-control" name="quantity1" min="0" value="0" onchange="hitungTotal()">
-                              <input type="number" style="display: none;" id="hargaDewasa" class="form-control"  min="0" value="10000" onchange="hitungTotal()"> 
-                              <input type="number" style="display: none;" id="subtotalDewasa" class="form-control"  min="0" value="0" name="sub_total1" onchange="hitungTotal()"> 
-                              <input type="text" style="display: none;" class="form-control"  min="0" value="Dewasa" name="jenis_tiket1" onchange="hitungTotal()"> 
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">ANAK</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="number" id="anak" class="form-control" name="quantity2" min="0" value="0" onchange="hitungTotal()">
-                              <input type="number" style="display: none;" id="hargaAnak" class="form-control"  min="0" value="5000" onchange="hitungTotal()">
-                              <input type="number" style="display: none;" id="subtotalAnak" class="form-control"  min="0" value="0" name="sub_total2" onchange="hitungTotal()"> 
-                              <input type="text" style="display: none;" class="form-control"  min="0" value="Anak-Anak" name="jenis_tiket2" onchange="hitungTotal()"> 
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">TOTAL HARGA</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="number" id="total" class="form-control" name="totaltiket" placeholder="total harga" onchange="hitungTotal()" readonly>
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">LOKET</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <select name="metode_pembayaran" class="form-select" id="" required>
-                                <option value="" readonly>Pilih Nomor Loket</option>
-                                <option value="Loket 1">Loket 1</option>
-                                <option value="Loket 2">Loket 2</option>
-                              </select>
-                              </div>                        
 
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">STATUS PEMBAYARAN</label>
+            <div class="page-heading mb-4">
+                <h2 class="fw-bold text-dark mb-1" style="font-size: 1.75rem;">Kasir Loket Penjualan Tiket (POS)</h2>
+                <p class="text-muted mb-0">Pilih jenis tiket dan kuantitas, tentukan metode pembayaran, dan cetak nota struk.</p>
+            </div>
+
+            <?php if (!empty($error_msg)): ?>
+                <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+                    <i class="fa-solid fa-circle-exclamation fs-5"></i>
+                    <div><?= e($error_msg) ?></div>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="" id="posForm">
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                <input type="hidden" id="hargaDewasa" value="<?= $harga_dewasa ?>">
+                <input type="hidden" id="hargaAnak" value="<?= $harga_anak ?>">
+
+                <div class="row g-4">
+                    <!-- Left Column: Tiket & Customer Selection -->
+                    <div class="col-12 col-lg-7 col-xl-8">
+                        <!-- Customer Info Card -->
+                        <div class="modern-card mb-4">
+                            <div class="modern-card-header">
+                                <span class="fw-bold" style="color: #0f172a;">
+                                    <i class="fa-solid fa-user me-2 text-primary"></i> Data Pelanggan / Pengunjung
+                                </span>
                             </div>
-                            <div class="col-md-8 form-group">
-                              <select name="status" class="form-select" id="" required>
-                                <option value="">Pilih Status Pembayaran</option>
-                                <option value="done">Sudah Dibayar</option>
-                                <option value="notyet">Belum Dibayar</option>
-                              </select>
+                            <div class="modern-card-body">
+                                <div class="form-group mb-0">
+                                    <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">Pilih Akun / Pengunjung Loket:</label>
+                                    <select class="form-select-modern" name="id_user" id="id_user">
+                                        <?php if ($users_list && $users_list->num_rows > 0): ?>
+                                            <?php while ($u = $users_list->fetch_assoc()): ?>
+                                                <option value="<?= (int)$u['id_user'] ?>" <?= ($u['id_user'] == $_SESSION['id_user']) ? 'selected' : '' ?>>
+                                                    <?= e($u['nama']) ?> (<?= e($u['username']) ?>)
+                                                </option>
+                                            <?php endwhile; ?>
+                                        <?php endif; ?>
+                                    </select>
+                                    <small class="text-muted mt-1 d-block">Pilih akun pengunjung atau gunakan akun kasir yang sedang bertugas.</small>
+                                </div>
                             </div>
-                            <div class="col-sm-12 d-flex justify-content-end">
-                              <button type="submit" class="btn btn-primary me-1 mb-1">
-                                Submit
-                              </button>
-                              <button type="reset" class="btn btn-light-secondary me-1 mb-1">
-                                Reset
-                              </button>
-                              <button type="button" class="btn btn-danger me-1 mb-1" onclick="location.href='transaksi.php'">
-                                    Kembali
-                                </button>
-                            </div>
-                          </div>
                         </div>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              </div>
-                </div>
-        </div>
-    </section>
-</div>
 
-            <footer>
-                <div class="footer clearfix mb-0 text-muted">
-                    <div class="float-start">
-                        <p>2023 &copy; Pemandian</p>
+                        <!-- Ticket Selection Card -->
+                        <div class="modern-card mb-4">
+                            <div class="modern-card-header">
+                                <span class="fw-bold" style="color: #0f172a;">
+                                    <i class="fa-solid fa-ticket me-2 text-primary"></i> Pilih Kategori & Jumlah Tiket
+                                </span>
+                            </div>
+                            <div class="modern-card-body">
+                                <div class="row g-3">
+                                    <!-- Tiket Dewasa -->
+                                    <div class="col-12 col-md-6">
+                                        <div class="pos-ticket-card" id="cardDewasa">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="fw-bold fs-5 text-dark">Dewasa</div>
+                                                <div class="metric-icon-box blue" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                                                    <i class="fa-solid fa-user"></i>
+                                                </div>
+                                            </div>
+                                            <div class="text-muted small mb-3">Tiket masuk kolam untuk usia dewasa & remaja</div>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="fw-extrabold text-primary fs-5"><?= format_rupiah($harga_dewasa) ?></div>
+                                                <div class="qty-stepper">
+                                                    <button type="button" onclick="changeQty('quantity1', -1)"><i class="fa-solid fa-minus"></i></button>
+                                                    <input type="number" id="quantity1" name="quantity1" value="0" min="0" readonly>
+                                                    <button type="button" onclick="changeQty('quantity1', 1)"><i class="fa-solid fa-plus"></i></button>
+                                                </div>
+                                            </div>
+                                            <div class="text-end text-muted small mt-2">
+                                                Subtotal: <strong id="subtotalDewasaTxt" class="text-dark">Rp 0</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tiket Anak -->
+                                    <div class="col-12 col-md-6">
+                                        <div class="pos-ticket-card" id="cardAnak">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="fw-bold fs-5 text-dark">Anak-Anak</div>
+                                                <div class="metric-icon-box amber" style="width: 40px; height: 40px; font-size: 1.1rem;">
+                                                    <i class="fa-solid fa-child-reaching"></i>
+                                                </div>
+                                            </div>
+                                            <div class="text-muted small mb-3">Tiket masuk kolam untuk balita & anak-anak</div>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="fw-extrabold text-amber fs-5" style="color: #d97706;"><?= format_rupiah($harga_anak) ?></div>
+                                                <div class="qty-stepper">
+                                                    <button type="button" onclick="changeQty('quantity2', -1)"><i class="fa-solid fa-minus"></i></button>
+                                                    <input type="number" id="quantity2" name="quantity2" value="0" min="0" readonly>
+                                                    <button type="button" onclick="changeQty('quantity2', 1)"><i class="fa-solid fa-plus"></i></button>
+                                                </div>
+                                            </div>
+                                            <div class="text-end text-muted small mt-2">
+                                                Subtotal: <strong id="subtotalAnakTxt" class="text-dark">Rp 0</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Method Card -->
+                        <div class="modern-card">
+                            <div class="modern-card-header">
+                                <span class="fw-bold" style="color: #0f172a;">
+                                    <i class="fa-solid fa-credit-card me-2 text-primary"></i> Metode Pembayaran
+                                </span>
+                            </div>
+                            <div class="modern-card-body">
+                                <div class="payment-method-selector d-flex flex-wrap gap-2 mb-3">
+                                    <div>
+                                        <input type="radio" class="d-none" name="metode_pembayaran" id="pay_cash" value="Tunai" checked>
+                                        <label for="pay_cash"><i class="fa-solid fa-money-bill-wave text-success"></i> Tunai (Cash)</label>
+                                    </div>
+                                    <div>
+                                        <input type="radio" class="d-none" name="metode_pembayaran" id="pay_qris" value="QRIS">
+                                        <label for="pay_qris"><i class="fa-solid fa-qrcode text-primary"></i> QRIS / E-Wallet</label>
+                                    </div>
+                                    <div>
+                                        <input type="radio" class="d-none" name="metode_pembayaran" id="pay_transfer" value="Transfer Bank">
+                                        <label for="pay_transfer"><i class="fa-solid fa-building-columns text-info"></i> Transfer Bank</label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">Status Transaksi:</label>
+                                    <select class="form-select-modern" name="status">
+                                        <option value="done" selected>Sudah Dibayar (Lunas)</option>
+                                        <option value="pending">Menunggu Pembayaran (Pending)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Live Order Summary -->
+                    <div class="col-12 col-lg-5 col-xl-4">
+                        <div class="summary-card">
+                            <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+                                <div class="fw-bold fs-5 text-dark">Ringkasan Tagihan</div>
+                                <span class="badge badge-modern-primary"><i class="fa-solid fa-cart-shopping"></i> POS</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size: 0.9rem;">
+                                <span>Tiket Dewasa (<span id="sumQtyDewasa">0</span>x)</span>
+                                <strong id="sumSubDewasa" class="text-dark">Rp 0</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3 text-muted" style="font-size: 0.9rem;">
+                                <span>Tiket Anak (<span id="sumQtyAnak">0</span>x)</span>
+                                <strong id="sumSubAnak" class="text-dark">Rp 0</strong>
+                            </div>
+
+                            <div class="p-3 rounded-3 mb-4" style="background: #f8fafc; border: 1.5px dashed #cbd5e1;">
+                                <div class="text-muted small fw-bold text-uppercase mb-1">Total Tagihan Loket:</div>
+                                <div class="fw-extrabold text-primary" id="totalHargaTxt" style="font-size: 1.85rem; line-height: 1;">Rp 0</div>
+                            </div>
+
+                            <!-- Kalkulator Kembalian Uang Tunai -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark small">Nominal Uang Diterima (Rp):</label>
+                                <div class="input-icon-group">
+                                    <i class="fa-solid fa-money-bill input-icon"></i>
+                                    <input 
+                                        type="number" 
+                                        class="form-control-modern" 
+                                        id="uangBayar" 
+                                        placeholder="Contoh: 50000" 
+                                        min="0"
+                                        oninput="hitungKembalian()"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center p-3 rounded-3 mb-4" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+                                <span class="text-success fw-bold small">Uang Kembalian:</span>
+                                <strong class="fs-5 text-success" id="uangKembalianTxt">Rp 0</strong>
+                            </div>
+
+                            <button type="submit" class="btn-brand w-100 py-3 fs-5" id="btnSubmit">
+                                <i class="fa-solid fa-print me-1"></i> Proses & Cetak Nota
+                            </button>
+
+                            <div class="text-center mt-3">
+                                <a href="<?= ($_SESSION['level'] == 2) ? 'staf.php' : 'transaksi.php' ?>" class="text-secondary small text-decoration-none">
+                                    <i class="fa-solid fa-xmark me-1"></i> Batalkan Transaksi
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </footer>
+            </form>
+
+            <div class="mt-5">
+                <?php include '../../app/partials/footer.php'; ?>
+            </div>
         </div>
     </div>
+
+    <!-- Scripts -->
     <script src="../../../public/assets/js/bootstrap.js"></script>
-    <script src="../../../public/assets/js/app.js"></script>
-    
-<!-- Need: Apexcharts -->
-<script src="../../../public/assets/extensions/apexcharts/apexcharts.min.js"></script>
-<script src="../../../public/assets/js/pages/dashboard.js"></script>
-<script>
+    <script>
+    const hargaDewasa = parseInt(document.getElementById('hargaDewasa').value) || 10000;
+    const hargaAnak   = parseInt(document.getElementById('hargaAnak').value) || 5000;
 
-  function onSubmit(token) {
-     document.getElementById("form").submit();
-   }
-  function hitungTotal() {
-    // Calculate subtotal for each ticket type
-    let dewasa = document.getElementById("dewasa").value;
-    let hargadewasa = document.getElementById("hargaDewasa").value;
-    let anak = document.getElementById("anak").value;
-    let hargaanak = document.getElementById("hargaAnak").value;
+    function formatRupiah(num) {
+        return 'Rp ' + num.toLocaleString('id-ID');
+    }
 
-    let sub_totalDewasa = dewasa * hargadewasa;
-    let sub_totalAnak = anak * hargaanak;
+    function changeQty(id, delta) {
+        const input = document.getElementById(id);
+        let val = parseInt(input.value) || 0;
+        val = Math.max(0, val + delta);
+        input.value = val;
+        recalculate();
+    }
 
-    // Update the subtotals in the input fields
-    document.getElementById("subtotalDewasa").value = sub_totalDewasa;
-    document.getElementById("subtotalAnak").value = sub_totalAnak;
+    function recalculate() {
+        const qDewasa = parseInt(document.getElementById('quantity1').value) || 0;
+        const qAnak   = parseInt(document.getElementById('quantity2').value) || 0;
 
-    // Calculate the total
-    let total = sub_totalDewasa + sub_totalAnak;
+        const subDewasa = qDewasa * hargaDewasa;
+        const subAnak   = qAnak * hargaAnak;
+        const total     = subDewasa + subAnak;
 
-    // Update the total in the input field
-    document.getElementById("total").value = total;
-}
- </script>
+        document.getElementById('subtotalDewasaTxt').innerText = formatRupiah(subDewasa);
+        document.getElementById('subtotalAnakTxt').innerText   = formatRupiah(subAnak);
+
+        document.getElementById('sumQtyDewasa').innerText = qDewasa;
+        document.getElementById('sumSubDewasa').innerText = formatRupiah(subDewasa);
+
+        document.getElementById('sumQtyAnak').innerText = qAnak;
+        document.getElementById('sumSubAnak').innerText = formatRupiah(subAnak);
+
+        document.getElementById('totalHargaTxt').innerText = formatRupiah(total);
+
+        // Highlight active cards
+        document.getElementById('cardDewasa').classList.toggle('active', qDewasa > 0);
+        document.getElementById('cardAnak').classList.toggle('active', qAnak > 0);
+
+        hitungKembalian();
+    }
+
+    function hitungKembalian() {
+        const qDewasa = parseInt(document.getElementById('quantity1').value) || 0;
+        const qAnak   = parseInt(document.getElementById('quantity2').value) || 0;
+        const total   = (qDewasa * hargaDewasa) + (qAnak * hargaAnak);
+
+        const bayar   = parseInt(document.getElementById('uangBayar').value) || 0;
+        const kembalian = Math.max(0, bayar - total);
+
+        document.getElementById('uangKembalianTxt').innerText = formatRupiah(kembalian);
+    }
+    </script>
 </body>
-
 </html>

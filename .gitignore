@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment & Credentials
+.env
+.env.*
+local
+local.pub
+*.key
+*.pem
+*.pub
+
+# Uploaded testing files in payment (keep directory structure)
+dist/app/payment/*
+!dist/app/payment/.gitkeep
+
+# Feedback folder (internal use)
+Feedback/
+
+# Logs & temp
+*.log
+scratch/

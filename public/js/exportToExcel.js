@@ -1,34 +1,43 @@
-function exportToExcel(tableId, filename = '') {
-    var downloadLink;
-    var dataType = 'application/vnd.ms-excel';
-    var tableSelect = document.getElementById(tableId);
+function exportToExcel(tableId, filename = 'Laporan') {
+    const tableSelect = document.getElementById(tableId);
+    if (!tableSelect) {
+        console.error('Tabel dengan ID ' + tableId + ' tidak ditemukan.');
+        return;
+    }
 
-    // Simpan kolom "action"
-    var actionColumn = tableSelect.querySelector('.action-column');
-    var actionColumnIndex = actionColumn.cellIndex;
+    // Kloning tabel agar kolom action dapat dihapus dengan aman tanpa merusak DOM
+    const clone = tableSelect.cloneNode(true);
+    clone.querySelectorAll('.action-column, .btn, .no-print').forEach(el => el.remove());
 
-    // Sembunyikan kolom "action"
-    actionColumn.style.display = 'none';
+    const filenameWithExt = (filename ? filename : 'excel_data') + '.xls';
+    const html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+            <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+            <style>
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 0.5pt solid #cccccc; padding: 6px; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            ${clone.outerHTML}
+        </body>
+        </html>
+    `;
 
-    var tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
-
-    // Kembalikan tampilan kolom "action"
-    actionColumn.style.display = '';
-
-    filename = filename ? filename + '.xls' : 'excel_data.xls';
-
-    downloadLink = document.createElement("a");
-
-    document.body.appendChild(downloadLink);
-
+    const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     if (navigator.msSaveOrOpenBlob) {
-        var blob = new Blob(['\ufeff', tableHTML], {
-            type: dataType
-        });
-        navigator.msSaveOrOpenBlob(blob, filename);
+        navigator.msSaveOrOpenBlob(blob, filenameWithExt);
     } else {
-        downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
-        downloadLink.download = filename;
-        downloadLink.click();
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = filenameWithExt;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 }

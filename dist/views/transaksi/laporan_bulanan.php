@@ -1,312 +1,341 @@
 <?php
-session_start();
-
-if (isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')) {
-    // Pengguna dengan level 1 atau 2 diizinkan mengakses dashboard.php
-} else {
-    header('Location: ../index.php');
-    exit();
-}
-
 require '../../app/config.php';
+check_auth([1]);
 
-$filter = isset($_GET['filter']) ? $_GET['filter'] : 'monthly';
-$dateInput = isset($_GET['dateInput']) ? $_GET['dateInput'] : date('Y-m');
+$active_menu = 'laporan_bulanan';
+$base_view = '..';
 
-$startDate = $endDate = $dateInput;
+$dateInput = isset($_GET['dateInput']) && preg_match('/^\d{4}-\d{2}$/', $_GET['dateInput']) ? $_GET['dateInput'] : date('Y-m');
 
-// Query untuk mengambil data Dewasa
-$sql = "SELECT jenis_tiket, SUM(quantity) AS total_quantity, DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') AS month_year
-        FROM detail_transaksi 
-        INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi
-        WHERE DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') = '$startDate'
-        GROUP BY jenis_tiket, month_year";
+$stmt = $conn->prepare("SELECT detail_transaksi.jenis_tiket, SUM(detail_transaksi.quantity) AS total_quantity, SUM(detail_transaksi.sub_total) AS total_sub, DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') AS month_year
+    FROM detail_transaksi 
+    INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi
+    WHERE DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') = ? AND transaksi.status = 'done'
+    GROUP BY detail_transaksi.jenis_tiket, month_year");
+$stmt->bind_param("s", $dateInput);
+$stmt->execute();
+$result = $stmt->get_result();
 
-$result = $conn->query($sql);
+$chartData = [];
+$total_omzet_bulan = 0;
+$total_tiket_bulan = 0;
 
-$chartData = array();
-
-// Inisialisasi data default
-$labels = ['Dewasa', 'Anak-Anak'];
-
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        // Create a new array for each jenis_tiket
-        $chartData[] = [
-            'jenis_tiket' => $row['jenis_tiket'],
-            'total_quantity' => $row['total_quantity'],
-            'month_year' => $row['month_year'],
-        ];  
-        $labels_json = json_encode($labels);
-        $chartData_json = json_encode($chartData);      
-    }
+while ($row = $result->fetch_assoc()) {
+    $chartData[] = [
+        'jenis_tiket' => $row['jenis_tiket'],
+        'total_quantity' => (int)$row['total_quantity'],
+        'total_sub' => (float)$row['total_sub'],
+        'month_year' => $row['month_year'],
+    ];
+    $total_omzet_bulan += (float)$row['total_sub'];
+    $total_tiket_bulan += (int)$row['total_quantity'];
 }
+$stmt->close();
+
+$dewasa_count = 0;
+$anak_count = 0;
+foreach ($chartData as &$cd) {
+    $cd['harga_satuan'] = $cd['total_quantity'] > 0 ? (float)($cd['total_sub'] / $cd['total_quantity']) : 0;
+    if ($cd['jenis_tiket'] === 'Dewasa') $dewasa_count = $cd['total_quantity'];
+    if ($cd['jenis_tiket'] === 'Anak-Anak') $anak_count = $cd['total_quantity'];
+}
+unset($cd);
+
+$rata_rata_tiket = $total_tiket_bulan > 0 ? ($total_omzet_bulan / $total_tiket_bulan) : 0;
 ?>
-
-
-
-<style>
-    .hidden{
-        display: none;
-    }
-</style>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>transaksi - Pemandian</title>
+    <title>Laporan Bulanan - Pemandian Patemon</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="">
+    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app-dark.css">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.svg" type="image/x-icon">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.png" type="image/png">
-    <link rel="stylesheet" href="../../../public/css/loader.css">
-    
-<link rel="stylesheet" href="../../../public/assets/css/shared/iconly.css">
-<link rel="stylesheet" href="../../../public/assets/extensions/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
 </head>
 
 <body>
     <div id="app">
-        <div id="sidebar" class="active">
-            <div class="sidebar-wrapper active">
-    <div class="sidebar-header position-relative">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="logo">
-                <a href="index.html"><img src="../../../public/img/logo_pemandian_transparant.png" alt="Logo" srcset=""></a>
-            </div>
-            <div class="theme-toggle d-flex gap-2  align-items-center mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--system-uicons" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 21 21"><g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 14.5c2.219 0 4-1.763 4-3.982a4.003 4.003 0 0 0-4-4.018c-2.219 0-4 1.781-4 4c0 2.219 1.781 4 4 4zM4.136 4.136L5.55 5.55m9.9 9.9l1.414 1.414M1.5 10.5h2m14 0h2M4.135 16.863L5.55 15.45m9.899-9.9l1.414-1.415M10.5 19.5v-2m0-14v-2" opacity=".3"></path><g transform="translate(-210 -1)"><path d="M220.5 2.5v2m6.5.5l-1.5 1.5"></path><circle cx="220.5" cy="11.5" r="4"></circle><path d="m214 5l1.5 1.5m5 14v-2m6.5-.5l-1.5-1.5M214 18l1.5-1.5m-4-5h2m14 0h2"></path></g></g></svg>
-                <div class="form-check form-switch fs-6">
-                    <input class="form-check-input  me-0" type="checkbox" id="toggle-dark" >
-                    <label class="form-check-label" ></label>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--mdi" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><path fill="currentColor" d="m17.75 4.09l-2.53 1.94l.91 3.06l-2.63-1.81l-2.63 1.81l.91-3.06l-2.53-1.94L12.44 4l1.06-3l1.06 3l3.19.09m3.5 6.91l-1.64 1.25l.59 1.98l-1.7-1.17l-1.7 1.17l.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95l2.06.05m-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85c-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14c.4-.4.82-.76 1.27-1.08c.75-.53 1.93.36 1.85 1.19c-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82c-2.81 3.14-2.7 7.96.31 10.98c3.02 3.01 7.84 3.12 10.98.31Z"></path></svg>
-            </div>
-            <div class="sidebar-toggler  x">
-                <a href="#" class="sidebar-hide d-xl-none d-block"><i class="bi bi-x bi-middle"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="sidebar-menu">
-        <ul class="menu">
-            <li
-                class="sidebar-item">
-                <a href="../index.php" class='sidebar-link'>
-                    <i class="fa fa-desktop"></i>
-                    <span>Halaman utama</span>
-                </a>
-            </li>
-            <li class="sidebar-title">Menu</li>
-            <li
-                class="sidebar-item">
-                <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                    <i class="bi bi-grid-fill"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-ticket" aria-hidden="true"></i>
-                <span>Tiket</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item active">
-                    <a href="transaksi.php">Transaksi</a>
-                </li>
-            </ul>
-        </li>
-        <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-comment" aria-hidden="true"></i>
-                <span>Ulasan</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../ulasan/ulasan.php">kritik & saran</a>
-                </li>
-            </ul>
-        </ul>
-        <ul class="menu">
-            <li class="sidebar-title">Manage User</li>
-            <li
-                class="sidebar-item">
-                <a href="../user/user.php" class='sidebar-link'>
-                    <i class="fa fa-user"></i>
-                    <span>user</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="menu">
-            <li class="sidebar-title">Authentication</li>
-            <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-user-circle-o" aria-hidden="true"></i>
-                    <span><?= $_SESSION['username'] ?></span>
-                </a>
-            </li>
-            <!-- <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-cogs" aria-hidden="true"></i>
-                    <span>Pengaturan</span>
-                </a>
-            </li> -->
-            <li 
-                class="sidebar-item">
-                <a href="../logout.php" class='sidebar-link'>
-                    <i class="bi bi-door-open"></i>
-                    <span>Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
-        </div>
+        <?php include '../../app/partials/sidebar.php'; ?>
+
         <div id="main">
-            <header class="mb-3">
-                <a href="#" class="burger-btn d-block d-xl-none">
-                    <i class="bi bi-justify fs-3"></i>
+            <!-- Header Topbar -->
+            <header class="mb-3 d-flex justify-content-between align-items-center">
+                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+                    <i class="fa-solid fa-bars fs-3"></i>
                 </a>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <span class="badge badge-modern-primary">Laporan Bulanan</span>
+                </div>
             </header>
-            
-<div class="page-heading">
-    <h3>Tiket - Laporan Bulanan</h3>
-</div>
-<div class="page-content">
-    <section class="row">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title">Tabel Laporan Bulanan</h4>
-                    </div>
-                    <div class="card-content">
-                    <div class="card-body">
-                        <a href="transaksi.php" class="btn btn-danger">Kembali</a>
-                        <a href="tambah.php" class="btn icon icon-left btn-primary">+ tambah data</a>
-                        <button onclick="printTable('dataTable')" class="btn btn-primary"><i class="fa fa-print" aria-hidden="true"></i> Print</button>
-                        <form method="get" action="" style="margin-top: 20px;">
-                            <label for="dateInput">Pilih Bulan:</label>
-                            <input type="month" id="dateInput" name="dateInput" value="<?= $dateInput ?>" class="form-control">
-                            <button type="submit" class="btn btn-primary mt-2">Filter</button>
-                        </form>
+
+            <!-- Consolidated Modern Header & Action Toolbar -->
+            <div class="modern-card p-4 mb-4">
+                <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge badge-modern-primary text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Laporan Omzet Bulanan</span>
+                            <span class="text-success small fw-semibold"><i class="fa-solid fa-circle-check me-1"></i> Data Terverifikasi</span>
+                        </div>
+                        <h2 class="fw-bold text-dark mb-1" style="font-size: 1.65rem;">Laporan Penjualan Bulanan</h2>
+                        <p class="text-muted small mb-0">
+                            <i class="fa-regular fa-calendar-days text-primary me-1"></i> Periode Bulan: <strong class="text-dark"><?= format_bulan_indonesia($dateInput) ?></strong>
+                        </p>
                     </div>
 
-                        <!-- Table with no outer spacing -->
-                        <div class="table-responsive">
-                            <canvas id="myChart" width="100px" height="100px"></canvas>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <!-- Compact Inline Month Filter -->
+                        <form method="GET" action="" class="d-flex align-items-center gap-2 bg-light p-1 px-2 rounded-3 border">
+                            <span class="text-muted small fw-semibold d-none d-sm-inline ps-1"><i class="fa-solid fa-calendar-days text-secondary me-1"></i> Periode:</span>
+                            <input type="month" id="dateInput" name="dateInput" class="form-control form-control-sm border-0 bg-transparent fw-bold text-dark" value="<?= e($dateInput) ?>" style="width: auto; box-shadow: none;">
+                            <button type="submit" class="btn btn-brand btn-sm px-3 py-1">
+                                <i class="fa-solid fa-filter me-1"></i> Filter
+                            </button>
+                        </form>
+
+                        <div class="vr mx-1 d-none d-lg-block" style="height: 32px;"></div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2">
+                            <button onclick="printTable('reportTable', 'Laporan Penjualan Bulanan (<?= $dateInput ?>)')" class="btn btn-outline-secondary btn-sm px-3 shadow-sm bg-white" title="Cetak Laporan">
+                                <i class="fa-solid fa-print me-1"></i> Cetak
+                            </button>
+                            <button onclick="exportToExcel('reportTable', 'Laporan_Bulanan_<?= $dateInput ?>')" class="btn btn-soft-success btn-sm px-3 shadow-sm" title="Ekspor ke File Excel">
+                                <i class="fa-solid fa-file-excel me-1"></i> Excel
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>        
-    </section>
-</div>
-<div class="loader-container" id="loader-container">
-                <div class="spinner-box">
-                <div class="blue-orbit leo">
-                </div>
+            </div>
 
-                <div class="green-orbit leo">
-                </div>
-                
-                <div class="red-orbit leo">
-                </div>
-                
-                <div class="white-orbit w1 leo">
-                </div><div class="white-orbit w2 leo">
-                </div><div class="white-orbit w3 leo">
-                </div>
-                </div>
-        </div>
-            <footer>
-                <div class="footer clearfix mb-0 text-muted">
-                    <div class="float-start">
-                        <p>2023 © Pemandian</p>
+            <!-- 3 Balanced Metric KPI Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                    <div class="modern-card p-3 h-100 d-flex align-items-center gap-3">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 52px; height: 52px; background: #ecfdf5; color: #059669; font-size: 1.4rem;">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-muted small fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Omzet Bulan Ini</div>
+                            <div class="fs-4 fw-extrabold text-success text-truncate"><?= format_rupiah($total_omzet_bulan) ?></div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Dari seluruh transaksi selesai</div>
+                        </div>
                     </div>
                 </div>
-            </footer>
+
+                <div class="col-12 col-md-4">
+                    <div class="modern-card p-3 h-100 d-flex align-items-center gap-3">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 52px; height: 52px; background: #e0f2fe; color: #0284c7; font-size: 1.4rem;">
+                            <i class="fa-solid fa-ticket"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-muted small fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Total Tiket Terjual</div>
+                            <div class="fs-4 fw-extrabold text-primary text-truncate"><?= number_format($total_tiket_bulan, 0, ',', '.') ?> <span class="fs-6 fw-normal text-muted">lembar</span></div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Akumulasi seluruh pengunjung</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <div class="modern-card p-3 h-100 d-flex align-items-center gap-3">
+                        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 52px; height: 52px; background: #fef3c7; color: #d97706; font-size: 1.4rem;">
+                            <i class="fa-solid fa-coins"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="text-muted small fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">Rata-rata / Lembar</div>
+                            <div class="fs-4 fw-extrabold text-dark text-truncate"><?= format_rupiah($rata_rata_tiket) ?></div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Nilai rata-rata per pengunjung</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Data: Table & Doughnut Chart -->
+            <div class="page-content">
+                <div class="row g-4">
+                    <!-- Table Section -->
+                    <div class="col-12 col-lg-7">
+                        <div class="modern-card h-100 d-flex flex-column">
+                            <div class="modern-card-header d-flex justify-content-between align-items-center py-3 px-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-circle p-2 bg-primary-subtle text-primary"><i class="fa-solid fa-table-list"></i></span>
+                                    <span class="fw-bold text-dark">Rincian Penjualan Tiket Bulanan</span>
+                                </div>
+                                <span class="badge bg-light text-secondary border px-2 py-1 small"><?= count($chartData) ?> Kategori</span>
+                            </div>
+                            <div class="table-responsive flex-grow-1">
+                                <table class="table table-hover align-middle mb-0" id="reportTable">
+                                    <thead class="bg-light border-bottom">
+                                        <tr>
+                                            <th class="ps-4 text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Kategori Tiket</th>
+                                            <th class="text-end text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Harga</th>
+                                            <th class="text-center text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Terjual</th>
+                                            <th class="text-end text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Total Omzet</th>
+                                            <th class="pe-4 text-end text-secondary small fw-bold text-uppercase" style="letter-spacing: 0.5px; width: 120px;">Porsi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php if (!empty($chartData)): ?>
+                                        <?php foreach ($chartData as $row): 
+                                            $pct = $total_omzet_bulan > 0 ? round(($row['total_sub'] / $total_omzet_bulan) * 100, 1) : 0;
+                                            $is_dewasa = (stripos($row['jenis_tiket'], 'dewasa') !== false);
+                                        ?>
+                                            <tr>
+                                                <td class="ps-4">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge rounded-circle p-2 <?= $is_dewasa ? 'bg-primary-subtle text-primary' : 'bg-warning-subtle text-warning' ?>">
+                                                            <i class="fa-solid <?= $is_dewasa ? 'fa-user' : 'fa-child' ?>"></i>
+                                                        </span>
+                                                        <span class="fw-bold text-dark"><?= e($row['jenis_tiket']) ?></span>
+                                                    </div>
+                                                </td>
+                                                <td class="text-end text-muted font-monospace small">
+                                                    <?= format_rupiah($row['harga_satuan']) ?>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-light text-dark border px-3 py-1 fw-bold">
+                                                        <?= number_format($row['total_quantity'], 0, ',', '.') ?> lembar
+                                                    </span>
+                                                </td>
+                                                <td class="text-end fw-bold text-dark font-monospace">
+                                                    <?= format_rupiah($row['total_sub']) ?>
+                                                </td>
+                                                <td class="pe-4 text-end">
+                                                    <div class="d-flex align-items-center justify-content-end gap-2">
+                                                        <div class="progress flex-grow-1" style="height: 6px; max-width: 60px;">
+                                                            <div class="progress-bar <?= $is_dewasa ? 'bg-primary' : 'bg-warning' ?>" style="width: <?= $pct ?>%;"></div>
+                                                        </div>
+                                                        <span class="small fw-bold text-secondary" style="min-width: 38px;"><?= $pct ?>%</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-5">
+                                                <div class="py-4">
+                                                    <i class="fa-solid fa-receipt text-muted opacity-50 fs-1 mb-2"></i>
+                                                    <div class="fw-semibold text-dark">Belum Ada Transaksi</div>
+                                                    <p class="text-muted small mb-0">Tidak ada tiket yang terjual pada bulan ini.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                    </tbody>
+                                    <?php if (!empty($chartData)): ?>
+                                    <tfoot class="border-top bg-light-subtle">
+                                        <tr class="fw-bold">
+                                            <td class="ps-4 text-uppercase text-secondary small">Total Keseluruhan</td>
+                                            <td></td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary-subtle text-primary px-3 py-1 fs-6">
+                                                    <?= number_format($total_tiket_bulan, 0, ',', '.') ?> lembar
+                                                </span>
+                                            </td>
+                                            <td class="text-end text-success fs-6 font-monospace">
+                                                <?= format_rupiah($total_omzet_bulan) ?>
+                                            </td>
+                                            <td class="pe-4 text-end text-muted small">100%</td>
+                                        </tr>
+                                    </tfoot>
+                                    <?php endif; ?>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Doughnut Chart Section -->
+                    <div class="col-12 col-lg-5">
+                        <div class="modern-card h-100 d-flex flex-column">
+                            <div class="modern-card-header d-flex justify-content-between align-items-center py-3 px-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-circle p-2 bg-info-subtle text-info"><i class="fa-solid fa-chart-pie"></i></span>
+                                    <span class="fw-bold text-dark">Proporsi Penjualan Tiket</span>
+                                </div>
+                                <span class="badge bg-light text-muted border small">Persentase</span>
+                            </div>
+                            <div class="p-4 flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+                                <?php if ($total_tiket_bulan > 0): ?>
+                                    <div style="position: relative; width: 100%; max-width: 210px; height: 210px; margin: auto;">
+                                        <canvas id="monthlyChart"></canvas>
+                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;">
+                                            <div class="fw-extrabold text-dark fs-3 lh-1"><?= $total_tiket_bulan ?></div>
+                                            <div class="text-muted small" style="font-size: 0.75rem;">Total Tiket</div>
+                                        </div>
+                                    </div>
+                                    <!-- Custom Clean Legend Pills -->
+                                    <div class="w-100 mt-4 pt-3 border-top d-flex justify-content-around gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="rounded-circle" style="width: 10px; height: 10px; background-color: #0284c7;"></span>
+                                            <span class="small fw-semibold text-dark">Dewasa: <strong><?= $dewasa_count ?></strong></span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="rounded-circle" style="width: 10px; height: 10px; background-color: #f59e0b;"></span>
+                                            <span class="small fw-semibold text-dark">Anak-Anak: <strong><?= $anak_count ?></strong></span>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="text-center py-5">
+                                        <i class="fa-solid fa-chart-pie text-muted opacity-50 fs-1 mb-2"></i>
+                                        <div class="fw-semibold text-dark">Grafik Belum Tersedia</div>
+                                        <p class="text-muted small mb-0">Data grafik akan muncul saat transaksi tersedia.</p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <?php include '../../app/partials/footer.php'; ?>
+            </div>
         </div>
     </div>
+
+    <!-- Scripts -->
     <script src="../../../public/assets/js/bootstrap.js"></script>
-    <script src="../../../public/assets/js/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="../../../public/js/exportToExcel.js"></script>
-    <script src="../../../public/js/exportToPDF.js"></script>
     <script src="../../../public/js/print.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
 
-
-<!-- Need: Apexcharts -->
-<script src="../../../public/assets/extensions/apexcharts/apexcharts.min.js"></script>
-<script src="../../../public/assets/js/pages/dashboard.js"></script>
-<script src="../../../public/assets/extensions/sweetalert2/sweetalert2.min.js"></script>>
-<script src="../../../public/assets/js/pages/sweetalert2.js"></script>>
-<script src="../../../public/js/loader.js"></script>
-
-<!-- SweetAlert -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-<script src="../../../public/js/sweetalert.js"></script>
-<script>
-// Convert PHP data to JavaScript
-const labels = <?php echo json_encode($labels); ?>;
-const chartData = <?php echo json_encode($chartData); ?>;
-
-// Urutkan dataset dari kiri ke kanan
-chartData.reverse();
-
-// Filter data untuk memisahkan Dewasa dan Anak-Anak
-const filteredData = chartData.reduce((acc, data) => {
-  if (!acc[data.month_year]) {
-    acc[data.month_year] = [];
-  }
-  acc[data.month_year].push(data);
-  return acc;
-}, {});
-
-// Atur format dataset
-const datasets = Object.values(filteredData).map((data, index) => {
-  const dataset = {
-    label: 'data bulan ' + data[0].month_year,
-    data: data.map(item => item.total_quantity),
-    borderColor: index % 2 === 0 ? 'red' : 'blue',
-    backgroundColor: index % 2 === 0 ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 0, 255, 0.5)',
-  };
-  return dataset;
-});
-
-const data = {
-  labels: labels,
-  datasets: datasets,
-};
-
-// Get the canvas element
-const ctx = document.getElementById('myChart').getContext('2d');
-
-// Create the chart using the canvas element
-const myChart = new Chart(ctx, {
-  type: 'bar',
-  data: data,
-  options: {
-    scales: {
-      y: {
-        beginAtZero: true
-      }
+    <?php if ($total_tiket_bulan > 0): ?>
+    <script>
+    const ctx = document.getElementById('monthlyChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Dewasa', 'Anak-Anak'],
+                datasets: [{
+                    data: [<?= $dewasa_count ?>, <?= $anak_count ?>],
+                    backgroundColor: ['#0284c7', '#f59e0b'],
+                    borderWidth: 3,
+                    borderColor: '#ffffff',
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.label + ': ' + context.raw + ' lembar';
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
-  }
-});
-</script>
-
-
-
-
+    </script>
+    <?php endif; ?>
 </body>
-
 </html>

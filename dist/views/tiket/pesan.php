@@ -1,346 +1,491 @@
 <?php 
-    session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
-    if(!isset($_SESSION['username'])){
-        header('Location: ../login.php');
-        exit();
+require '../../app/config.php';
+
+// Pastikan user sudah login
+if (!isset($_SESSION['id_user'])) {
+    header('Location: ../login.php');
+    exit();
+}
+
+$id_user = (int)$_SESSION['id_user'];
+$user_nama = $_SESSION['nama'] ?? $_SESSION['username'] ?? 'Pengunjung';
+$error_msg = '';
+
+// Ambil tarif resmi tiket dari database
+$harga_tiket = [];
+$res_t = $conn->query("SELECT nama_tiket, harga FROM tiket");
+if ($res_t) {
+    while ($r = $res_t->fetch_assoc()) {
+        $harga_tiket[$r['nama_tiket']] = (int)$r['harga'];
+    }
+}
+$harga_dewasa = $harga_tiket['Dewasa'] ?? 10000;
+$harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
+
+if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $error_msg = "Token keamanan sesi kedaluwarsa. Silakan muat ulang halaman.";
     } else {
-        require '../../app/config.php';
-        $sql_max_id = $conn->query("SELECT MAX(id_transaksi) as max_id FROM transaksi;");
-        $result_max_id = $sql_max_id->fetch_assoc();
-        $maksimalid = $result_max_id["max_id"];
-        if ($_SERVER["REQUEST_METHOD"] == "POST") {
-            $secret_key = "6LcUfDsoAAAAAOuwYSk9i_ZoQwCgIexCeVMJ31Vb";
-            // Disini kita akan melakukan komunikasi dengan google recaptcha
-            // dengan mengirimkan scret key dan hasil dari response recaptcha nya
-            $verify = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret='.$secret_key.'&response='.$_POST['token']);
-            $response = json_decode($verify);
-            if($response == true){
-                $sql = $conn->query("SELECT MAX(id_transaksi) as max_id FROM transaksi;");
-                $result = $sql->fetch_assoc();
-                $id_transaksi =  $result["max_id"] + 1;
-                $id_user = $_SESSION['id_user'];
-                $tgl_pemesanan = date('Y-m-d');
-                $total_harga = $_POST['totaltiket'];
-                $metode_pembayaran = $_POST['metode_pembayaran'];
-                $status = "";
+        $qty_dewasa = max(0, (int)($_POST['quantity1'] ?? 0));
+        $qty_anak   = max(0, (int)($_POST['quantity2'] ?? 0));
+        $metode_pembayaran = trim($_POST['metode_pembayaran'] ?? 'Bayar Di Loket');
 
-                if($status == null){
-                    $status = "notyet";
-                }
+        if ($qty_dewasa === 0 && $qty_anak === 0) {
+            $error_msg = "Silakan pilih minimal 1 tiket untuk melanjutkan pemesanan.";
+        } else {
+            // 1. Hitung total secara otoritatif di sisi server (mencegah price tampering)
+            $subtotal_dewasa = $qty_dewasa * $harga_dewasa;
+            $subtotal_anak   = $qty_anak * $harga_anak;
+            $total_harga     = $subtotal_dewasa + $subtotal_anak;
+            $tgl_pemesanan   = date('Y-m-d');
+            $status          = 'notyet';
+            $nama_gambar     = null;
 
-                // Set nilai default untuk nama gambar
-                $nama_gambar = "Bayar Di Loket";
+            // 2. Kelola unggahan bukti pembayaran jika metode QRIS / Transfer
+            if (($metode_pembayaran === 'Qris' || $metode_pembayaran === 'Transfer') && isset($_FILES["bukti_pembayaran"]) && $_FILES["bukti_pembayaran"]["error"] === UPLOAD_ERR_OK) {
+                $tmp_name = $_FILES["bukti_pembayaran"]["tmp_name"];
+                $original_name = $_FILES["bukti_pembayaran"]["name"];
+                $file_size = $_FILES["bukti_pembayaran"]["size"];
+                $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
 
-                // Mengelola unggahan gambar
-                if(isset($_FILES["bukti_pembayaran"]) && $_FILES["bukti_pembayaran"]["error"] == 0){
-                    $target_dir = "../../app/payment/";  // Sesuaikan dengan path folder Anda
-                    $target_file = $target_dir . basename($_FILES["bukti_pembayaran"]["name"]);
-                    $uploadOk = 1;
-                    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+                $allowed_ext = ['jpg', 'jpeg', 'png', 'webp'];
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime_type = finfo_file($finfo, $tmp_name);
+                finfo_close($finfo);
 
-                    // Validasi gambar
-                    $check = getimagesize($_FILES["bukti_pembayaran"]["tmp_name"]);
-                    if($check !== false) {
-                        echo "File adalah gambar - " . $check["mime"] . ".";
-                        $uploadOk = 1;
-                    } else {
-                        echo "File bukan gambar.";
-                        $uploadOk = 0;
-                    }
+                $allowed_mime = ['image/jpeg', 'image/png', 'image/webp'];
 
-                    // Periksa ukuran file
-                    if ($_FILES["bukti_pembayaran"]["size"] > 500000) {
-                        echo "Maaf, ukuran file terlalu besar.";
-                        $uploadOk = 0;
-                    }
-
-                    // Izinkan beberapa tipe file
-                    if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
-                        && $imageFileType != "gif" ) {
-                        $uploadOk = 0;
-                    }
-
-                    // Periksa jika $uploadOk tidak berubah menjadi 0 oleh kesalahan
-                    if ($uploadOk == 0) {
-                        echo "Maaf, file tidak terunggah.";
-                    } else {
-                        if (move_uploaded_file($_FILES["bukti_pembayaran"]["tmp_name"], $target_file)) {
-                            echo "File ". htmlspecialchars( basename( $_FILES["bukti_pembayaran"]["name"])). " sudah terunggah.";
-                            $nama_gambar = basename($_FILES["bukti_pembayaran"]["name"]);
-                        } else {
-                            echo "Maaf, terjadi kesalahan saat mengunggah file.";
-                        }
-                    }
-                }
-
-                // Setelah gambar berhasil diunggah atau tidak, Anda dapat menyimpan data ke dalam database.
-                $transaksi = "INSERT INTO transaksi (id_transaksi, id_user, tgl_pemesanan, total_harga, metode_pembayaran, bukti_pembayaran, status) VALUES ('$id_transaksi', '$id_user', '$tgl_pemesanan', '$total_harga', '$metode_pembayaran', '$nama_gambar','$status')";
-
-                if ($conn->query($transaksi) === true) {
-                    // Lakukan loop untuk memasukkan data-detail tiket sebanyak tiga kali
-                    for ($i = 1; $i <= 2; $i++) {
-                        $jenis_tiket = $_POST['jenis_tiket'.$i];
-                        $quantity = $_POST['quantity'.$i];
-                        $sub_total = $_POST['sub_total'.$i];
-                        $detail_transaksi = "INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES ('$id_transaksi', '$jenis_tiket', '$quantity', '$sub_total')";
-                        
-                        if ($conn->query($detail_transaksi) !== true) {
-                            echo "Error: " . $conn->error;
-                            break; // Keluar dari loop jika terjadi error
-                        }
-                    }
-                    $_SESSION['id_transaksi'] = $id_transaksi;
-                    header("location: nota.php");
+                if (!in_array($ext, $allowed_ext, true) || !in_array($mime_type, $allowed_mime, true)) {
+                    $error_msg = "Format bukti pembayaran harus berupa gambar (JPG, PNG, atau WEBP).";
+                } elseif ($file_size > 2 * 1024 * 1024) { // max 2MB
+                    $error_msg = "Ukuran file bukti pembayaran maksimal adalah 2 MB.";
                 } else {
-                    echo "Error: " . $sql . "<br>" . $conn->error ;
+                    $target_dir = __DIR__ . '/../../app/payment/';
+                    if (!is_dir($target_dir)) {
+                        mkdir($target_dir, 0755, true);
+                    }
+                    $safe_filename = 'pay_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
+                    if (move_uploaded_file($tmp_name, $target_dir . $safe_filename)) {
+                        $nama_gambar = $safe_filename;
+                    } else {
+                        $error_msg = "Gagal menyimpan file bukti pembayaran.";
+                    }
+                }
+            }
+
+            if (empty($error_msg)) {
+                // 3. Simpan data menggunakan DB Transaction
+                $conn->begin_transaction();
+                try {
+                    $stmt = $conn->prepare("INSERT INTO transaksi (id_user, tgl_pemesanan, total_harga, metode_pembayaran, bukti_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("isisss", $id_user, $tgl_pemesanan, $total_harga, $metode_pembayaran, $nama_gambar, $status);
+                    $stmt->execute();
+                    $new_id_transaksi = $conn->insert_id;
+                    $stmt->close();
+
+                    // Simpan detail tiket
+                    $stmt_detail = $conn->prepare("INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES (?, ?, ?, ?)");
+                    if ($qty_dewasa > 0) {
+                        $nama_dewasa = 'Dewasa';
+                        $stmt_detail->bind_param("isii", $new_id_transaksi, $nama_dewasa, $qty_dewasa, $subtotal_dewasa);
+                        $stmt_detail->execute();
+                    }
+                    if ($qty_anak > 0) {
+                        $nama_anak = 'Anak-Anak';
+                        $stmt_detail->bind_param("isii", $new_id_transaksi, $nama_anak, $qty_anak, $subtotal_anak);
+                        $stmt_detail->execute();
+                    }
+                    $stmt_detail->close();
+
+                    $conn->commit();
+
+                    $_SESSION['id_transaksi'] = $new_id_transaksi;
+                    header("Location: nota.php?id_transaksi=" . $new_id_transaksi);
+                    exit();
+                } catch (Exception $e) {
+                    $conn->rollback();
+                    $error_msg = "Gagal memproses transaksi: " . e($e->getMessage());
                 }
             }
         }
     }
+}
 ?>
-
-
-<style>
-  .hidden {
-    display: none;
-  } 
-</style>
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
-<link rel="stylesheet" href="../../../public/css/checkout.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<title>Pesan Tiket - Pemandian</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesan Tiket Wisata - Pemandian Patemon</title>
+    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
+    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <style>
+        body {
+            background-color: #f8fafc;
+            min-height: 100vh;
+        }
+
+        .booking-header {
+            background: linear-gradient(rgba(15, 23, 42, 0.75), rgba(2, 132, 199, 0.85)), url('../../../public/img/background.png');
+            background-size: cover;
+            background-position: center;
+            color: #ffffff;
+            padding: 3rem 1.5rem 4.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .booking-container {
+            max-width: 1050px;
+            margin: -3.5rem auto 3rem;
+            padding: 0 1rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .ticket-pick-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.5rem;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .ticket-pick-card.active {
+            border-color: #0284c7;
+            background: #f0f9ff;
+        }
+
+        .summary-box {
+            position: sticky;
+            top: 2rem;
+            background: #ffffff;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            padding: 2rem 1.75rem;
+        }
+
+        .pay-method-pill input[type="radio"]:checked + label {
+            border-color: #0284c7;
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .pay-method-pill label {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            color: #334155;
+            background: #ffffff;
+            transition: all 0.15s ease;
+            width: 100%;
+        }
+
+        .dropzone-upload {
+            border: 2px dashed #cbd5e1;
+            border-radius: 14px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dropzone-upload:hover {
+            border-color: #0284c7;
+            background: #f0f9ff;
+        }
+    </style>
 </head>
 <body>
-<div class="mainscreen">
-    <!-- <img src="https://image.freepik.com/free-vector/purple-background-with-neon-frame_52683-34124.jpg"  class="bgimg " alt="">--> 
-      <div class="card">
-        <div class="leftside">
-          <img
-            src="../../../public/img/icon.png"
-            class="product"
-            alt="Shoes"
-          />
-        </div>
-        <div class="rightside">
-          <form id="form" method="POST" enctype="multipart/form-data">
-            <h1>Pesan Tiket</h1>
-            <h2>Tiket</h2>
-            <label for="dewasa">Dewasa</label>
-            <input type="number" id="dewasa" class="inputbox" min="0" value="0" name="quantity1" onchange="hitungTotal()" required/>
-            <input type="text" class="hidden" name="name" id="hargaDewasa" value="10000" onchange="hitungTotal()" />
-            <input type="text" class="hidden" name="jenis_tiket1" value="Dewasa"  />
-            <label for="anak">Anak-Anak</label>
-            <input type="number" id="anak" class="inputbox" min="0" value="0" name="quantity2" onchange="hitungTotal()" required />
-            <input type="text" class="hidden" name="name" id="hargaAnak" value="5000"onchange="hitungTotal()"  />
-            <input type="text" class="hidden" name="jenis_tiket2" value="Anak-Anak"  />
-            <h2>Pembayaran</h2>
-            <p>Metode Pembayaran</p>
-            <select class="inputbox" name="metode_pembayaran" id="card_type" required>
-              <option value="">--Pilih Metode Pembayaran--</option>
-              <option value="Qris">Scan Code Qris</option>
-              <option value="Bayar Di Loket">Bayar Di Loket</option>
-            </select>
-            <p>Bukti Pembayaran</p>
-            <input type="file" id="gambar" class="inputbox" name="bukti_pembayaran" />
-            <p style="color: #4f4d4d; font-size: 15px;"><i class="fa fa-info-circle" aria-hidden="true"></i> Jika bayar di loket, anda tidak perlu mengupload bukti pembayaran</p>
-          <h2>Total</h2>
-          <table>
-            <tbody>
-              <tr>
-                <td>Dewasa</td>
-                <td align="right">Rp. <input type="text" name="sub_total1" id="subtotalDewasa" style="border: none; width: 100px; color: #b4b4b4;" value="0" onchange="hitungTotal()" readonly></td>
-              </tr>
-              </tr>
-              <tr>
-                <td>Anak-Anak</td>
-                <td align="right">Rp. <input type="text" name="sub_total2" id="subtotalAnak" style="border: none; width: 100px; color: #b4b4b4;" value="0" onchange="hitungTotal()" readonly></td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Total</td>
-                <td align="right">Rp. <input type="text" name="totaltiket" id="total" style="border: none; width: 100px; color: #b4b4b4;" value="0" onchange="hitungTotal()" readonly></td>
-              </tr>
-            </tfoot>
-          </table>
-            <p></p>
-            <input type="text" id="token" class="hidden g-recaptcha" type="submit"
-        data-sitekey="6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2" 
-        data-callback='onSubmit' 
-        data-action='submit' value="6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2">
-        <div id="konfirmasi" class="popup">
-          <div class="popup-content">
-              <span class="close" onclick="tutupKonfirmasi()">&times;</span>
-              <h2>Apakah anda yakin ingin memesan tiket sesuai dengan yang anda pesan?</h2>
-               <p style="color: #4f4d4d; font-size: 15px;"><i class="fa fa-info-circle" aria-hidden="true"></i> jika anda tidak mengupload bukti pembayaran menggunakan Qris, maka sistem kami mendeteksi sebagai bayar di loket</p>
-              <button type="submit" class="button">Iya</button>
-              <button onclick="tutupKonfirmasi()" class="button">Tidak</button>
-              </div>
-          </div>
-          </form>
-          <button onclick="tampilkanPopup()" class="button"><i class="fa fa-ticket" aria-hidden="true"></i> Buat Nota Pembayaran</button>
-          <div id="popup" class="popup">
-          <div class="popup-content">
-            <span class="close" onclick="tutupPopup()">&times;</span>
-            <img src="../../../public/img/logo_pemandian_transparant.png" alt="..."
-            style="width: 300px; height: 100px; display: block; margin-left: auto; margin-right: auto;"/>
-            <h2 style="text-align: center;">Nota Pembayaran</h2>
-            <p style="text-align: center;">Atas Nama <?php echo $_SESSION['nama'] ?></p>
-            <p style="margin-top: 20px;">No. Nota Pembayaran: <?php echo $maksimalid ?></p>
-            <p>Dewasa : <span id="notaDewasa"></span></p>
-            <p>Anak-Anak : <span id="notaAnak"></span></p>
-            <p>Total : <span id="notaTotal"></span></p>
-            <p>Metode Pembayaran : <span id="metodePembayaran"></span></p>
-            <div id="qrcode-container" class="hidden" style="text-align: center;">
-              <p style="color: #4f4d4d; font-size: 15px;"><i class="fa fa-info-circle" aria-hidden="true"></i> Scan code QR dibawah ini untuk melakukan pembayaran lalu unggah bukti pembayaran</p>
-              <a href="id.qr-code-generator.com/" border="0" style="cursor:default" rel="nofollow"></a><img src="https://chart.googleapis.com/chart?cht=qr&chl=Anda%20sudah%20melakukan%20pembayaran!&chs=180x180&choe=UTF-8&chld=L|2">
+
+<!-- Header Banner -->
+<div class="booking-header">
+    <div style="max-width: 600px; margin: auto;">
+        <a href="../index.php" class="text-decoration-none d-inline-flex align-items-center gap-3 mb-3">
+            <img src="../../../public/img/icon.png" alt="Logo Pemandian Patemon" style="height: 56px; width: auto; object-fit: contain;">
+            <div class="text-start">
+                <div class="fw-bold text-white text-uppercase lh-1" style="font-size: 1.35rem; letter-spacing: 0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.6);">Pemandian Patemon</div>
+                <div class="text-warning small text-uppercase fw-semibold mt-1" style="letter-spacing: 1.5px; text-shadow: 0 1px 4px rgba(0,0,0,0.6);">Wisata Alam Tanggul &bull; Jember</div>
             </div>
-            <!-- <p style="color: #4f4d4d; font-size: 15px;"><i class="fa fa-info-circle" aria-hidden="true"></i> Harap untuk melakukan Screenshot pada nota pembayaran sebelum memesan tiket</p> -->
-            <!-- Tambahan informasi atau elemen nota pembayaran lainnya bisa ditambahkan di sini -->
-            <button onclick="tampilkanKonfirmasi()" class="button">Pesan Sekarang</button>
-          </div>
-        </div>
-        </div>
-      </div>
+        </a>
+        <h1 class="fw-bold mb-2" style="color: #ffffff !important; text-shadow: 0 3px 16px rgba(0, 0, 0, 0.75); font-size: 2.25rem;">Reservasi Tiket Masuk</h1>
+        <p class="mb-0" style="color: #f1f5f9 !important; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); font-size: 1.05rem;">Pengalaman pemandian alami air pegunungan yang asri, bersih, dan menyegarkan.</p>
     </div>
+</div>
 
-  <script src='https://www.google.com/recaptcha/api.js?render=6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2'></script>
-  <!-- <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script> -->
+<div class="booking-container">
+    <?php if (!empty($error_msg)): ?>
+        <div class="alert alert-danger d-flex align-items-center gap-2 mb-4 shadow-sm">
+            <i class="fa-solid fa-circle-exclamation fs-5"></i>
+            <div><?= e($error_msg) ?></div>
+        </div>
+    <?php endif; ?>
 
-  <script>
-  function onSubmit(token) {
-        console.log('onSubmit called'); 
-        document.getElementById("token").value = token;
-        document.getElementById("form").submit();
-  }
-  
-  function hitungTotal() {
-    // Calculate subtotal for each ticket type
-    let dewasa = document.getElementById("dewasa").value;
-    let hargadewasa = document.getElementById("hargaDewasa").value;
-    let anak = document.getElementById("anak").value;
-    let hargaanak = document.getElementById("hargaAnak").value;
+    <form method="POST" action="" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" id="hargaDewasa" value="<?= $harga_dewasa ?>">
+        <input type="hidden" id="hargaAnak" value="<?= $harga_anak ?>">
 
-    let sub_totalDewasa = dewasa * hargadewasa;
-    let sub_totalAnak = anak * hargaanak;
+        <div class="row g-4">
+            <!-- Left: Options & Inputs -->
+            <div class="col-12 col-lg-7">
+                <!-- User Greeting Card -->
+                <div class="modern-card mb-4" style="border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); border: 1px solid #e2e8f0;">
+                    <div class="modern-card-body d-flex align-items-center justify-content-between flex-wrap gap-2 py-3 px-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Memesan Sebagai:</div>
+                                <div class="fw-bold fs-6" style="color: #0f172a;"><?= e($user_nama) ?></div>
+                            </div>
+                        </div>
+                        <a href="../index.php" class="btn btn-sm btn-soft-primary">
+                            <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
+                        </a>
+                    </div>
+                </div>
 
-    // Update the subtotals in the input fields
-    document.getElementById("subtotalDewasa").value = sub_totalDewasa;
-    document.getElementById("subtotalAnak").value = sub_totalAnak;
+                <!-- Step 1: Ticket Selection -->
+                <div class="modern-card mb-4">
+                    <div class="modern-card-header">
+                        <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-ticket text-primary me-2"></i> 1. Tentukan Jumlah Tiket</span>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="row g-3">
+                            <!-- Card Tiket Dewasa -->
+                            <div class="col-12 col-sm-6">
+                                <div class="ticket-pick-card" id="cardDewasa">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="fw-bold fs-5" style="color: #0f172a;">Dewasa</div>
+                                        <div class="metric-icon-box blue" style="width: 38px; height: 38px; font-size: 1rem;">
+                                            <i class="fa-solid fa-person"></i>
+                                        </div>
+                                    </div>
+                                    <div class="text-muted small mb-3">Akses kolam dewasa & seluruh fasilitas umum</div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="fw-extrabold text-primary fs-5"><?= format_rupiah($harga_dewasa) ?></div>
+                                        <div class="qty-stepper">
+                                            <button type="button" onclick="changeQty('quantity1', -1)"><i class="fa-solid fa-minus"></i></button>
+                                            <input type="number" id="quantity1" name="quantity1" value="0" min="0" readonly style="color: #0f172a;">
+                                            <button type="button" onclick="changeQty('quantity1', 1)"><i class="fa-solid fa-plus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="text-end text-muted small mt-2">
+                                        Subtotal: <strong id="subDewasaTxt" style="color: #0284c7; font-weight: 700;">Rp 0</strong>
+                                    </div>
+                                </div>
+                            </div>
 
-    // Calculate the total
-    let total = sub_totalDewasa + sub_totalAnak;
+                            <!-- Card Tiket Anak-Anak -->
+                            <div class="col-12 col-sm-6">
+                                <div class="ticket-pick-card" id="cardAnak">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="fw-bold fs-5" style="color: #0f172a;">Anak-Anak</div>
+                                        <div class="metric-icon-box amber" style="width: 38px; height: 38px; font-size: 1rem;">
+                                            <i class="fa-solid fa-child-reaching"></i>
+                                        </div>
+                                    </div>
+                                    <div class="text-muted small mb-3">Akses kolam anak khusus dengan kedalaman aman</div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="fw-extrabold fs-5" style="color: #d97706;"><?= format_rupiah($harga_anak) ?></div>
+                                        <div class="qty-stepper">
+                                            <button type="button" onclick="changeQty('quantity2', -1)"><i class="fa-solid fa-minus"></i></button>
+                                            <input type="number" id="quantity2" name="quantity2" value="0" min="0" readonly style="color: #0f172a;">
+                                            <button type="button" onclick="changeQty('quantity2', 1)"><i class="fa-solid fa-plus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="text-end text-muted small mt-2">
+                                        Subtotal: <strong id="subAnakTxt" style="color: #d97706; font-weight: 700;">Rp 0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    // Update the total in the input field
-    document.getElementById("total").value = total;
+                <!-- Step 2: Payment Method -->
+                <div class="modern-card mb-4">
+                    <div class="modern-card-header">
+                        <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-wallet text-primary me-2"></i> 2. Metode Pembayaran</span>
+                    </div>
+                    <div class="modern-card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-12 col-sm-6 pay-method-pill">
+                                <input type="radio" class="d-none" name="metode_pembayaran" id="m_loket" value="Bayar Di Loket" checked onchange="togglePaymentProof()">
+                                <label for="m_loket">
+                                    <i class="fa-solid fa-hand-holding-dollar text-success fs-5"></i>
+                                    <span style="color: #0f172a;">Bayar di Loket (Tunai)</span>
+                                </label>
+                            </div>
+                            <div class="col-12 col-sm-6 pay-method-pill">
+                                <input type="radio" class="d-none" name="metode_pembayaran" id="m_qris" value="Qris" onchange="togglePaymentProof()">
+                                <label for="m_qris">
+                                    <i class="fa-solid fa-qrcode text-primary fs-5"></i>
+                                    <span style="color: #0f172a;">QRIS / Transfer Bank</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Info Rekening & Upload Bukti (Ditampilkan jika memilih QRIS/Transfer) -->
+                        <div id="qrisDetailSection" class="d-none p-3 rounded-3 mt-3" style="background: #f0f9ff; border: 1.5px solid #bae6fd;">
+                            <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold">
+                                <i class="fa-solid fa-building-columns"></i>
+                                <span>Rekening Pembayaran Resmi:</span>
+                            </div>
+                            <div class="bg-white p-3 rounded-3 border mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div class="text-muted small">Bank Mandiri / BCA</div>
+                                    <div class="fw-extrabold fs-4" style="color: #0f172a; letter-spacing: 0.04em;" id="rekNumber">142-00-18293-881</div>
+                                    <div class="text-muted small">a.n. Wisata Pemandian Patemon</div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-soft-primary" onclick="copyRekening()" id="btnCopyRek">
+                                    <i class="fa-regular fa-copy me-1"></i> Salin No Rekening
+                                </button>
+                            </div>
+
+                            <label class="form-label fw-bold small mb-2" style="color: #0f172a;">Unggah Bukti Transfer (Opsional saat ini, dapat ditunjukkan di loket):</label>
+                            <label for="bukti_pembayaran" class="modern-file-upload-card" id="dropzoneBox">
+                                <i class="fa-solid fa-cloud-arrow-up text-primary fs-2 mb-2 d-block"></i>
+                                <div class="fw-semibold mb-1" id="fileUploadName" style="color: #0f172a;">Klik untuk memilih foto bukti transfer</div>
+                                <div class="text-muted small">Mendukung format JPG, PNG, atau WEBP (Maksimal 2 MB)</div>
+                                <input 
+                                    type="file" 
+                                    name="bukti_pembayaran" 
+                                    id="bukti_pembayaran" 
+                                    class="d-none"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onchange="handleFileChange(this)"
+                                >
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Live Summary Box -->
+            <div class="col-12 col-lg-5">
+                <div class="summary-box">
+                    <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+                        <div class="fw-bold fs-5" style="color: #0f172a;">Total Pemesanan</div>
+                        <span class="badge badge-modern-primary"><i class="fa-solid fa-water"></i> Patemon</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-2 text-muted" style="font-size: 0.925rem;">
+                        <span>Tiket Dewasa (<span id="sumQtyDewasa">0</span>x)</span>
+                        <strong id="sumSubDewasa" style="color: #0f172a; font-weight: 700;">Rp 0</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 text-muted" style="font-size: 0.925rem;">
+                        <span>Tiket Anak (<span id="sumQtyAnak">0</span>x)</span>
+                        <strong id="sumSubAnak" style="color: #0f172a; font-weight: 700;">Rp 0</strong>
+                    </div>
+
+                    <div class="p-3 rounded-3 mb-4 text-center" style="background: #f8fafc; border: 2px dashed #cbd5e1;">
+                        <div class="small fw-bold text-uppercase mb-1" style="color: #64748b; letter-spacing: 0.05em;">Total yang harus dibayar:</div>
+                        <div class="fw-extrabold text-primary" id="totalHargaTxt" style="font-size: 2.25rem; line-height: 1.1;">Rp 0</div>
+                    </div>
+
+                    <div class="text-muted small mb-4 d-flex align-items-start gap-2">
+                        <i class="fa-solid fa-shield-halved text-success mt-1"></i>
+                        <span>Nota struk dengan barcode akan otomatis terbit setelah Anda menekan tombol di bawah.</span>
+                    </div>
+
+                    <button type="submit" class="btn-brand w-100 py-3 fs-5" id="btnSubmit">
+                        <i class="fa-solid fa-circle-check me-2"></i> Konfirmasi & Pesan Tiket
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<footer class="text-center py-4 text-muted small">
+    &copy; <?= date('Y') ?> Wisata Pemandian Patemon. All rights reserved.
+</footer>
+
+<script>
+const hargaDewasa = parseInt(document.getElementById('hargaDewasa').value) || 10000;
+const hargaAnak   = parseInt(document.getElementById('hargaAnak').value) || 5000;
+
+function formatRupiah(num) {
+    return 'Rp ' + num.toLocaleString('id-ID');
 }
-//function showSweetAlert() {
-//var jenis_tiket = document.getElementById("jenis_tiket");
-//   var anak = document.getElementById("anak");
-//   var subtotalAnak = document.getElementById("subtotalAnak");
-//   var remaja = document.getElementById("remaja");
-//   var subtotalRemaja = document.getElementById("subtotalRemaja");
-//   var dewasa = document.getElementById("dewasa");
-//   var subtotalDewasa = document.getElementById("subtotalDewasa");
-//   var metode_pembayaran = document.getElementById("metode_pembayaran");
-//     Swal.fire({
-//               title: Apakah kamu yakin?,
-//               text: "silahkan untuk cek pesanan anda apakah sudah benar atau tidak.",
-//               icon: 'warning',
-//               showCancelButton: true,
-//               confirmButtonColor: '#3085d6',
-//               cancelButtonColor: '#d33',
-//               cancelButtonText: 'Batal',
-//               confirmButtonText: 'Yakin'
-//             }).then((result) => {
-//               if (result.isConfirmed) {
-//                 $.ajax({
-//                 url: pesan.php,
-//                 method: "POST",
-//                 data: { jenis_tiket: jenis_tiket,
-//                         quantity: [anak, remaja, dewasa],
-//                         sub_total: [subtotalAnak, subtotalRemaja, subtotalDewasa],
-//                         metode_pembayaran: metode_pembayaran
-//                       },
-//                 success: function(response) {
-//                     console.log("Data berhasil dikirim.");
-//                     // link.closest("tr").remove();
 
-//                     location.href = "index.php?success=1&message=Pesanan Anda Berhasil Dikirim";
-//                 },
-//                 error: function(error) {
-//                     console.error("Terjadi kesalahan: " + error);
-//                     location.href = "pelanggan.php?error=1&message=Terjadi Kesalahan S  istem";
-//                 }
-//              });
-                
-//               }
-//             });
-//   }
-function tampilkanPopup() {
-    let notaDewasa = document.getElementById("subtotalDewasa").value;
-    let notaAnak = document.getElementById("subtotalAnak").value;
-    let total = document.getElementById("total").value;
-    let metodePembayaran = document.getElementById("card_type").value;
+function changeQty(id, delta) {
+    const input = document.getElementById(id);
+    let val = parseInt(input.value) || 0;
+    val = Math.max(0, val + delta);
+    input.value = val;
+    recalculate();
+}
 
-    document.getElementById("notaDewasa").textContent = "Rp. " + notaDewasa;
-    document.getElementById("notaAnak").textContent = "Rp. " + notaAnak;
-    document.getElementById("notaTotal").textContent = "Rp. " + total;
-    document.getElementById("metodePembayaran").textContent = metodePembayaran;
+function recalculate() {
+    const qDewasa = parseInt(document.getElementById('quantity1').value) || 0;
+    const qAnak   = parseInt(document.getElementById('quantity2').value) || 0;
 
-    // Check if the selected payment method is "Qris"
-    if (metodePembayaran === "Qris") {
+    const subDewasa = qDewasa * hargaDewasa;
+    const subAnak   = qAnak * hargaAnak;
+    const total     = subDewasa + subAnak;
 
-      // Show QR code container
-      document.getElementById("qrcode-container").classList.remove("hidden");
+    document.getElementById('subDewasaTxt').innerText = formatRupiah(subDewasa);
+    document.getElementById('subAnakTxt').innerText   = formatRupiah(subAnak);
+
+    document.getElementById('sumQtyDewasa').innerText = qDewasa;
+    document.getElementById('sumSubDewasa').innerText = formatRupiah(subDewasa);
+
+    document.getElementById('sumQtyAnak').innerText = qAnak;
+    document.getElementById('sumSubAnak').innerText = formatRupiah(subAnak);
+
+    document.getElementById('totalHargaTxt').innerText = formatRupiah(total);
+
+    document.getElementById('cardDewasa').classList.toggle('active', qDewasa > 0);
+    document.getElementById('cardAnak').classList.toggle('active', qAnak > 0);
+}
+
+function togglePaymentProof() {
+    const isQris = document.getElementById('m_qris').checked;
+    const section = document.getElementById('qrisDetailSection');
+    if (isQris) {
+        section.classList.remove('d-none');
     } else {
-      // Hide QR code container
-      document.getElementById("qrcode-container").classList.add("hidden");
+        section.classList.add('d-none');
     }
+}
 
-    // Show the existing popup
-    document.getElementById("popup").style.display = "block";
-  }
+function copyRekening() {
+    const rek = document.getElementById('rekNumber').innerText.trim();
+    navigator.clipboard.writeText(rek).then(() => {
+        const btn = document.getElementById('btnCopyRek');
+        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Tersalin!';
+        btn.classList.remove('btn-soft-primary');
+        btn.classList.add('btn-soft-success');
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fa-regular fa-copy me-1"></i> Salin No Rekening';
+            btn.classList.remove('btn-soft-success');
+            btn.classList.add('btn-soft-primary');
+        }, 2000);
+    });
+}
 
-  // // Function to generate QR code
-  // function generateQRCode() {
-  //   let qrcode = new QRCode(document.getElementById("qrcode-container"), {
-  //     text: "Your_QR_Code_Data_Here", // Replace with your actual QR code data
-  //     width: 128,
-  //     height: 128,
-  //   });
-  // }
-
-  function tutupPopup() {
-    // Hide the QR code container
-    document.getElementById("qrcode-container").classList.add("hidden");
-
-    // Hide the existing popup
-    document.getElementById("popup").style.display = "none";
-  }
-
-  function tampilkanKonfirmasi() {
-    document.getElementById("popup").style.display = "none";
-    document.getElementById("konfirmasi").style.display = "block";
-  }
-  function tutupKonfirmasi() {
-    document.getElementById("konfirmasi").style.display = "none";
-  }
-
-  </script>  
-  <script src='https://www.google.com/recaptcha/api.js?render=6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2'></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="../../../node_modules/sweetalert2/dist/sweetalert2.all.min.js"></script>
-  </body>
-
-  </html>
-
-
+function handleFileChange(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const nameBox = document.getElementById('fileUploadName');
+        nameBox.innerHTML = '<span class="text-success"><i class="fa-solid fa-file-image me-1"></i> ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)</span>';
+        document.getElementById('dropzoneBox').style.borderColor = '#10b981';
+        document.getElementById('dropzoneBox').style.background = '#ecfdf5';
+    }
+}
+</script>
+</body>
+</html>

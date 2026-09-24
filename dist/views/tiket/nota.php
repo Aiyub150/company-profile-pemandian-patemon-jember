@@ -1,144 +1,311 @@
 <?php
 require '../../../vendor/autoload.php';
+require '../../app/config.php';
+
 use Picqer\Barcode\BarcodeGeneratorHTML;
 
-session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
-if(!isset($_SESSION['username'])){
+if (!isset($_SESSION['id_user'])) {
     header('Location: ../login.php');
     exit();
-} else {
-    require '../../app/config.php';
-    $id_user = $_SESSION['id_user'];
-    $nama = $_SESSION['nama'];
-    $id_transaksi = $_SESSION['id_transaksi'];
-    $sql = "SELECT * FROM transaksi WHERE id_user=? AND id_transaksi=?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("ss", $id_user, $id_transaksi);
+}
+
+$id_user = (int)$_SESSION['id_user'];
+$nama = $_SESSION['nama'] ?? $_SESSION['username'] ?? 'Pelanggan';
+$id_transaksi = (int)($_GET['id_transaksi'] ?? ($_GET['id'] ?? ($_SESSION['id_transaksi'] ?? 0)));
+
+if ($id_transaksi <= 0) {
+    header('Location: ../index.php');
+    exit();
+}
+
+// Ambil transaksi menggunakan Prepared Statement
+$stmt = $conn->prepare("SELECT transaksi.*, users.nama as user_nama FROM transaksi LEFT JOIN users ON transaksi.id_user = users.id_user WHERE id_transaksi = ? AND (transaksi.id_user = ? OR ? = 1 OR ? = 2) LIMIT 1");
+$user_lvl = (int)($_SESSION['level'] ?? 0);
+$stmt->bind_param("iiii", $id_transaksi, $id_user, $user_lvl, $user_lvl);
 $stmt->execute();
-$result = $stmt->get_result();
+$transaksi_data = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
-$dewasaQuery = "SELECT * FROM detail_transaksi INNER JOIN transaksi ON detail_transaksi.id_transaksi=transaksi.id_transaksi WHERE detail_transaksi.id_transaksi='$id_transaksi' AND jenis_tiket='Dewasa'";
-$anakQuery = "SELECT * FROM detail_transaksi INNER JOIN transaksi ON detail_transaksi.id_transaksi=transaksi.id_transaksi WHERE detail_transaksi.id_transaksi='$id_transaksi' AND jenis_tiket='Anak-Anak'";
+if (!$transaksi_data) {
+    die("<div style='text-align:center; padding: 50px; font-family: sans-serif;'><h2>Nota Transaksi Tidak Ditemukan</h2><p>Anda tidak memiliki akses ke transaksi ini atau nomor ID salah.</p><a href='../index.php'>Kembali ke Beranda</a></div>");
+}
 
-$dewasaResult = $conn->query($dewasaQuery);
-$anakResult = $conn->query($anakQuery);
+// Ambil detail tiket Dewasa dan Anak-Anak
+$stmt_d = $conn->prepare("SELECT quantity, sub_total FROM detail_transaksi WHERE id_transaksi = ? AND jenis_tiket = 'Dewasa' LIMIT 1");
+$stmt_d->bind_param("i", $id_transaksi);
+$stmt_d->execute();
+$dewasa = $stmt_d->get_result()->fetch_assoc();
+$stmt_d->close();
 
-$d = $dewasaResult->fetch_assoc();
-$a = $anakResult->fetch_assoc();
+$stmt_a = $conn->prepare("SELECT quantity, sub_total FROM detail_transaksi WHERE id_transaksi = ? AND jenis_tiket = 'Anak-Anak' LIMIT 1");
+$stmt_a->bind_param("i", $id_transaksi);
+$stmt_a->execute();
+$anak = $stmt_a->get_result()->fetch_assoc();
+$stmt_a->close();
 
-// Create a barcode generator instance
-$generator = new BarcodeGeneratorHTML();
+$dewasa_qty = (int)($dewasa['quantity'] ?? 0);
+$dewasa_sub = (float)($dewasa['sub_total'] ?? 0);
 
-// Generate the barcode HTML with the transaction ID
-$barcodeHTML = $generator->getBarcode($id_transaksi, $generator::TYPE_CODE_128);
+$anak_qty   = (int)($anak['quantity'] ?? 0);
+$anak_sub   = (float)($anak['sub_total'] ?? 0);
+
+$total_tiket = $dewasa_qty + $anak_qty;
+
+// Generate Barcode
+$barcodeHTML = '';
+try {
+    $generator = new BarcodeGeneratorHTML();
+    $barcodeHTML = $generator->getBarcode((string)$id_transaksi, $generator::TYPE_CODE_128);
+} catch (Exception $e) {
+    $barcodeHTML = "<div style='letter-spacing: 4px; font-weight: bold;'>*" . str_pad($id_transaksi, 8, '0', STR_PAD_LEFT) . "*</div>";
 }
 ?>
- <style>
-        /* Add the styles for the barcode container */
-        .barcode-container {
-            width: 200px; /* Set your desired width */
-            height: auto; /* Adjust the height as needed */
-            margin: 0 auto; /* Center the barcode horizontally */
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Struk Tiket #<?= $id_transaksi ?> - Pemandian Patemon</title>
+    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <style>
+        body {
+            background-color: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            margin: 0;
         }
 
-        .barcode-container img {
-            width: 100%; /* Make sure the barcode image fills the container */
-            height: auto; /* Maintain aspect ratio */
+        .ticket-voucher {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            position: relative;
         }
+
+        .voucher-header {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: #ffffff;
+            padding: 2rem 1.75rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .voucher-header img {
+            height: 48px;
+            width: auto;
+            max-width: 68px;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 4px;
+            margin-bottom: 0.75rem;
+        }
+
+        .voucher-header h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin: 0 0 0.25rem;
+            letter-spacing: 0.02em;
+        }
+
+        .voucher-header p {
+            font-size: 0.825rem;
+            color: #e0f2fe;
+            margin: 0;
+        }
+
+        .voucher-body {
+            padding: 1.75rem;
+        }
+
+        .barcode-section {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px dashed #e2e8f0;
+        }
+
+        .barcode-wrapper {
+            display: inline-block;
+            max-width: 260px;
+            margin: 0.5rem auto;
+        }
+
+        .barcode-wrapper div {
+            margin: 0 auto;
+        }
+
+        .perforated-divider {
+            position: relative;
+            border-top: 2px dashed #cbd5e1;
+            margin: 1.5rem -1.75rem;
+        }
+
+        .perforated-divider::before, .perforated-divider::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            width: 20px;
+            height: 20px;
+            background-color: #f1f5f9;
+            border-radius: 50%;
+        }
+
+        .perforated-divider::before {
+            left: -10px;
+        }
+
+        .perforated-divider::after {
+            right: -10px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            font-size: 0.925rem;
+        }
+
+        .action-bar {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 0.75rem;
+            width: 100%;
+            max-width: 440px;
+        }
+
         @media print {
             body {
-                font-size: 12pt; /* Set your desired font size for print */
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
-
-            .barcode-container {
-                /* Adjust styles for printing, e.g., make it full-width */
-                width: 100%;
-                margin: 0; /* Remove margin for full-width */
+            .action-bar, .no-print {
+                display: none !important;
+            }
+            .ticket-voucher {
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }
+            .voucher-header {
+                background: #0284c7 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     </style>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
-<link rel="stylesheet" href="../../../public/css/checkout.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-<title>Pesan Tiket - Pemandian</title>
 </head>
 <body>
-<div class="mainscreen">
-    <!-- <img src="https://image.freepik.com/free-vector/purple-background-with-neon-frame_52683-34124.jpg"  class="bgimg " alt="">--> 
-      <div class="card">
-        <div class="leftside">
-          <img
-            src="../../../public/img/icon.png"
-            class="product"
-            alt="Shoes"
-          />
-        </div>
-        <div class="rightside" >
-            <div id="Nota">
-            <img src="../../../public/img/logo_pemandian_transparant.png" alt="..." style="margin-left: auto; margin-right: auto;"/>
 
-            <h2 style="margin-top: 20px; text-align: center;">Nota Pembayaran</h2>
-            <div class="barcode-container"><?php echo $barcodeHTML; ?></div>
-        <?php
-        if ($result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                echo "<p>Nama : " . $nama . "</p>";
-                echo "<p>Tanggal Transaksi : " . $row['tgl_pemesanan'] . "</p>";
-                echo "<p>No. Pembayaran : " . $row['id_transaksi'] . "</p>";
-        
-                // Display Dewasa quantity
-                // $dewasaQuantity = isset($d['quantity']) ? $d['quantity'] : 0;
-                echo "<p>Dewasa : " . $d['quantity'] . "</p>";
-        
-                // Display Anak quantity
-                // $anakQuantity = isset($a['quantity']) ? $a['quantity'] : 0;
-                echo "<p>Anak : " . $a['quantity'] . "</p>";
-        
-                echo "<p>Metode Pembayaran : " . $row['metode_pembayaran'] . "</p>";
-                echo "<p>Total : " . $row['total_harga'] . "</p>";
-            }
-        }
-
-        ?>
-        
-        </div>
-        <p style="color: #4f4d4d; font-size: 15px;"><i class="fa fa-info-circle" aria-hidden="true"></i> Harap untuk melakukan Screenshot pada nota pembayaran sebelum memesan tiket atau memilih opsi cetak pembayaran</p>
-        <button onclick="printNota('Nota')" class="button"><i class="fa fa-print" aria-hidden="true"></i> Cetak Nota Pembayaran</button>
-        <a href="../index.php" style="margin-top: 50px; text-decoration: none;"> <button class="button">selesai</button></a>
-      </div>
+<div class="ticket-voucher" id="ticketPrintArea">
+    <!-- Header -->
+    <div class="voucher-header">
+        <img src="../../../public/img/icon.png" alt="Logo">
+        <h1>PEMANDIAN PATEMON</h1>
+        <p>Jl. Patemon, Tanggul Kulon, Kec. Tanggul, Jember, Jawa Timur</p>
     </div>
 
-  <script src='https://www.google.com/recaptcha/api.js?render=6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2'></script>
-  <!-- <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script> -->
+    <!-- Voucher Body -->
+    <div class="voucher-body">
+        <!-- Barcode Section -->
+        <div class="barcode-section">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">KODE TRANSAKSI TIKET</div>
+            <div class="fw-bold fs-4 text-dark mt-1">#<?= str_pad($id_transaksi, 6, '0', STR_PAD_LEFT) ?></div>
+            <div class="barcode-wrapper">
+                <?= $barcodeHTML ?>
+            </div>
+            <div class="small text-muted">Arahkan barcode ke alat pemindai pintu loket</div>
+        </div>
 
-  <script>
-    function printNota(Nota) {
-        var notaElement = document.getElementById(Nota);
-        var printContents = notaElement.outerHTML;
-        var originalContents = document.body.innerHTML;
+        <!-- Detail Pemesanan -->
+        <div class="item-row">
+            <span class="text-muted">Nama Pengunjung:</span>
+            <strong class="text-dark"><?= e($transaksi_data['user_nama'] ?? $transaksi_data['nama_pemesan'] ?? $nama) ?></strong>
+        </div>
+        <div class="item-row">
+            <span class="text-muted">Tanggal Kunjungan:</span>
+            <strong><?= date('d M Y', strtotime($transaksi_data['tgl_pemesanan'])) ?></strong>
+        </div>
+        <div class="item-row">
+            <span class="text-muted">Metode Pembayaran:</span>
+            <span class="badge bg-light text-dark border"><?= strtoupper(e($transaksi_data['metode_pembayaran'] ?? 'TUNAI')) ?></span>
+        </div>
 
-        // Menetapkan lebar menjadi 100% dari lebar window
-        notaElement.style.width = "100%";
+        <div class="perforated-divider"></div>
 
-        document.body.innerHTML = printContents;
+        <!-- Rincian Tiket -->
+        <div style="font-size: 0.775rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">
+            RINCIAN TIKET MASUK
+        </div>
 
-        // Menggunakan fungsi print
-        window.print();
+        <?php if ($dewasa_qty > 0): ?>
+            <div class="item-row">
+                <span>Tiket Dewasa (<?= $dewasa_qty ?>x)</span>
+                <strong><?= format_rupiah($dewasa_sub) ?></strong>
+            </div>
+        <?php endif; ?>
 
-        // Mengembalikan konten asli
-        document.body.innerHTML = originalContents;
-    }
-</script>    
-  <script src='https://www.google.com/recaptcha/api.js?render=6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2'></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="../../../node_modules/sweetalert2/dist/sweetalert2.all.min.js"></script>
-  </body>
+        <?php if ($anak_qty > 0): ?>
+            <div class="item-row">
+                <span>Tiket Anak-Anak (<?= $anak_qty ?>x)</span>
+                <strong><?= format_rupiah($anak_sub) ?></strong>
+            </div>
+        <?php endif; ?>
 
-  </html>
+        <div class="item-row pt-2 border-top mt-2">
+            <span class="fw-bold fs-6 text-dark">Total Pembayaran:</span>
+            <strong class="text-primary fs-5"><?= format_rupiah($transaksi_data['total_harga']) ?></strong>
+        </div>
+
+        <!-- Status Lunas -->
+        <div class="text-center mt-3 pt-2">
+            <?php if ($transaksi_data['status'] === 'done'): ?>
+                <span class="badge-modern badge-modern-success py-2 px-3 fs-6">
+                    <i class="fa-solid fa-circle-check me-1"></i> LUNAS / SUDAH DIBAYAR
+                </span>
+            <?php else: ?>
+                <span class="badge-modern badge-modern-warning py-2 px-3 fs-6">
+                    <i class="fa-solid fa-clock me-1"></i> MENUNGGU PEMBAYARAN
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <div class="text-center text-muted mt-4" style="font-size: 0.75rem; line-height: 1.4;">
+            Terima kasih atas kunjungan Anda di Pemandian Patemon.<br>
+            Harap simpan struk ini sebagai bukti akses masuk kolam.
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Buttons -->
+<div class="action-bar">
+    <button onclick="window.print()" class="btn btn-brand flex-grow-1 py-2">
+        <i class="fa-solid fa-print me-1"></i> Cetak Struk Nota
+    </button>
+    <?php
+    $back_url = '../index.php';
+    if ($_SESSION['level'] == 1) $back_url = '../transaksi/transaksi.php';
+    if ($_SESSION['level'] == 2) $back_url = '../transaksi/staf.php';
+    ?>
+    <a href="<?= $back_url ?>" class="btn btn-outline-secondary px-3 py-2">
+        <i class="fa-solid fa-arrow-left me-1"></i> Kembali
+    </a>
+</div>
+
+</body>
+</html>

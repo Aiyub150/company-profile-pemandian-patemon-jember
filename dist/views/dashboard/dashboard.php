@@ -1,439 +1,345 @@
 <?php
-session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
-
 require '../../app/config.php';
 
-if(isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')){
+// Hanya Administrator (Level 1) yang mengelola dashboard ringkasan statistik
+check_auth([1]);
 
-// Pengguna dengan level 1 atau 2 diizinkan mengakses dashboard.php
+$active_menu = 'dashboard';
+$base_view = '..';
 
-} else {
+// 1. Total Omzet Penjualan
+$res_total = $conn->query("SELECT SUM(total_harga) as total_omzet FROM transaksi WHERE status = 'done'");
+$row_total = $res_total ? $res_total->fetch_assoc() : null;
+$total_omzet = (float)($row_total['total_omzet'] ?? 0);
 
-header('Location: ../index.php'); exit();
+// 2. Total Pengguna Terdaftar
+$res_user = $conn->query("SELECT COUNT(*) as total_users FROM users");
+$row_user = $res_user ? $res_user->fetch_assoc() : null;
+$total_users = (int)($row_user['total_users'] ?? 0);
 
-}
+// 3. Statistik Penjualan 12 Bulan (Tahun Berjalan)
+$labels_bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+$transaksi_per_bulan = array_fill(0, 12, 0);
 
-$labels = ['januari','februari','maret', 'april', 'mei', 'juni', 'juli', 'agustus', 'september', 'oktober', 'november', 'desember'];
-
-$totalQuery = "SELECT SUM(total_harga) as total_jumlah FROM transaksi";
-$hasil = $conn->query($totalQuery);
-
-if ($hasil && $hasil->num_rows > 0) {
-    $row = $hasil->fetch_assoc();
-    $p = $row['total_jumlah'];
-} else {
-    $p = 0; // Atur ke nol jika tidak ada hasil atau terjadi kesalahan
-}
-
-$user = "SELECT COUNT(*) as jumlah_user FROM users";
-$users = $conn->query($user);
-
-if ($users && $users->num_rows > 0) {
-    $row = $users->fetch_assoc();
-    $jumlah_user = $row['jumlah_user'];
-} else {
-    $jumlah_user = 0; // Atur ke nol jika tidak ada hasil atau terjadi kesalahan
-}
-
-for ($bulan = 1; $bulan <= 12; $bulan++) {
-    $sql = "SELECT * FROM transaksi WHERE MONTH(tgl_pemesanan) = $bulan";
-    $result = $conn->query($sql);
-    $data[$bulan] = $result->num_rows; // Simpan jumlah transaksi untuk bulan ini
-}
-
-for ($jenis_tiket = 1; $jenis_tiket <= 2; $jenis_tiket++) {
-    if ($jenis_tiket == 1) {
-        $jenis_tiket_label = "Dewasa";
-    } else {
-        $jenis_tiket_label = "Anak-Anak";
-    }
-
-    $sql = "SELECT quantity FROM detail_transaksi WHERE jenis_tiket = '$jenis_tiket_label'";
-    $result = $conn->query($sql);
-
-    // Jika query berhasil dijalankan
-    if ($result) {
-        $total_quantity = 0;
-
-        while ($row = $result->fetch_assoc()) {
-            $total_quantity += $row['quantity'];
+$res_monthly = $conn->query("SELECT MONTH(tgl_pemesanan) as bln, COUNT(*) as jml FROM transaksi WHERE YEAR(tgl_pemesanan) = YEAR(CURDATE()) GROUP BY MONTH(tgl_pemesanan)");
+if ($res_monthly) {
+    while ($m = $res_monthly->fetch_assoc()) {
+        $idx = (int)$m['bln'] - 1;
+        if ($idx >= 0 && $idx < 12) {
+            $transaksi_per_bulan[$idx] = (int)$m['jml'];
         }
-
-        $tiket[$jenis_tiket] = $total_quantity;
     }
 }
 
-$dewasa = "SELECT SUM(sub_total) as total_sub_total FROM detail_transaksi WHERE jenis_tiket='Dewasa'";
-$hasild = $conn->query($dewasa);
+// 4. Rekap Penjualan Tiket per Jenis (Dewasa & Anak)
+$qty_dewasa = 0; $subtotal_dewasa = 0;
+$qty_anak   = 0; $subtotal_anak   = 0;
 
-$total_sub_total_dewasa = 0;
-
-if ($hasild && $hasild->num_rows > 0) {
-    while ($row = $hasild->fetch_assoc()) {
-        $total_sub_total_dewasa += $row['total_sub_total'];
+$res_tiket = $conn->query("SELECT jenis_tiket, SUM(quantity) as total_qty, SUM(sub_total) as total_sub FROM detail_transaksi GROUP BY jenis_tiket");
+if ($res_tiket) {
+    while ($t = $res_tiket->fetch_assoc()) {
+        if ($t['jenis_tiket'] === 'Dewasa') {
+            $qty_dewasa = (int)$t['total_qty'];
+            $subtotal_dewasa = (float)$t['total_sub'];
+        } elseif ($t['jenis_tiket'] === 'Anak-Anak') {
+            $qty_anak = (int)$t['total_qty'];
+            $subtotal_anak = (float)$t['total_sub'];
+        }
     }
 }
+$total_tiket_terjual = $qty_dewasa + $qty_anak;
 
-$anak = "SELECT SUM(sub_total) as total_sub_total FROM detail_transaksi WHERE jenis_tiket='Anak-Anak'";
-$hasila = $conn->query($anak);
-
-$total_sub_total_anak = 0;
-
-if ($hasila && $hasila->num_rows > 0) {
-    while ($row = $hasila->fetch_assoc()) {
-        $total_sub_total_anak += $row['total_sub_total'];
+// 5. Ambil 5 Transaksi Terkini
+$recent_trans = [];
+$res_recent = $conn->query("SELECT t.id_transaksi, t.nama_pemesan, t.total_harga, t.tgl_pemesanan, t.status, t.metode_pembayaran 
+                            FROM transaksi t 
+                            ORDER BY t.id_transaksi DESC LIMIT 5");
+if ($res_recent) {
+    while ($r = $res_recent->fetch_assoc()) {
+        $recent_trans[] = $r;
     }
 }
 ?>
-
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Pemandian</title>
+    <title>Dashboard Admin - Pemandian Patemon</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app-dark.css">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.svg" type="image/x-icon">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.png" type="image/png">
-    <link rel="stylesheet" href="../../../public/css/loader.css">
-    <link rel="stylesheet" href="../../../public/assets/css/shared/iconly.css">
-
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
 </head>
 
 <body>
     <div id="app">
-    
-        <div id="sidebar" class="active">
-            <div class="sidebar-wrapper active">
-    <div class="sidebar-header position-relative">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="logo">
-                <a href="index.html"><img src="../../../public/img/logo_pemandian_transparant.png" alt="Logo" srcset=""></a>
-            </div>
-            <div class="theme-toggle d-flex gap-2  align-items-center mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--system-uicons" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 21 21"><g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 14.5c2.219 0 4-1.763 4-3.982a4.003 4.003 0 0 0-4-4.018c-2.219 0-4 1.781-4 4c0 2.219 1.781 4 4 4zM4.136 4.136L5.55 5.55m9.9 9.9l1.414 1.414M1.5 10.5h2m14 0h2M4.135 16.863L5.55 15.45m9.899-9.9l1.414-1.415M10.5 19.5v-2m0-14v-2" opacity=".3"></path><g transform="translate(-210 -1)"><path d="M220.5 2.5v2m6.5.5l-1.5 1.5"></path><circle cx="220.5" cy="11.5" r="4"></circle><path d="m214 5l1.5 1.5m5 14v-2m6.5-.5l-1.5-1.5M214 18l1.5-1.5m-4-5h2m14 0h2"></path></g></g></svg>
-                <div class="form-check form-switch fs-6">
-                    <input class="form-check-input  me-0" type="checkbox" id="toggle-dark" >
-                    <label class="form-check-label" ></label>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--mdi" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><path fill="currentColor" d="m17.75 4.09l-2.53 1.94l.91 3.06l-2.63-1.81l-2.63 1.81l.91-3.06l-2.53-1.94L12.44 4l1.06-3l1.06 3l3.19.09m3.5 6.91l-1.64 1.25l.59 1.98l-1.7-1.17l-1.7 1.17l.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95l2.06.05m-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85c-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14c.4-.4.82-.76 1.27-1.08c.75-.53 1.93.36 1.85 1.19c-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82c-2.81 3.14-2.7 7.96.31 10.98c3.02 3.01 7.84 3.12 10.98.31Z"></path></svg>
-            </div>
-            <div class="sidebar-toggler  x">
-                <a href="#" class="sidebar-hide d-xl-none d-block"><i class="bi bi-x bi-middle"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="sidebar-menu">
-        <ul class="menu">
-            <li
-                class="sidebar-item">
-                <a href="../index.php" class='sidebar-link'>
-                    <i class="fa fa-desktop"></i>
-                    <span>Halaman utama</span>
-                </a>
-            </li>
-            <li class="sidebar-title">Menu</li>
-            <li
-                class="sidebar-item active ">
-                <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                    <i class="bi bi-grid-fill"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-ticket" aria-hidden="true"></i>
-                <span>Tiket</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../transaksi/transaksi.php">Transaksi</a>
-                </li>
-            </ul>
-        </li>
-        <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-comment" aria-hidden="true"></i>
-                <span>Ulasan</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../ulasan/ulasan.php">kritik & saran</a>
-                </li>
-            </ul>
-        </ul>
-        <?php
-        if(isset($_SESSION['level']) && $_SESSION['level'] == '1') {
-            echo "
-        <ul class='menu'>
-            <li class='sidebar-title'>Manage User</li>
-            <li
-                class='sidebar-item'>
-                <a href='../user/user.php' class='sidebar-link'>
-                    <i class='fa fa-user'></i>
-                    <span>user</span>
-                </a>
-            </li>
-        </ul>";
-        }
-        ?>
-        <ul class="menu">
-            <li class="sidebar-title">Authentication</li>
-            <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-user-circle-o" aria-hidden="true"></i>
-                    <span><?= $_SESSION['username'] ?></span>
-                </a>
-            </li>
-            <!-- <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-cogs" aria-hidden="true"></i>
-                    <span>Pengaturan</span>
-                </a>
-            </li> -->
-            <li 
-                class="sidebar-item">
-                <a href="../logout.php" class='sidebar-link'>
-                    <i class="bi bi-door-open"></i>
-                    <span>Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
-        </div>
+        <?php include '../../app/partials/sidebar.php'; ?>
+
         <div id="main">
-            <header class="mb-3">
-                <a href="#" class="burger-btn d-block d-xl-none">
-                    <i class="bi bi-justify fs-3"></i>
+            <!-- Header Topbar -->
+            <header class="mb-4 d-flex justify-content-between align-items-center">
+                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+                    <i class="fa-solid fa-bars fs-3"></i>
                 </a>
+                <div class="d-flex align-items-center gap-3 ms-auto">
+                    <div class="text-end d-none d-sm-block">
+                        <div class="fw-bold" style="font-size: 0.95rem; color: #0f172a;"><?= e($_SESSION['nama']) ?></div>
+                        <small class="text-muted">Administrator Loket</small>
+                    </div>
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center;">
+                        <?= strtoupper(substr($_SESSION['nama'] ?? 'A', 0, 1)) ?>
+                    </div>
+                </div>
             </header>
-            
-<div class="page-heading">
-    <h3>Dashboard</h3>
-</div>
-<div class="page-content">
-    <section class="row">
-        <div class="col-12 col-lg-9">
-            <div class="row">
-                <div class="col-6 col-lg-3 col-md-6">
-                    <div class="card">
-                        <div class="card-body px-4 py-4-5">
-                            <div class="row">
-                                <div class="col-md-4 col-lg-12 col-xl-12 col-xxl-5 d-flex justify-content-start ">
-                                    <div class="stats-icon purple mb-2">
-                                    <i class="iconly-boldProfile"></i>
-                                    </div>
-                                </div>
-                                <div class="col-md-8 col-lg-12 col-xl-12 col-xxl-7">
-                                    <h6 class="text-muted font-semibold">Total Pengguna</h6>
-                                    <h6 class="font-extrabold mb-0"><?php echo $jumlah_user ?></h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-lg-3 col-md-6">
-                    <div class="card">
-                        <div class="card-body px-4 py-4-5">
-                            <div class="row">
-                                <div class="col-md-4 col-lg-12 col-xl-12 col-xxl-5 d-flex justify-content-start ">
-                                    <div class="stats-icon blue mb-2">
-                                    <i class="fa fa-ticket" aria-hidden="true"></i>
-                                    </div>
-                                </div>
-                                <div class="col-md-8 col-lg-12 col-xl-12 col-xxl-7">
-                                    <h6 class="text-muted font-semibold">Penjualan Tiket Dewasa</h6>
-                                    <h6 class="font-extrabold mb-0">Rp. <?php echo $total_sub_total_dewasa ?></h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-lg-3 col-md-6">
-                    <div class="card">
-                        <div class="card-body px-4 py-4-5">
-                            <div class="row">
-                                <div class="col-md-4 col-lg-12 col-xl-12 col-xxl-5 d-flex justify-content-start ">
-                                    <div class="stats-icon red mb-2">
-                                    <i class="fa fa-ticket" aria-hidden="true"></i>
-                                    </div>
-                                </div>
-                                <div class="col-md-8 col-lg-12 col-xl-12 col-xxl-7">
-                                    <h6 class="text-muted font-semibold">Penjualan Tiket Anak</h6>
-                                    <h6 class="font-extrabold mb-0">Rp. <?php echo $total_sub_total_anak ?></h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-lg-3 col-md-6">
-                    <div class="card">
-                        <div class="card-body px-4 py-4-5">
-                            <div class="row">
-                                <div class="col-md-4 col-lg-12 col-xl-12 col-xxl-5 d-flex justify-content-start ">
-                                    <div class="stats-icon green mb-2">
-                                        <i class="fa fa-money" aria-hidden="true"></i>
-                                    </div>
-                                </div>
-                                <div class="col-md-8 col-lg-12 col-xl-12 col-xxl-7">
-                                    <h6 class="text-muted font-semibold">Total Penjualan</h6>
-                                    <h6 class="font-extrabold mb-0">Rp. <?php echo $p ?></h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>Data Penjualan Tiket Perbulan</h4>
-                        </div>
-                        <div class="card-body">
-                        <canvas id="Chart" width="400" height="140"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-lg-3">
-            <div class="card">
-                <div class="card-body py-4 px-4">
-                    <div class="d-flex align-items-center">
-                        <div class="avatar avatar-xl">
-                            <img src="../../../public/assets/images/faces/1.jpg" alt="Face 1">
-                        </div>
-                        <div class="ms-3 name">
-                            <h5 class="font-bold"><?= $_SESSION['username'] ?></h5>
-                            <h6 class="text-muted mb-0">Level <?= $_SESSION['level'] ?></h6>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h4>Data Jenis Tiket </h4>
-                </div>
-                <div class="card-body">
-                <canvas id="pie" width="200" height="240"></canvas>
-                </div>
-            </div>
-        </div>
-    </section>
-</div>
-        <div class="loader-container" id="loader-container">
-                <div class="spinner-box">
-                <div class="blue-orbit leo">
-                </div>
 
-                <div class="green-orbit leo">
+            <div class="page-heading mb-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h2 class="fw-bold text-dark mb-1" style="font-size: 1.75rem;">Dashboard Ringkasan</h2>
+                        <p class="text-muted mb-0">Pantau aktivitas penjualan tiket, pendapatan loket, dan statistik operasional.</p>
+                    </div>
+                    <div>
+                        <a href="<?= views_url('transaksi/transaksi.php') ?>" class="btn btn-brand">
+                            <i class="fa-solid fa-cash-register me-1"></i> Buka Kasir Loket
+                        </a>
+                    </div>
                 </div>
-                
-                <div class="red-orbit leo">
-                </div>
-                
-                <div class="white-orbit w1 leo">
-                </div><div class="white-orbit w2 leo">
-                </div><div class="white-orbit w3 leo">
-                </div>
-                </div>
-        </div>
-            <footer>
-                <div class="footer clearfix mb-0 text-muted">
-                    <div class="float-start">
-                        <p>2023 &copy; Pemandian</p>
+            </div>
+
+            <div class="page-content">
+                <!-- 4 Metrics Overview -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="metric-card">
+                            <div class="metric-icon-box green">
+                                <i class="fa-solid fa-sack-dollar"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Total Omzet Lunas</div>
+                                <div class="metric-value text-success" style="font-size: 1.35rem;"><?= format_rupiah($total_omzet) ?></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="metric-card">
+                            <div class="metric-icon-box blue">
+                                <i class="fa-solid fa-ticket"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Tiket Dewasa</div>
+                                <div class="metric-value"><?= number_format($qty_dewasa, 0, ',', '.') ?> <small style="font-size: 0.85rem; font-weight: 500; color: #64748b;">lbr</small></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="metric-card">
+                            <div class="metric-icon-box amber">
+                                <i class="fa-solid fa-child-reaching"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Tiket Anak-Anak</div>
+                                <div class="metric-value"><?= number_format($qty_anak, 0, ',', '.') ?> <small style="font-size: 0.85rem; font-weight: 500; color: #64748b;">lbr</small></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="metric-card">
+                            <div class="metric-icon-box purple">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-label">Pengguna Terdaftar</div>
+                                <div class="metric-value"><?= number_format($total_users, 0, ',', '.') ?> <small style="font-size: 0.85rem; font-weight: 500; color: #64748b;">akun</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-            </footer>
+                <!-- Charts Section -->
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-xl-8">
+                        <div class="modern-card">
+                            <div class="modern-card-header">
+                                <div class="fw-bold" style="font-size: 1.05rem; color: #0f172a;">
+                                    <i class="fa-solid fa-chart-simple text-primary me-2"></i> Grafik Transaksi Bulanan (<?= date('Y') ?>)
+                                </div>
+                                <span class="badge badge-modern-primary">Real-time</span>
+                            </div>
+                            <div class="modern-card-body">
+                                <canvas id="monthlyChart" height="120"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-xl-4">
+                        <div class="modern-card h-100">
+                            <div class="modern-card-header">
+                                <div class="fw-bold" style="font-size: 1.05rem; color: #0f172a;">
+                                    <i class="fa-solid fa-chart-pie text-info me-2"></i> Proporsi Kategori Tiket
+                                </div>
+                            </div>
+                            <div class="modern-card-body d-flex flex-column align-items-center justify-content-center">
+                                <div style="max-width: 240px; width: 100%;">
+                                    <canvas id="ticketPieChart" height="200"></canvas>
+                                </div>
+                                <div class="mt-3 text-center">
+                                    <div class="text-muted" style="font-size: 0.875rem;">Total Tiket Terjual Keseluruhan:</div>
+                                    <div class="fw-bold" style="font-size: 1.25rem; color: #0f172a;"><?= number_format($total_tiket_terjual, 0, ',', '.') ?> lembar</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions Table -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="modern-card">
+                            <div class="modern-card-header">
+                                <div class="fw-bold" style="font-size: 1.05rem; color: #0f172a;">
+                                    <i class="fa-solid fa-receipt text-warning me-2"></i> 5 Transaksi Terkini
+                                </div>
+                                <a href="<?= views_url('transaksi/transaksi.php') ?>" class="btn btn-sm btn-soft-primary">
+                                    Lihat Semua Transaksi <i class="fa-solid fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table-modern">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nama Pemesan</th>
+                                            <th>Tanggal</th>
+                                            <th>Metode</th>
+                                            <th>Total Bayar</th>
+                                            <th>Status</th>
+                                            <th class="text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($recent_trans)): ?>
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4 text-muted">Belum ada transaksi tercatat.</td>
+                                            </tr>
+                                        <?php else: ?>
+                                            <?php foreach ($recent_trans as $rt): ?>
+                                                <tr>
+                                                    <td><strong class="text-primary">#<?= (int)$rt['id_transaksi'] ?></strong></td>
+                                                    <td class="fw-semibold"><?= e($rt['nama_pemesan']) ?></td>
+                                                    <td class="text-muted"><?= date('d M Y', strtotime($rt['tgl_pemesanan'])) ?></td>
+                                                    <td>
+                                                        <span class="badge" style="background: #f1f5f9; color: #334155; font-weight: 600;">
+                                                            <?= strtoupper(e($rt['metode_pembayaran'] ?? 'TUNAI')) ?>
+                                                        </span>
+                                                    </td>
+                                                    <td class="fw-bold text-dark"><?= format_rupiah($rt['total_harga']) ?></td>
+                                                    <td>
+                                                        <?php if ($rt['status'] === 'done'): ?>
+                                                            <span class="badge-modern badge-modern-success">
+                                                                <i class="fa-solid fa-circle-check"></i> Selesai
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="badge-modern badge-modern-warning">
+                                                                <i class="fa-solid fa-clock"></i> <?= e($rt['status']) ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <a href="<?= views_url('tiket/nota.php') ?>?id_transaksi=<?= (int)$rt['id_transaksi'] ?>" class="btn btn-sm btn-soft-primary" title="Cetak Nota" target="_blank">
+                                                            <i class="fa-solid fa-print"></i> Nota
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <?php include '../../app/partials/footer.php'; ?>
+            </div>
         </div>
     </div>
-    <script src="../../../public/assets/js/bootstrap.js"></script>
-    <script src="../../../public/assets/js/app.js"></script>
-    
-<!-- Need: Apexcharts -->
-<script src="../../../public/assets/extensions/apexcharts/apexcharts.min.js"></script>
-<script src="../../../public/assets/js/pages/dashboard.js"></script>
-<script src="../../../public/js/loader.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js">
-</script>
 
-<script>
-// Ambil data dari PHP dan atur ke dalam array
-let labels = <?php echo json_encode($labels); ?>;
-let value = <?php echo json_encode($data); ?>;
-let values = Object.values(value);
+    <!-- Scripts -->
+    <script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-// Inisialisasi Chart.js
-let ctx = document.getElementById('Chart').getContext('2d');
-let myChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: labels,
-        datasets: [{
-            label: 'Data Transaksi Perbulan',
-            data: values,
-            backgroundColor: 'rgba(64, 131, 201, 0.2)',
-            borderColor: 'rgba(6, 76, 161, 1)',
-            borderWidth: 1
-        }]
-    },
-    options: {
-        scales: {
-            y: {
-                beginAtZero: true
+    <script>
+    // 1. Modern Bar Chart
+    const ctxBar = document.getElementById('monthlyChart').getContext('2d');
+    const barGradient = ctxBar.createLinearGradient(0, 0, 0, 300);
+    barGradient.addColorStop(0, '#0284c7');
+    barGradient.addColorStop(1, '#38bdf8');
+
+    new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($labels_bulan) ?>,
+            datasets: [{
+                label: 'Jumlah Transaksi',
+                data: <?= json_encode($transaksi_per_bulan) ?>,
+                backgroundColor: barGradient,
+                borderRadius: 8,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { family: 'Plus Jakarta Sans' } },
+                    grid: { color: '#f1f5f9' }
+                },
+                x: {
+                    ticks: { font: { family: 'Plus Jakarta Sans' } },
+                    grid: { display: false }
+                }
             }
         }
-    }
-});
+    });
 
-
-let tikets = <?php echo json_encode($tiket); ?>;
-let t = Object.values(tikets);
-
-let ctk = document.getElementById('pie').getContext('2d');
-let myPie = new Chart(ctk, {
-    type: 'pie',
-    data: {
-        labels: ['Dewasa','Anak-Anak'],
-        datasets: [{
-            label: 'Rata-Rata Usia Pengunjung',
-            data: t,
-            backgroundColor: [
-                'rgba(255, 99, 132)',
-                'rgba(54, 162, 235)'
-            ],
-            borderColor: [
-                'rgba(255, 99, 132, 1)',
-                'rgba(54, 162, 235, 1)'
-            ],  // Tambahkan koma di sini
-            borderWidth: 1
-        }]
-    },
-    options: {
-        scales: {
-            y: {
-                beginAtZero: true
-            }
+    // 2. Modern Doughnut Chart
+    const ctxPie = document.getElementById('ticketPieChart').getContext('2d');
+    new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['Dewasa', 'Anak-Anak'],
+            datasets: [{
+                data: [<?= $qty_dewasa ?>, <?= $qty_anak ?>],
+                backgroundColor: ['#0284c7', '#10b981'],
+                borderWidth: 0,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { 
+                    position: 'bottom',
+                    labels: { font: { family: 'Plus Jakarta Sans', weight: '600' }, boxWidth: 14 }
+                }
+            },
+            cutout: '70%'
         }
-    }
-});
-
-
-
-</script>
-
+    });
+    </script>
 </body>
-
 </html>

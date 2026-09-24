@@ -1,315 +1,211 @@
 <?php
+require '../../app/config.php';
+check_auth([1]);
 
-session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
+$active_menu = 'user';
+$base_view = '..';
 
-if(isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')){
+$id_user = (int)($_GET["id"] ?? $_POST['id_user'] ?? 0);
 
-// Pengguna dengan level 1 atau 2 diizinkan mengakses dashboard.php
-
-} else {
-
-header('Location: ../index.php'); exit();
-
+if ($id_user <= 0) {
+    header("Location: user.php");
+    exit();
 }
 
-require '../../app/config.php';
+$error_msg = '';
 
-$id_user = ""; // Inisialisasi nilai awal untuk id_user
+// Ambil data user saat ini
+$stmt = $conn->prepare("SELECT id_user, nama, username, email, no_telepon, level FROM users WHERE id_user = ? LIMIT 1");
+$stmt->bind_param("i", $id_user);
+$stmt->execute();
+$data = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
-if (isset($_GET["id"])) {
-    $id_user = $_GET["id"];
-    $sql = "SELECT * FROM users WHERE id_user='$id_user'";
-    $result = $conn->query($sql);
-
-    if ($result->num_rows > 0) {
-        $data = $result->fetch_assoc();
-        $id_user = $data["id_user"];
-        $username = $data["username"];
-        $password = $data["password"];
-        $email = $data["email"];
-        $no_telepon = $data["no_telepon"];
-        $level = $data["level"];        
-    } else {
-        echo "Data tidak ditemukan.";
-    }
+if (!$data) {
+    header("Location: user.php");
+    exit();
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $id_user = $_POST["id_user"];
-    $username = $_POST["username"];
-    $password = $_POST["password"];
-    $email = $_POST["email"];
-    $no_telepon = $_POST["no_telepon"];
-    $level = $_POST["level"];
-
-    // Cek apakah data diubah oleh user atau tidak
-    $sql_select = "SELECT * FROM users WHERE id_user='$id_user'";
-    $result_select = $conn->query($sql_select);
-    
-    if ($result_select->num_rows > 0) {
-        $data = $result_select->fetch_assoc();
-        
-        // Mengambil data yang diubah oleh user atau menggunakan data sebelumnya
-        $id_user = ($id_user !== '') ? $id_user : $data["id_user"];
-        $username = ($username !== '') ? $username : $data["username"];
-        $password = ($password !== '') ? $password : $data["password"];
-        $email = ($email !== '') ? $email : $data["email"];
-        $no_telepon = ($no_telepon !== '') ? $no_telepon : $data["no_telepon"];
-        $level = ($level !== '') ? $level : $data["level"];
-        
-        // Update data di database
-        $sql_update = "UPDATE users SET id_user='$id_user', username='$username', password='$password', email='$email', no_telepon='$no_telepon', level='$level' WHERE id_user='$id_user'";
-        
-        if ($conn->query($sql_update) === true) {
-            header("Location: user.php"); // Ganti transaksi.php dengan halaman yang sesuai
-            exit;
-        } else {
-            echo "Error: " . $sql_update . "<br>" . $conn->error;
-        }
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $error_msg = "Token keamanan sesi kedaluwarsa. Silakan muat ulang halaman.";
     } else {
-        echo "Data tidak ditemukan.";
+        $nama = trim($_POST["nama"] ?? '');
+        $username = trim($_POST["username"] ?? '');
+        $email = trim($_POST["email"] ?? '');
+        $no_telepon = trim($_POST["no_telepon"] ?? '');
+        $new_password = $_POST["password"] ?? '';
+        $level = (int)($_POST["level"] ?? 0);
+
+        // Proteksi: jangan izinkan admin saat ini mendemosi level akunnya sendiri
+        if ($id_user === (int)$_SESSION['id_user'] && $level !== 1) {
+            $level = 1;
+        }
+
+        if (empty($nama) || empty($username) || empty($email)) {
+            $error_msg = "Nama, Username, dan Email wajib diisi.";
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error_msg = "Format email tidak valid.";
+        } else {
+            // Cek apakah username/email sudah digunakan akun lain
+            $chk = $conn->prepare("SELECT id_user FROM users WHERE (username = ? OR email = ?) AND id_user != ? LIMIT 1");
+            $chk->bind_param("ssi", $username, $email, $id_user);
+            $chk->execute();
+            if ($chk->get_result()->num_rows > 0) {
+                $error_msg = "Username atau email tersebut sudah digunakan oleh akun lain.";
+            } else {
+                if (!empty($new_password)) {
+                    $hashed = password_hash($new_password, PASSWORD_BCRYPT);
+                    $stmt_up = $conn->prepare("UPDATE users SET nama = ?, username = ?, password = ?, email = ?, no_telepon = ?, level = ? WHERE id_user = ?");
+                    $stmt_up->bind_param("sssssii", $nama, $username, $hashed, $email, $no_telepon, $level, $id_user);
+                } else {
+                    $stmt_up = $conn->prepare("UPDATE users SET nama = ?, username = ?, email = ?, no_telepon = ?, level = ? WHERE id_user = ?");
+                    $stmt_up->bind_param("ssssii", $nama, $username, $email, $no_telepon, $level, $id_user);
+                }
+
+                if ($stmt_up->execute()) {
+                    header("Location: user.php");
+                    exit();
+                } else {
+                    $error_msg = "Gagal memperbarui pengguna: " . e($stmt_up->error);
+                }
+                $stmt_up->close();
+            }
+            $chk->close();
+        }
     }
 }
-?> 
-
-
+?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>transaksi - Pemandian</title>
+    <title>Edit Pengguna #<?= $id_user ?> - Pemandian Patemon</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app-dark.css">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.svg" type="image/x-icon">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.png" type="image/png">
-    
-<link rel="stylesheet" href="../../../public/assets/css/shared/iconly.css">
-
+    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
 </head>
 
 <body>
     <div id="app">
-        <div id="sidebar" class="active">
-            <div class="sidebar-wrapper active">
-    <div class="sidebar-header position-relative">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="logo">
-                <a href="index.html"><img src="../../../public/img/logo_pemandian_transparant.png" alt="Logo" srcset=""></a>
-            </div>
-            <div class="theme-toggle d-flex gap-2  align-items-center mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--system-uicons" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 21 21"><g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 14.5c2.219 0 4-1.763 4-3.982a4.003 4.003 0 0 0-4-4.018c-2.219 0-4 1.781-4 4c0 2.219 1.781 4 4 4zM4.136 4.136L5.55 5.55m9.9 9.9l1.414 1.414M1.5 10.5h2m14 0h2M4.135 16.863L5.55 15.45m9.899-9.9l1.414-1.415M10.5 19.5v-2m0-14v-2" opacity=".3"></path><g transform="translate(-210 -1)"><path d="M220.5 2.5v2m6.5.5l-1.5 1.5"></path><circle cx="220.5" cy="11.5" r="4"></circle><path d="m214 5l1.5 1.5m5 14v-2m6.5-.5l-1.5-1.5M214 18l1.5-1.5m-4-5h2m14 0h2"></path></g></g></svg>
-                <div class="form-check form-switch fs-6">
-                    <input class="form-check-input  me-0" type="checkbox" id="toggle-dark" >
-                    <label class="form-check-label" ></label>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--mdi" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><path fill="currentColor" d="m17.75 4.09l-2.53 1.94l.91 3.06l-2.63-1.81l-2.63 1.81l.91-3.06l-2.53-1.94L12.44 4l1.06-3l1.06 3l3.19.09m3.5 6.91l-1.64 1.25l.59 1.98l-1.7-1.17l-1.7 1.17l.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95l2.06.05m-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85c-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14c.4-.4.82-.76 1.27-1.08c.75-.53 1.93.36 1.85 1.19c-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82c-2.81 3.14-2.7 7.96.31 10.98c3.02 3.01 7.84 3.12 10.98.31Z"></path></svg>
-            </div>
-            <div class="sidebar-toggler  x">
-                <a href="#" class="sidebar-hide d-xl-none d-block"><i class="bi bi-x bi-middle"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="sidebar-menu">
-        <ul class="menu">
-            <li
-                class="sidebar-item">
-                <a href="../index.php" class='sidebar-link'>
-                    <i class="fa fa-desktop"></i>
-                    <span>Halaman utama</span>
-                </a>
-            </li>
-            <li class="sidebar-title">Menu</li>
-            <li
-                class="sidebar-item">
-                <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                    <i class="bi bi-grid-fill"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li
-            class="sidebar-item has-sub">
-            <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                <i class="fa fa-ticket" aria-hidden="true"></i>
-                <span>Tiket</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../transaksi/transaksi.php">Transaksi</a>
-                </li>
-            </ul>
-        </li>
-        <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-comment" aria-hidden="true"></i>
-                <span>Ulasan</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../ulasan/ulasan.php">kritik & saran</a>
-                </li>
-            </ul>
-        </ul>
-        <ul class="menu">
-            <li class="sidebar-title">Manage User</li>
-            <li
-                class="sidebar-item active">
-                <a href="../user/user.php" class='sidebar-link'>
-                    <i class="fa fa-user"></i>
-                    <span>user</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="menu">
-            <li class="sidebar-title">Authentication</li>
-            <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-user-circle-o" aria-hidden="true"></i>
-                    <span><?= $_SESSION['username'] ?></span>
-                </a>
-            </li>
-            <!-- <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-cogs" aria-hidden="true"></i>
-                    <span>Pengaturan</span>
-                </a>
-            </li> -->
-            <li 
-                class="sidebar-item">
-                <a href="../logout.php" class='sidebar-link'>
-                    <i class="bi bi-door-open"></i>
-                    <span>Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
-        </div>
+        <?php include '../../app/partials/sidebar.php'; ?>
+
         <div id="main">
-            <header class="mb-3">
-                <a href="#" class="burger-btn d-block d-xl-none">
-                    <i class="bi bi-justify fs-3"></i>
+            <!-- Header Topbar -->
+            <header class="mb-4 d-flex justify-content-between align-items-center">
+                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+                    <i class="fa-solid fa-bars fs-3"></i>
                 </a>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <a href="user.php" class="btn btn-sm btn-outline-secondary">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Daftar User
+                    </a>
+                </div>
             </header>
-            
-<div class="page-heading">
-    <h3>Tiket - Transaksi</h3>
-</div>
-<div class="page-content">
-    <section class="row">
-                <div class="card">
-                    <div class="col-md-6 col-12">
-                <div class="card">
-                  <div class="card-header">
-                    <h4 class="card-title">Tambah Data Transaksi</h4>
-                  </div>
-                  <div class="card-content">
-                    <div class="card-body">
-                      <form class="form form-horizontal" method="post">
-                        <div class="form-body">
-                          <div class="row">
-                          <div class="col-md-4">
-                              <label for="email-horizontal">ID USER</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="text" id="email-horizontal" class="form-control" name="id_user" placeholder="id user" value="<?php echo $id_user; ?>">
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">USERNAME</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="text" id="contact-info-horizontal" class="form-control" name="username" placeholder="username" value="<?php echo $username; ?>">
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">PASSWORD</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="password" id="password" class="form-control" name="password" placeholder="password"  value="<?php echo $password; ?> "><a class='btn' id='toggleButton' title='Lihat Password' style="margin-top: 5px;"><i id='eyeIcon' class='fa fa-eye'></i> Lihat Password</a>
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">EMAIL</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="text" id="contact-info-horizontal" class="form-control" name="email" placeholder="email" value="<?php echo $email; ?>">
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">NO TELEPON</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                              <input type="text" id="contact-info-horizontal" class="form-control" name="no_telepon" placeholder="no telepon" value="<?php echo $no_telepon; ?>">
-                            </div>
-                            <div class="col-md-4">
-                              <label for="contact-info-horizontal">LEVEL</label>
-                            </div>
-                            <div class="col-md-8 form-group">
-                                <select name="level" id="" value="<?php echo $level; ?>" class="form-select">
-                                    <option value="0" <?php if ($level == '0') echo 'selected'; ?>>pengguna</option>
-                                    <option value="1" <?php if ($level == '1') echo 'selected'; ?>>admin</option>
-                                    <option value="2" <?php if ($level == '2') echo 'selected'; ?>>staff</option>
 
-                                </select>
+            <div class="page-heading mb-4">
+                <h2 class="fw-bold text-dark mb-1" style="font-size: 1.75rem;">Edit Data Pengguna #<?= $id_user ?></h2>
+                <p class="text-muted mb-0">Ubah profil pengguna, peran, atau perbarui kata sandi.</p>
+            </div>
+
+            <div class="page-content">
+                <div class="row">
+                    <div class="col-12 col-lg-8">
+                        <div class="modern-card">
+                            <div class="modern-card-header">
+                                <span class="fw-bold text-dark"><i class="fa-solid fa-user-pen text-primary me-2"></i> Formulir Edit Pengguna</span>
+                                <span class="badge badge-modern-primary">ID: #<?= $id_user ?></span>
                             </div>
-                            
-                            <div class="col-sm-12 d-flex justify-content-end">
-                              <button type="submit" class="btn btn-primary me-1 mb-1">
-                                Update
-                              </button>
-                              <button type="reset" class="btn btn-light-secondary me-1 mb-1">
-                                Reset
-                              </button>
-                              <button type="button" class="btn btn-danger me-1 mb-1" onclick="location.href='user.php'">
-                                    Kembali
-                                </button>
+                            <div class="modern-card-body">
+                                <?php if (!empty($error_msg)): ?>
+                                    <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+                                        <i class="fa-solid fa-circle-exclamation fs-5"></i>
+                                        <div><?= e($error_msg) ?></div>
+                                    </div>
+                                <?php endif; ?>
+
+                                <form method="POST" action="">
+                                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="id_user" value="<?= $id_user ?>">
+
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label for="nama" class="form-label fw-semibold text-secondary small">Nama Lengkap <span class="text-danger">*</span></label>
+                                            <div class="input-icon-group">
+                                                <i class="fa-solid fa-id-card input-icon"></i>
+                                                <input type="text" id="nama" name="nama" class="form-control-modern" required value="<?= e($data['nama']) ?>">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label for="username" class="form-label fw-semibold text-secondary small">Username <span class="text-danger">*</span></label>
+                                            <div class="input-icon-group">
+                                                <i class="fa-solid fa-user input-icon"></i>
+                                                <input type="text" id="username" name="username" class="form-control-modern" required value="<?= e($data['username']) ?>">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label for="email" class="form-label fw-semibold text-secondary small">Alamat Email <span class="text-danger">*</span></label>
+                                            <div class="input-icon-group">
+                                                <i class="fa-solid fa-envelope input-icon"></i>
+                                                <input type="email" id="email" name="email" class="form-control-modern" required value="<?= e($data['email']) ?>">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label for="no_telepon" class="form-label fw-semibold text-secondary small">Nomor Telepon / WA</label>
+                                            <div class="input-icon-group">
+                                                <i class="fa-solid fa-phone input-icon"></i>
+                                                <input type="tel" id="no_telepon" name="no_telepon" class="form-control-modern" value="<?= e($data['no_telepon']) ?>">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label for="password" class="form-label fw-semibold text-secondary small">Password Baru <small class="text-muted">(Kosongkan jika tidak diubah)</small></label>
+                                            <div class="input-icon-group">
+                                                <i class="fa-solid fa-lock input-icon"></i>
+                                                <input type="password" id="password" name="password" class="form-control-modern" placeholder="Masukkan password baru">
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label for="level" class="form-label fw-semibold text-secondary small">Peran (Hak Akses) <span class="text-danger">*</span></label>
+                                            <select id="level" name="level" class="form-select-modern" <?= ($id_user === (int)$_SESSION['id_user']) ? 'disabled' : '' ?>>
+                                                <option value="0" <?= ($data['level'] == 0) ? 'selected' : '' ?>>Pengguna Biasa (Pelanggan)</option>
+                                                <option value="2" <?= ($data['level'] == 2) ? 'selected' : '' ?>>Staf Kasir Loket (Level 2)</option>
+                                                <option value="1" <?= ($data['level'] == 1) ? 'selected' : '' ?>>Administrator Penuh (Level 1)</option>
+                                            </select>
+                                            <?php if ($id_user === (int)$_SESSION['id_user']): ?>
+                                                <input type="hidden" name="level" value="1">
+                                                <small class="text-muted d-block mt-1">Anda tidak dapat mengubah level akun sendiri.</small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex gap-2 mt-4">
+                                        <button type="submit" class="btn btn-brand">
+                                            <i class="fa-solid fa-floppy-disk me-1"></i> Simpan Perubahan
+                                        </button>
+                                        <a href="user.php" class="btn btn-outline-secondary">Batal</a>
+                                    </div>
+                                </form>
                             </div>
-                          </div>
                         </div>
-                      </form>
                     </div>
-                  </div>
                 </div>
-              </div>
-                </div>
-        </div>
-    </section>
-</div>
+            </div>
 
-            <footer>
-                <div class="footer clearfix mb-0 text-muted">
-                    <div class="float-start">
-                        <p>2023 &copy; Pemandian</p>
-                    </div>
-                </div>
-            </footer>
+            <div class="mt-5">
+                <?php include '../../app/partials/footer.php'; ?>
+            </div>
         </div>
     </div>
-    <script src="../../../public/assets/js/bootstrap.js"></script>
-    <script src="../../../public/assets/js/app.js"></script>
-    
-<!-- Need: Apexcharts -->
-<script src="../../../public/assets/extensions/apexcharts/apexcharts.min.js"></script>
-<script src="../../../public/assets/js/pages/dashboard.js"></script>
-<script>
-        document.getElementById('toggleButton').addEventListener('click', function() {
-            var passwordField = document.getElementById('password');
-            var eyeIcon = document.getElementById('eyeIcon');
-            
-            if (passwordField.type === 'password') {
-                passwordField.type = 'text';
-                eyeIcon.classList.remove('fa-eye');
-                eyeIcon.classList.add('fa-eye-slash');
-            } else {
-                passwordField.type = 'password';
-                eyeIcon.classList.remove('fa-eye-slash');
-                eyeIcon.classList.add('fa-eye');
-            }
-        });
-    </script>
-</body>
 
+    <script src="../../../public/assets/js/bootstrap.js"></script>
+</body>
 </html>

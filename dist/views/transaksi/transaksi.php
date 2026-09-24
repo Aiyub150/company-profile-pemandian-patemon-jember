@@ -1,334 +1,309 @@
 <?php
-
-session_start(); // Pastikan Anda memulai sesi sebelum mengakses $_SESSION
-
-if(isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')){
-
-    // Pengguna dengan level 1 atau 2 diizinkan mengakses dashboard.php
-
-} else {
-
-    header('Location: ../index.php'); 
-    exit();
-
-}
-
 require '../../app/config.php';
 
-$searchInput = isset($_GET['id_transaksi']) ? $_GET['id_transaksi'] : '';
+// Hak akses: Admin (1) dan Staff (2)
+check_auth([1, 2]);
 
-// Ubah query untuk mencari data berdasarkan id_transaksi
-if(!empty($searchInput)) {
-    $sql = "SELECT * FROM transaksi INNER JOIN users ON transaksi.id_user=users.id_user WHERE transaksi.id_transaksi = $searchInput ORDER BY tgl_pemesanan DESC";
+$active_menu = 'transaksi';
+$base_view = '..';
+
+$searchInput = isset($_GET['id_transaksi']) ? (int)$_GET['id_transaksi'] : 0;
+
+if ($searchInput > 0) {
+    $stmt = $conn->prepare("SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user WHERE transaksi.id_transaksi = ? ORDER BY tgl_pemesanan DESC");
+    $stmt->bind_param("i", $searchInput);
+    $stmt->execute();
+    $result = $stmt->get_result();
 } else {
-    $sql = "SELECT * FROM transaksi INNER JOIN users ON transaksi.id_user=users.id_user ORDER BY tgl_pemesanan DESC";
+    $sql = "SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
+    $result = $conn->query($sql);
 }
 
-$result = $conn->query($sql);
+// Hitung rekap cepat
+$total_count = 0;
+$total_omzet = 0;
+$total_done = 0;
+$recap_res = $conn->query("SELECT COUNT(*) as cnt, SUM(total_harga) as omzet, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_cnt FROM transaksi");
+if ($recap_res && $recap = $recap_res->fetch_assoc()) {
+    $total_count = (int)$recap['cnt'];
+    $total_omzet = (float)($recap['omzet'] ?? 0);
+    $total_done  = (int)$recap['done_cnt'];
+}
 ?>
-<style>
-    .hidden{
-        display: none;
-    }
-</style>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>transaksi - Pemandian</title>
+    <title>Transaksi Kasir - Pemandian Patemon</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app-dark.css">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.svg" type="image/x-icon">
-    <link rel="shortcut icon" href="../../../public/assets/images/logo/favicon.png" type="image/png">
-    <link rel="stylesheet" href="../../../public/css/loader.css">
-    
-<link rel="stylesheet" href="../../../public/assets/css/shared/iconly.css">
-<link rel="stylesheet" href="../../../public/assets/extensions/sweetalert2/sweetalert2.min.css">
+    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
     <div id="app">
-        <div id="sidebar" class="active">
-            <div class="sidebar-wrapper active">
-    <div class="sidebar-header position-relative">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="logo">
-                <a href="index.html"><img src="../../../public/img/logo_pemandian_transparant.png" alt="Logo" srcset=""></a>
-            </div>
-            <div class="theme-toggle d-flex gap-2  align-items-center mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--system-uicons" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 21 21"><g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 14.5c2.219 0 4-1.763 4-3.982a4.003 4.003 0 0 0-4-4.018c-2.219 0-4 1.781-4 4c0 2.219 1.781 4 4 4zM4.136 4.136L5.55 5.55m9.9 9.9l1.414 1.414M1.5 10.5h2m14 0h2M4.135 16.863L5.55 15.45m9.899-9.9l1.414-1.415M10.5 19.5v-2m0-14v-2" opacity=".3"></path><g transform="translate(-210 -1)"><path d="M220.5 2.5v2m6.5.5l-1.5 1.5"></path><circle cx="220.5" cy="11.5" r="4"></circle><path d="m214 5l1.5 1.5m5 14v-2m6.5-.5l-1.5-1.5M214 18l1.5-1.5m-4-5h2m14 0h2"></path></g></g></svg>
-                <div class="form-check form-switch fs-6">
-                    <input class="form-check-input  me-0" type="checkbox" id="toggle-dark" >
-                    <label class="form-check-label" ></label>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--mdi" width="20" height="20" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><path fill="currentColor" d="m17.75 4.09l-2.53 1.94l.91 3.06l-2.63-1.81l-2.63 1.81l.91-3.06l-2.53-1.94L12.44 4l1.06-3l1.06 3l3.19.09m3.5 6.91l-1.64 1.25l.59 1.98l-1.7-1.17l-1.7 1.17l.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95l2.06.05m-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85c-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14c.4-.4.82-.76 1.27-1.08c.75-.53 1.93.36 1.85 1.19c-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82c-2.81 3.14-2.7 7.96.31 10.98c3.02 3.01 7.84 3.12 10.98.31Z"></path></svg>
-            </div>
-            <div class="sidebar-toggler  x">
-                <a href="#" class="sidebar-hide d-xl-none d-block"><i class="bi bi-x bi-middle"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="sidebar-menu">
-        <ul class="menu">
-            <li
-                class="sidebar-item">
-                <a href="../index.php" class='sidebar-link'>
-                    <i class="fa fa-desktop"></i>
-                    <span>Halaman utama</span>
-                </a>
-            </li>
-            <li class="sidebar-title">Menu</li>
-            <li
-                class="sidebar-item">
-                <a href="../dashboard/dashboard.php" class='sidebar-link'>
-                    <i class="bi bi-grid-fill"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-ticket" aria-hidden="true"></i>
-                <span>Tiket</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item active">
-                    <a href="#">Transaksi</a>
-                </li>
-            </ul>
-        </li>
-        <li
-            class="sidebar-item has-sub">
-            <a href="#" class='sidebar-link'>
-                <i class="fa fa-comment" aria-hidden="true"></i>
-                <span>Ulasan</span>
-            </a>
-            <ul class="submenu">
-                <li class="submenu-item">
-                    <a href="../ulasan/ulasan.php">kritik & saran</a>
-                </li>
-            </ul>
-        </ul>
-        <ul class="menu">
-            <li class="sidebar-title">Manage User</li>
-            <li
-                class="sidebar-item">
-                <a href="../user/user.php" class='sidebar-link'>
-                    <i class="fa fa-user"></i>
-                    <span>user</span>
-                </a>
-            </li>
-        </ul>
-        <ul class="menu">
-            <li class="sidebar-title">Authentication</li>
-            <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-user-circle-o" aria-hidden="true"></i>
-                    <span><?= $_SESSION['username'] ?></span>
-                </a>
-            </li>
-            <!-- <li 
-                class="sidebar-item">
-                <a href="index.html" class='sidebar-link'>
-                    <i class="fa fa-cogs" aria-hidden="true"></i>
-                    <span>Pengaturan</span>
-                </a>
-            </li> -->
-            <li 
-                class="sidebar-item">
-                <a href="../logout.php" class='sidebar-link'>
-                    <i class="bi bi-door-open"></i>
-                    <span>Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</div>
-        </div>
+        <?php include '../../app/partials/sidebar.php'; ?>
+
         <div id="main">
-            <header class="mb-3">
-                <a href="#" class="burger-btn d-block d-xl-none">
-                    <i class="bi bi-justify fs-3"></i>
+            <!-- Header Topbar -->
+            <header class="mb-4 d-flex justify-content-between align-items-center">
+                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+                    <i class="fa-solid fa-bars fs-3"></i>
                 </a>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <span class="badge badge-modern-primary">Loket Kasir #1</span>
+                </div>
             </header>
-            
-<div class="page-heading">
-    <h3>Tiket - Transaksi</h3>
-</div>
-<div class="page-content">
-    <section class="row">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title">Tabel Transaksi</h4>
+
+            <div class="page-heading mb-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h2 class="fw-bold mb-1" style="font-size: 1.75rem; color: #0f172a;">Kelola Transaksi Tiket</h2>
+                        <p class="text-muted mb-0">Riwayat penjualan tiket loket, validasi bukti transfer, dan cetak struk nota.</p>
                     </div>
-                    <div class="card-content">
-                        <div class="card-body">
-                            
-                            <a href="tambah.php" class="btn icon icon-left btn-primary">+ tambah data</a>
-                            <button onclick="printTable('dataTable')" class="btn btn-primary"><i class="fa fa-print" aria-hidden="true"></i> Print</button>
-                            <a href="laporan_harian.php" class="btn btn-primary">Laporan Harian</a>
-                            <a href="laporan_bulanan.php" class="btn btn-primary">Laporan Bulanan</a>
-                            <a href="laporan_tahunan.php" class="btn btn-primary">Laporan Tahunan</a>
-                            <input class="form-control" type="number" style="margin-top: 10px;" id="searchInput" placeholder="Cari Data Berdasarkan Nomor Transaksi" value="<?php echo $searchInput; ?>">
-                            <button onclick="searchData()" class="btn btn-primary" style="margin: 10px;">Cari</button>
-                            <div id="your-qr-result" class="hidden"></div>
-                            <h1>Scan Dengan Barcode</h1>
-                            <div style="display: flex; justify-content: center;">
-                                <div id="my-qr-reader" style="width: 500px;">
-                                
-                                </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="tambah.php" class="btn btn-brand">
+                            <i class="fa-solid fa-plus me-1"></i> Transaksi Baru (POS)
+                        </a>
+                        <button onclick="printTable('dataTable', 'Laporan Transaksi Kasir')" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-print me-1"></i> Cetak
+                        </button>
+                        <button onclick="exportToExcel('dataTable', 'transaksi_patemon')" class="btn btn-soft-success">
+                            <i class="fa-solid fa-file-excel me-1"></i> Excel
+                        </button>
+                        <button onclick="exportToPDF('dataTable', 'Laporan Transaksi Kasir')" class="btn btn-soft-danger">
+                            <i class="fa-solid fa-file-pdf me-1"></i> PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini Overview Stats -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-sm-4">
+                    <div class="modern-card p-3 d-flex align-items-center gap-3">
+                        <div class="metric-icon-box blue" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                            <i class="fa-solid fa-receipt"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Total Transaksi</div>
+                            <div class="fw-bold" style="font-size: 1.35rem; color: #0f172a;"><?= number_format($total_count, 0, ',', '.') ?></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-4">
+                    <div class="modern-card p-3 d-flex align-items-center gap-3">
+                        <div class="metric-icon-box green" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Transaksi Lunas</div>
+                            <div class="fw-bold text-success" style="font-size: 1.35rem;"><?= number_format($total_done, 0, ',', '.') ?></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-4">
+                    <div class="modern-card p-3 d-flex align-items-center gap-3">
+                        <div class="metric-icon-box amber" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Total Pendapatan</div>
+                            <div class="fw-bold text-primary" style="font-size: 1.35rem;"><?= format_rupiah($total_omzet) ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="page-content">
+                <div class="modern-card">
+                    <!-- Search & Scanner Toolbar -->
+                    <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2" style="max-width: 420px; width: 100%;">
+                            <div class="input-icon-group flex-grow-1">
+                                <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                                <input 
+                                    class="form-control-modern" 
+                                    type="number" 
+                                    id="searchInput" 
+                                    placeholder="Cari ID transaksi..." 
+                                    value="<?= $searchInput > 0 ? $searchInput : '' ?>"
+                                >
                             </div>
+                            <button onclick="searchData()" class="btn btn-brand">Cari</button>
+                            <?php if ($searchInput > 0): ?>
+                                <a href="transaksi.php" class="btn btn-outline-secondary">Reset</a>
+                            <?php endif; ?>
                         </div>
+                        <div>
+                            <button class="btn btn-soft-primary" type="button" data-bs-toggle="collapse" data-bs-target="#scannerCollapse">
+                                <i class="fa-solid fa-qrcode me-1"></i> Scan Barcode Nota
+                            </button>
+                        </div>
+                    </div>
 
-                        <!-- Table with no outer spacing -->
-                        <div class="table-responsive">
-                            <table class="table mb-0 table-lg" id="dataTable">
-                                <thead>
+                    <!-- Barcode Scanner Collapse Area -->
+                    <div class="collapse p-4 border-bottom bg-white" id="scannerCollapse">
+                        <div class="text-center" style="max-width: 500px; margin: auto;">
+                            <h5 class="fw-bold mb-2">Pindai Barcode / QR Code Nota</h5>
+                            <p class="text-muted small mb-3">Arahkan barcode nota struk loket ke kamera untuk mencari transaksi secara instan.</p>
+                            <div id="my-qr-reader" class="rounded-3 overflow-hidden shadow-sm border"></div>
+                            <div id="your-qr-result" class="mt-3 text-success fw-bold"></div>
+                        </div>
+                    </div>
+
+                    <!-- Table Data -->
+                    <div class="table-responsive">
+                        <table class="table-modern" id="dataTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nama Pemesan</th>
+                                    <th>Tgl Transaksi</th>
+                                    <th>Metode</th>
+                                    <th>Total Bayar</th>
+                                    <th>Bukti Pembayaran</th>
+                                    <th>Status</th>
+                                    <th class="action-column text-center" style="width: 160px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php if ($result && $result->num_rows > 0): ?>
+                                <?php while ($row = $result->fetch_assoc()): ?>
                                     <tr>
-                                        <th>ID TRANSAKSI</th>
-                                        <th>NAMA</th>
-                                        <th>TGL PEMESANAN</th>
-   										<th>TOTAL</th>
-                                        <th>METODE PEMBAYARAN</th>
-                                        <th>BUKTI PEMBAYARAN</th>
-                                        <th>STATUS</th>
-                                        <th colspan="3" style="text-align: center;">ACTION</th>
+                                        <td><strong class="text-primary">#<?= (int)$row["id_transaksi"] ?></strong></td>
+                                        <td class="fw-semibold text-dark"><?= e($row["nama"]) ?></td>
+                                        <td class="text-muted"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>
+                                        <td>
+                                            <span class="badge" style="background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.75rem;">
+                                                <?= strtoupper(e($row["metode_pembayaran"] ?? 'TUNAI')) ?>
+                                            </span>
+                                        </td>
+                                        <td class="fw-bold text-dark"><?= format_rupiah($row["total_harga"]) ?></td>
+                                        <td>
+                                            <?php 
+                                            $bukti = $row["bukti_pembayaran"];
+                                            if (!empty($bukti) && strtolower($bukti) !== 'bayar di loket' && file_exists(__DIR__ . '/../../app/payment/' . $bukti)): 
+                                            ?>
+                                                <a href="../../app/payment/<?= e($bukti) ?>" target="_blank" title="Lihat Bukti Transfer">
+                                                    <img src="../../app/payment/<?= e($bukti) ?>" alt="Bukti" style="width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e2e8f0;">
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-secondary border" style="font-weight: 500;">Loket Kasir</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($row["status"] === 'done'): ?>
+                                                <span class="badge-modern badge-modern-success">
+                                                    <i class="fa-solid fa-circle-check"></i> Selesai
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge-modern badge-modern-warning">
+                                                    <i class="fa-solid fa-clock"></i> <?= e($row["status"]) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="action-column text-center">
+                                            <div class="d-inline-flex gap-1">
+                                                <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Cetak Struk Nota" href="../tiket/nota.php?id_transaksi=<?= $row["id_transaksi"] ?>" target="_blank">
+                                                    <i class="fa-solid fa-print"></i>
+                                                </a>
+                                                <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Detail Tiket" href="../detail_transaksi/detail_transaksi.php?id=<?= $row["id_transaksi"] ?>">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                </a>
+                                                <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Edit Transaksi" href="update.php?id=<?= $row["id_transaksi"] ?>">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-soft-danger btn-action-icon" title="Hapus" onclick="confirmDelete(<?= (int)$row['id_transaksi'] ?>)">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody> 
-                                <?php
-                                    if ($result->num_rows > 0) {
-                                        while ($row = $result->fetch_assoc()) {
-                                            echo "<tr>";
-                                            echo "<td>" . $row["id_transaksi"] . "</td>";
-                                            echo "<td>" . $row["nama"] . "</td>";
-                                            echo "<td>" . $row["tgl_pemesanan"] . "</td>";
-                                            echo "<td>" . $row["total_harga"] . "</td>";
-                                            echo "<td>" . $row["metode_pembayaran"] . "</td>";
-                                            echo "<td><img style='width: 200px; height: 200px;' src='../../app/payment/" . $row["bukti_pembayaran"] . "' alt=' Bayar Di Loket    '></td>";
-                                            echo "<td>"; 
-                                            $status = $row["status"];
-                                            if($status == 'done'){
-                                                echo "<i class='fa fa-check-square' aria-hidden='true' style='color: green;'></i> Sudah Dibayar";
-                                            } else {
-                                                echo "<i class='fa fa-window-close' aria-hidden='true' style='color: red;'></i> Belum Dibayar";
-                                            }
-                                            echo "</td>";
-                                            echo '<td><a class="btn icon btn-primary" href="update.php?id=' . $row["id_transaksi"] . '"><i class="bi bi-pencil"></i></a></td>';
-                                            echo '<td><a class="btn icon btn-danger" href="delete.php?id=' . $row["id_transaksi"] . '"><i class="fa fa-trash"></i></a></td>';
-                                            echo '<td><a class="btn icon btn-warning" href="../detail_transaksi/detail_transaksi.php?id=' . $row["id_transaksi"] . '"><i class="fa fa-list"></i></a></td>';
-                                            echo "</tr>";
-                                        }
-                                    } else {
-                                        echo "<tr><td colspan='7' style='text-align: center;'>Tidak ada data.</td></tr>";
-                                    }
-                                ?>
-
-                                </tbody>
-                            </table>
-                        </div>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-5">
+                                        <i class="fa-regular fa-folder-open fs-2 mb-2 d-block text-secondary"></i>
+                                        Tidak ada data transaksi ditemukan.
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </div>        
-    </section>
-</div>
-<div class="loader-container" id="loader-container">
-                <div class="spinner-box">
-                <div class="blue-orbit leo">
-                </div>
+            </div>
 
-                <div class="green-orbit leo">
-                </div>
-                
-                <div class="red-orbit leo">
-                </div>
-                
-                <div class="white-orbit w1 leo">
-                </div><div class="white-orbit w2 leo">
-                </div><div class="white-orbit w3 leo">
-                </div>
-                </div>
-        </div>
-            <footer>
-                <div class="footer clearfix mb-0 text-muted">
-                    <div class="float-start">
-                        <p>2023 © Pemandian</p>
-                    </div>
-                </div>
-            </footer>
+            <div class="mt-5">
+                <?php include '../../app/partials/footer.php'; ?>
+            </div>
         </div>
     </div>
+
+    <!-- Scripts -->
     <script src="../../../public/assets/js/bootstrap.js"></script>
-    <script src="../../../public/assets/js/app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="../../../public/js/exportToExcel.js"></script>
-    <script src="../../../public/j  s/exportToPDF.js"></script>
+    <script src="../../../public/js/exportToPDF.js"></script>
     <script src="../../../public/js/print.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
-
-
-<!-- Need: Apexcharts -->
-<script src="../../../public/assets/extensions/apexcharts/apexcharts.min.js"></script>
-<script src="../../../public/assets/js/pages/dashboard.js"></script>
-<script src="../../../public/assets/extensions/sweetalert2/sweetalert2.min.js"></script>>
-<script src="../../../public/assets/js/pages/sweetalert2.js"></script>>
-<script src="../../../public/js/loader.js"></script>
-
-<!-- SweetAlert -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="../../../public/js/sweetalert.js"></script>
-<script>
-function applyFilter(filter) {
-    window.location.href = 'laporan.php?filter=' + filter;
-}
-function searchData() {
-    var searchInput = document.getElementById('searchInput').value;
-    window.location.href = 'transaksi.php?id_transaksi=' + searchInput;
-}
-</script>
-
-<script>
-    function domReady(fn) {
-        if (document.readyState === "complete" || document.readyState === "interactive") {
-            setTimeout(fn, 1);
-        } else {
-            document.addEventListener("DOMContentLoaded", fn);
-        }
+    <script>
+    function searchData() {
+        var searchInput = document.getElementById('searchInput').value.trim();
+        window.location.href = 'transaksi.php' + (searchInput ? '?id_transaksi=' + encodeURIComponent(searchInput) : '');
     }
 
-    domReady(function () {
-        var myqr = document.getElementById('your-qr-result');
-        var lastResult, countResults = 0;
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchData();
+        }
+    });
 
-        function onScanSuccess(decodeText, decodeResult) {
+    function confirmDelete(id) {
+        Swal.fire({
+            title: 'Hapus Transaksi #' + id + '?',
+            text: 'Data tiket dan transaksi yang dihapus tidak dapat dipulihkan!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hapus Data',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = 'delete.php?id=' + id + '&csrf=<?= csrf_token() ?>';
+            }
+        });
+    }
+
+    // Barcode Scanner
+    document.addEventListener("DOMContentLoaded", function () {
+        var scannerElement = document.getElementById('my-qr-reader');
+        if (!scannerElement) return;
+
+        var lastResult;
+        function onScanSuccess(decodeText) {
             if (decodeText !== lastResult) {
-                ++countResults;
                 lastResult = decodeText;
-
-                // Set nilai hasil pemindaian ke dalam input pencarian
                 document.getElementById('searchInput').value = decodeText;
-
-                // Alert dapat dihilangkan jika tidak diperlukan
-                alert("Scanner Barcode Berhasil, Nomor Transaksi : " + decodeText, decodeResult);
-
-                myqr.innerHTML = `you scan ${countResults} : ${decodeText}`;
+                document.getElementById('your-qr-result').innerHTML = "Barcode Terdeteksi: <strong>#" + decodeText + "</strong>";
+                setTimeout(function() {
+                    window.location.href = 'transaksi.php?id_transaksi=' + encodeURIComponent(decodeText);
+                }, 500);
             }
         }
 
-        var htmlscanner = new Html5QrcodeScanner(
-            "my-qr-reader", { fps: 10, qrbox: 250 }
-        );
-
+        var htmlscanner = new Html5QrcodeScanner("my-qr-reader", { fps: 10, qrbox: 250 });
         htmlscanner.render(onScanSuccess);
     });
-</script>
-
+    </script>
 </body>
-
 </html>

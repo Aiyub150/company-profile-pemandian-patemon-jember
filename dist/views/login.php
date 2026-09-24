@@ -1,142 +1,382 @@
 <?php
-require '../app/config.php';
-session_start();
+require_once __DIR__ . '/../app/config.php';
+
+// Jika sudah login, redirect sesuai peran
+if (isset($_SESSION['id_user'])) {
+    if ($_SESSION['level'] === 1) {
+        header("Location: dashboard/dashboard.php");
+    } elseif ($_SESSION['level'] === 2) {
+        header("Location: transaksi/staf.php");
+    } else {
+        header("Location: index.php");
+    }
+    exit();
+}
+
+$error = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $secret_key = "6LcUfDsoAAAAAOuwYSk9i_ZoQwCgIexCeVMJ31Vb";
-    $verify = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret='.$secret_key.'&response='.$_POST['token']);
-    $response = json_decode($verify);
-    if($response == true){
-      $username = $_POST['username'];
-      $password = $_POST['password'];
+    // Validasi CSRF Token
+    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+        $error = "Token keamanan sesi Anda kedaluwarsa. Silakan muat ulang halaman.";
+    } else {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-      // Membuat prepared statementecho 
-      $query = "SELECT * FROM users WHERE (username='$username' OR email='$username') AND password='$password'";
-      $result = mysqli_query($conn, $query);
-      $d = mysqli_fetch_assoc($result);
-      
-      $cek = mysqli_num_rows($result);
-      if ($cek > 0) {
-          $_SESSION['id_user'] = $d['id_user'];
-          $_SESSION['nama'] = $d['nama'];
-          $_SESSION['username'] = $d['username'];
-          $_SESSION['level'] = $d['level'];
-          
-          if($_SESSION['level'] == 1){
-              header("location: dashboard/dashboard.php"); 
-          } elseif($_SESSION['level'] == 2){
-            header("location: transaksi/staf.php"); 
-          } else {
-              header("location: index.php");
-          }
-          exit();
-      } else {
-          $error = "<p style='color: red;'>Username atau password yang anda masukkan salah<p>";
-      }
-  }
+        if (empty($username) || empty($password)) {
+            $error = "Username dan password wajib diisi.";
+        } else {
+            // Gunakan Prepared Statement
+            $stmt = $conn->prepare("SELECT id_user, nama, username, password, level FROM users WHERE username = ? OR email = ? LIMIT 1");
+            $stmt->bind_param("ss", $username, $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($user = $result->fetch_assoc()) {
+                // Verifikasi password hash BCRYPT (dengan fallback migrasi otomatis)
+                $is_password_valid = password_verify($password, $user['password']);
+                if (!$is_password_valid && $password === $user['password']) {
+                    $is_password_valid = true;
+                    $new_hash = password_hash($password, PASSWORD_BCRYPT);
+                    $up_stmt = $conn->prepare("UPDATE users SET password = ? WHERE id_user = ?");
+                    $up_stmt->bind_param("si", $new_hash, $user['id_user']);
+                    $up_stmt->execute();
+                    $up_stmt->close();
+                }
+
+                if ($is_password_valid) {
+                    session_regenerate_id(true);
+
+                    $_SESSION['id_user']  = (int)$user['id_user'];
+                    $_SESSION['nama']     = $user['nama'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['level']    = (int)$user['level'];
+
+                    if ($_SESSION['level'] === 1) {
+                        header("Location: dashboard/dashboard.php");
+                    } elseif ($_SESSION['level'] === 2) {
+                        header("Location: transaksi/staf.php");
+                    } else {
+                        header("Location: index.php");
+                    }
+                    exit();
+                } else {
+                    $error = "Username atau password yang Anda masukkan salah.";
+                }
+            } else {
+                $error = "Username atau password yang Anda masukkan salah.";
+            }
+            $stmt->close();
+        }
+    }
 }
 ?>
-
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Pemandian</title>
-    <link rel="stylesheet" href="../../public/css/auth.css">
-    <link rel="stylesheet" href="../../public/css/waves.css">
+    <title>Login - Pemandian Patemon</title>
     <link rel="icon" type="image/x-icon" href="../../public/img/icon.png" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.1/css/all.min.css">
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../public/css/modern-theme.css">
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #0369a1 50%, #0284c7 100%);
+            padding: 1.5rem;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 1050px;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            overflow: hidden;
+            min-height: 600px;
+        }
+
+        .auth-banner {
+            flex: 1.1;
+            background: linear-gradient(rgba(15, 23, 42, 0.65), rgba(2, 132, 199, 0.75)), url('../../public/img/background.png');
+            background-size: cover;
+            background-position: center;
+            padding: 3.5rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: #ffffff;
+            position: relative;
+        }
+
+        .auth-banner-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(10px);
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            width: fit-content;
+        }
+
+        .auth-banner h2 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin: 1.5rem 0 1rem;
+        }
+
+        .auth-banner p {
+            color: #e2e8f0;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .feature-pills {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .feature-pill-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #f1f5f9;
+        }
+
+        .feature-pill-item i {
+            color: #38bdf8;
+            font-size: 1.1rem;
+        }
+
+        .auth-form-section {
+            flex: 1;
+            padding: 3.5rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #ffffff;
+        }
+
+        .auth-header {
+            margin-bottom: 2rem;
+        }
+
+        .auth-header img {
+            height: 48px;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
+            margin-bottom: 1.25rem;
+        }
+
+        .auth-header h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0 0 0.5rem;
+        }
+
+        .auth-header p {
+            color: #64748b;
+            font-size: 0.925rem;
+            margin: 0;
+        }
+
+        .form-group-item {
+            margin-bottom: 1.35rem;
+        }
+
+        .form-label-modern {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.5rem;
+        }
+
+        .alert-custom {
+            padding: 0.85rem 1.15rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .auth-footer {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .auth-footer a {
+            color: #0284c7;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        .auth-footer a:hover {
+            color: #0369a1;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 860px) {
+            .auth-container {
+                flex-direction: column;
+                max-width: 480px;
+            }
+            .auth-banner {
+                display: none;
+            }
+            .auth-form-section {
+                padding: 2.5rem 2rem;
+            }
+        }
+    </style>
 </head>
-
 <body>
-<!-- https://dribbble.com/shots/15392711-Dashboard-Login-Sign-Up/-->
 
-<div class="login-container">
-  <div class="login-form">
-    <div class="login-form-inner">
-      <div class="logo">
-          <img src="../../public/img/logo_pemandian_transparant.png" alt="" style="width: 200px; height: 80px; margin-left: 70px;">
-        </div>
-      <h1>Login</h1>
-      <p class="body-text">Silahkan login terlebih dahulu.</p>
-
-      <form method="post" action="" id="form" style="margin-top: 20px;">
-        <div class="login-form-group">
-            <label for="email">Email / Username<span class="required-star">*</span></label>
-            <input type="text" placeholder="Masukkan username atau email anda" id="email" name="username" required>
-        </div>
-        <div class="login-form-group">
-            <label for="pwd">Password <span class="required-star">*</span></label>
-            <input autocomplete="off" type="password" placeholder="Minimum 8 characters" id="pwd" name="password" required>
-        </div>
-        <?php if (isset($error)) { echo $error; } ?>
-        <input type="hidden" name="token" id="token">
-        <button class="rounded-button login-cta g-recaptcha" type="submit"
-        data-sitekey="6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2" 
-        data-callback='onSubmit' 
-        data-action='submit'>Login</button>
-      </form>
-
-      <div class="login-form-group single-row">
-            <div class="custom-check">
-            <input autocomplete="off" type="checkbox" checked id="remember"><label for="remember">Remember me</label>
+<div class="auth-container">
+    <!-- Left Visual Showcase -->
+    <div class="auth-banner">
+        <div>
+            <div class="auth-banner-badge">
+                <i class="fa-solid fa-water"></i> Pemandian Patemon
             </div>
-
-            <a href="forgot_password.php" class="link forgot-link">Forgot Password ?</a>
-        </div>        
-      <div class="register-div">Belum mempunyai akun? <a href="register.php" class="link create-account" -link>Buat Akun Baru</a></div>
+            <h2>Destinasi Wisata Pemandian Alami</h2>
+            <p>Sistem manajemen loket kasir terintegrasi, pemesanan tiket online instan, serta pelaporan pendapatan yang transparan.</p>
+            
+            <div class="feature-pills">
+                <div class="feature-pill-item">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Sistem POS Loket Kasir Cepat & Otomatis</span>
+                </div>
+                <div class="feature-pill-item">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Cetak Nota & Barcode Struk Transaksi</span>
+                </div>
+                <div class="feature-pill-item">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Laporan Analitik Penjualan Real-time</span>
+                </div>
+            </div>
+        </div>
+        
+        <div style="font-size: 0.85rem; color: #94a3b8;">
+            &copy; <?= date('Y') ?> Wisata Pemandian Patemon. All rights reserved.
+        </div>
     </div>
 
-  </div>
-  <div class="onboarding">
-  <!--Hey! This is the original version
-of Simple CSS Waves-->
+    <!-- Right Login Form -->
+    <div class="auth-form-section">
+        <div class="auth-header">
+            <a href="index.php">
+                <img src="../../public/img/logo_pemandian_transparant.png" alt="Logo Pemandian Patemon">
+            </a>
+            <h1>Selamat Datang</h1>
+            <p>Masukkan akun Anda untuk masuk ke sistem loket kasir.</p>
+        </div>
 
-<div class="header">
+        <?php if (!empty($error)): ?>
+            <div class="alert-custom">
+                <i class="fa-solid fa-circle-exclamation fs-5"></i>
+                <div><?= e($error) ?></div>
+            </div>
+        <?php endif; ?>
 
-<!--Content before waves-->
-<div class="inner-header flex">
-<!--Just the logo.. Don't mind this-->
+        <form method="POST" action="">
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 
+            <div class="form-group-item">
+                <label class="form-label-modern" for="username">Username / Email</label>
+                <div class="input-icon-group">
+                    <i class="fa-solid fa-user input-icon"></i>
+                    <input 
+                        type="text" 
+                        class="form-control-modern" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Masukkan username atau email" 
+                        required 
+                        autocomplete="username"
+                        value="<?= e($_POST['username'] ?? '') ?>"
+                    >
+                </div>
+            </div>
+
+            <div class="form-group-item">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <label class="form-label-modern" for="password" style="margin-bottom: 0;">Password</label>
+                    <a href="forgot_password.php" style="font-size: 0.825rem; color: #0284c7; text-decoration: none; font-weight: 600;">Lupa Password?</a>
+                </div>
+                <div class="input-icon-group">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input 
+                        type="password" 
+                        class="form-control-modern" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Masukkan password Anda" 
+                        required 
+                        autocomplete="current-password"
+                    >
+                    <button type="button" class="toggle-password" id="btnTogglePassword" aria-label="Lihat Password">
+                        <i class="fa-regular fa-eye" id="eyeIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-brand" style="width: 100%; padding: 0.85rem; font-size: 1rem; margin-top: 0.5rem;">
+                <i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Belum punya akun? <a href="register.php">Daftar Akun Baru</a>
+            <div style="margin-top: 0.75rem;">
+                <a href="index.php" style="color: #64748b; font-weight: 500; font-size: 0.85rem;">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!--Waves Container-->
-<div>
-<svg class="waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
-<defs>
-<path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
-</defs>
-<g class="parallax">
-<use xlink:href="#gentle-wave" x="48" y="0" fill="rgba(255,255,255,0.7" />
-<use xlink:href="#gentle-wave" x="48" y="3" fill="rgba(255,255,255,0.5)" />
-<use xlink:href="#gentle-wave" x="48" y="5" fill="rgba(255,255,255,0.3)" />
-<use xlink:href="#gentle-wave" x="48" y="7" fill="#fff" />
-</g>
-</svg>
-</div>
-<!--Waves end-->
-
-</div>
-<!--Header ends-->
-
-<!--Content starts-->
-<div class="content flex">
-</div>
-<!--Content ends-->
-  </div>
-</div>
-<script src='https://www.google.com/recaptcha/api.js?render=6LcUfDsoAAAAAKWDZQoulxVqCHCHc50yX1Akzij2'></script>
 <script>
-   function onSubmit(token) {
-    document.getElementById("token").value = token;
-    document.getElementById("form").submit();
-   }
- </script>
- <script src="../../public/js/auth.js"></script>
-</body>
+    const btnTogglePassword = document.getElementById('btnTogglePassword');
+    const passwordInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
 
+    btnTogglePassword.addEventListener('click', () => {
+        const isPassword = passwordInput.getAttribute('type') === 'password';
+        passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+        eyeIcon.classList.toggle('fa-eye', !isPassword);
+        eyeIcon.classList.toggle('fa-eye-slash', isPassword);
+    });
+</script>
+</body>
 </html>
