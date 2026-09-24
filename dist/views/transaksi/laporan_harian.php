@@ -50,10 +50,10 @@ $rata_rata_tiket = $total_tiket_hari > 0 ? ($total_omzet_hari / $total_tiket_har
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Harian - Pemandian Patemon</title>
 
-    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
 </head>
 
 <body>
@@ -99,9 +99,9 @@ $rata_rata_tiket = $total_tiket_hari > 0 ? ($total_omzet_hari / $total_tiket_har
 
                         <!-- Action Buttons -->
                         <div class="d-flex gap-2">
-                            <button onclick="printTable('reportTable', 'Laporan Penjualan Harian (<?= $dateInput ?>)')" class="btn btn-outline-secondary btn-sm px-3 shadow-sm bg-white" title="Cetak Laporan">
-                                <i class="fa-solid fa-print me-1"></i> Cetak
-                            </button>
+                            <a href="<?= route_url('laporan_preview', ['tipe' => 'harian', 'date' => $dateInput]) ?>" class="btn btn-outline-secondary btn-sm px-3 shadow-sm bg-white" title="Pratinjau Dokumen Cetak Standar Pemkab">
+                                <i class="fa-solid fa-file-pdf me-1 text-danger"></i> Pratinjau Dokumen PDF
+                            </a>
                             <button onclick="exportToExcel('reportTable', 'Laporan_Harian_<?= $dateInput ?>')" class="btn btn-soft-success btn-sm px-3 shadow-sm" title="Ekspor ke File Excel">
                                 <i class="fa-solid fa-file-excel me-1"></i> Excel
                             </button>
@@ -296,10 +296,10 @@ $rata_rata_tiket = $total_tiket_hari > 0 ? ($total_omzet_hari / $total_tiket_har
     </div>
 
     <!-- Scripts -->
-    <script src="../../../public/assets/js/bootstrap.js"></script>
+    <script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="../../../public/js/exportToExcel.js"></script>
-    <script src="../../../public/js/print.js"></script>
+    <script src="<?= public_url('js/exportToExcel.js') ?>"></script>
+    <script src="<?= public_url('js/print.js') ?>"></script>
 
     <?php if ($total_tiket_hari > 0): ?>
     <script>

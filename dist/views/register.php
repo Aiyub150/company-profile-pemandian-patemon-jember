@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bind_param("sssssi", $nama, $username, $hashed_password, $email, $no_telepon, $level_user);
 
                 if ($stmt->execute()) {
-                    header("Location: login.php?registered=1");
+                    header("Location: " . route_url('login', ['registered' => 1]));
                     exit();
                 } else {
                     $error = "Terjadi kesalahan sistem saat mendaftar: " . e($stmt->error);
@@ -61,9 +61,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daftar Akun - Pemandian Patemon</title>
-    <link rel="icon" type="image/x-icon" href="../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
     <style>
         body {
             min-height: 100vh;
@@ -251,8 +251,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Right Form -->
     <div class="auth-form-section">
         <div class="auth-header">
-            <a href="index.php">
-                <img src="../../public/img/logo_pemandian_transparant.png" alt="Logo Pemandian Patemon">
+            <a href="<?= route_url('home') ?>">
+                <img src="<?= public_url('img/logo_pemandian_transparant.png') ?>" alt="Logo Pemandian Patemon">
             </a>
             <h1>Buat Akun Baru</h1>
             <p>Lengkapi formulir di bawah ini untuk mendaftar akun.</p>
@@ -375,9 +375,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </form>
 
         <div class="auth-footer">
-            Sudah memiliki akun? <a href="login.php">Masuk di sini</a>
+            Sudah memiliki akun? <a href="<?= route_url('login') ?>">Masuk di sini</a>
             <div style="margin-top: 0.5rem;">
-                <a href="index.php" style="color: #64748b; font-size: 0.85rem;">
+                <a href="<?= route_url('home') ?>" style="color: #64748b; font-size: 0.85rem;">
                     <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
                 </a>
             </div>

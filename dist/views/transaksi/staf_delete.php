@@ -12,6 +12,6 @@ if ($id_transaksi > 0 && validate_csrf($csrf)) {
     $stmt->close();
 }
 
-header("Location: staf.php");
+header("Location: " . route_url('kasir'));
 exit();
 ?>

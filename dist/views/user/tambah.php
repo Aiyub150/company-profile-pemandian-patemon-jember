@@ -22,6 +22,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error_msg = "Nama, Username, Password, dan Email wajib diisi.";
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error_msg = "Format email tidak valid.";
+        } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
+            $error_msg = "Nomor telepon tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka).";
         } else {
             // Cek duplikasi username / email
             $chk = $conn->prepare("SELECT id_user FROM users WHERE username = ? OR email = ? LIMIT 1");
@@ -34,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt = $conn->prepare("INSERT INTO users (nama, username, password, email, no_telepon, level) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param("sssssi", $nama, $username, $hashed, $email, $no_telepon, $level);
                 if ($stmt->execute()) {
-                    header("Location: user.php");
+                    header("Location: " . route_url('users'));
                     exit();
                 } else {
                     $error_msg = "Gagal menyimpan pengguna baru: " . e($stmt->error);
@@ -54,10 +56,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tambah Pengguna - Pemandian Patemon</title>
 
-    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
 </head>
 
 <body>
@@ -71,7 +73,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <a href="user.php" class="btn btn-sm btn-outline-secondary">
+                    <a href="<?= route_url('users') ?>" class="btn btn-sm btn-outline-secondary">
                         <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Daftar User
                     </a>
                 </div>
@@ -129,8 +131,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             <label for="no_telepon" class="form-label fw-semibold text-secondary small">Nomor Telepon / WA</label>
                                             <div class="input-icon-group">
                                                 <i class="fa-solid fa-phone input-icon"></i>
-                                                <input type="tel" id="no_telepon" name="no_telepon" class="form-control-modern" placeholder="08xxxxxxxxxx" value="<?= e($_POST['no_telepon'] ?? '') ?>">
+                                                <input type="tel" id="no_telepon" name="no_telepon" class="form-control-modern" placeholder="08xxxxxxxxxx" pattern="^0[0-9]{8,14}$" inputmode="numeric" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" value="<?= e($_POST['no_telepon'] ?? '') ?>">
                                             </div>
+                                            <small class="text-muted" style="font-size: 0.72rem;">Format angka diawali 0 (9–15 digit).</small>
                                         </div>
 
                                         <div class="col-12 col-md-6">
@@ -144,9 +147,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <div class="col-12 col-md-6">
                                             <label for="level" class="form-label fw-semibold text-secondary small">Peran (Hak Akses) <span class="text-danger">*</span></label>
                                             <select id="level" name="level" class="form-select-modern">
-                                                <option value="0" selected>Pengguna Biasa (Pelanggan)</option>
-                                                <option value="2">Staf Kasir Loket (Level 2)</option>
-                                                <option value="1">Administrator Penuh (Level 1)</option>
+                                                <option value="1">Super Admin (Level 1)</option>
+                                                <option value="2">Admin (Level 2)</option>
+                                                <option value="3">Staf Kasir Loket (Level 3)</option>
+                                                <option value="0" selected>Pengunjung (Level 0)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -155,7 +159,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <button type="submit" class="btn btn-brand">
                                             <i class="fa-solid fa-user-check me-1"></i> Simpan Pengguna Baru
                                         </button>
-                                        <a href="user.php" class="btn btn-outline-secondary">Batal</a>
+                                        <a href="<?= route_url('users') ?>" class="btn btn-outline-secondary">Batal</a>
                                     </div>
                                 </form>
                             </div>
@@ -170,6 +174,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     </div>
 
-    <script src="../../../public/assets/js/bootstrap.js"></script>
+    <script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
 </body>
 </html>

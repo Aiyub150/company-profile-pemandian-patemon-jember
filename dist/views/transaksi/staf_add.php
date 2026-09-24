@@ -1,6 +1,6 @@
 <?php
 require '../../app/config.php';
 check_auth([1, 2]);
-header("Location: tambah.php");
+header("Location: " . route_url('transaksi_tambah'));
 exit();
 ?>

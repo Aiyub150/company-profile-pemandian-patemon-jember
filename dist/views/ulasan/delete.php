@@ -12,6 +12,6 @@ if ($id_ulasan > 0 && validate_csrf($csrf)) {
     $stmt->close();
 }
 
-header("Location: ulasan.php");
+header("Location: " . route_url('ulasan'));
 exit();
 ?>

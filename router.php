@@ -25,24 +25,115 @@ foreach ($blockedPatterns as $pattern) {
     }
 }
 
-// 2. Redirect root path to public landing page
-if ($uri === '/' || $uri === '' || $uri === '/index.html') {
-    header("Location: /dist/views/index.php");
-    exit;
+// 2. Clean Routing Map
+$cleanRoutes = [
+    '/'                      => 'dist/views/index.php',
+    '/home'                  => 'dist/views/index.php',
+    '/beranda'               => 'dist/views/index.php',
+    '/login'                 => 'dist/views/login.php',
+    '/register'              => 'dist/views/register.php',
+    '/logout'                => 'dist/views/logout.php',
+    '/forgot-password'       => 'dist/views/forgot_password.php',
+    '/tiket'                 => 'dist/views/tiket/pesan.php',
+    '/tiket/pesan'           => 'dist/views/tiket/pesan.php',
+    '/tiket/nota'            => 'dist/views/tiket/nota.php',
+    '/nota'                  => 'dist/views/tiket/nota.php',
+
+    '/dashboard'             => 'dist/views/dashboard/dashboard.php',
+    '/admin'                 => 'dist/views/dashboard/dashboard.php',
+    '/admin/dashboard'       => 'dist/views/dashboard/dashboard.php',
+    '/kasir'                 => 'dist/views/transaksi/staf.php',
+    '/kasir/loket'           => 'dist/views/transaksi/staf.php',
+    '/kasir/pos'             => 'dist/views/transaksi/tambah.php',
+
+    '/admin/transaksi'       => 'dist/views/transaksi/transaksi.php',
+    '/admin/transaksi/tambah'=> 'dist/views/transaksi/tambah.php',
+    '/admin/transaksi/update'=> 'dist/views/transaksi/update.php',
+    '/admin/transaksi/delete'=> 'dist/views/transaksi/delete.php',
+    '/admin/transaksi/detail'=> 'dist/views/detail_transaksi/detail_transaksi.php',
+    '/admin/transaksi/detail/update' => 'dist/views/detail_transaksi/update.php',
+    '/admin/transaksi/detail/delete' => 'dist/views/detail_transaksi/delete.php',
+
+    '/admin/tiket'           => 'dist/views/tiket/tiket.php',
+    '/kategori-tiket'        => 'dist/views/tiket/tiket.php',
+    '/admin/tiket/tambah'    => 'dist/views/tiket/tambah.php',
+    '/admin/tiket/update'    => 'dist/views/tiket/update.php',
+    '/admin/tiket/delete'    => 'dist/views/tiket/delete.php',
+
+    '/admin/laporan'         => 'dist/views/transaksi/laporan.php',
+    '/laporan'               => 'dist/views/transaksi/laporan.php',
+    '/admin/laporan/harian'  => 'dist/views/transaksi/laporan_harian.php',
+    '/admin/laporan/bulanan' => 'dist/views/transaksi/laporan_bulanan.php',
+    '/admin/laporan/tahunan' => 'dist/views/transaksi/laporan_tahunan.php',
+    '/admin/laporan/preview' => 'dist/views/transaksi/laporan_preview.php',
+
+    '/admin/ulasan'          => 'dist/views/ulasan/ulasan.php',
+    '/ulasan'                => 'dist/views/ulasan/ulasan.php',
+    '/admin/ulasan/delete'   => 'dist/views/ulasan/delete.php',
+
+    '/admin/users'           => 'dist/views/user/user.php',
+    '/users'                 => 'dist/views/user/user.php',
+    '/admin/users/tambah'    => 'dist/views/user/tambah.php',
+    '/admin/users/update'    => 'dist/views/user/update.php',
+    '/admin/users/delete'    => 'dist/views/user/delete.php',
+
+    '/profile'               => 'dist/views/profile/profile.php',
+    '/guide'                 => 'dist/views/settings/guide.php',
+    '/guide/preview-pdf'     => 'dist/views/settings/guide_preview_pdf.php',
+    '/settings/version'      => 'dist/views/settings/version.php',
+
+    // Fallback .php direct access
+    '/index.php'             => 'dist/views/index.php',
+    '/login.php'             => 'dist/views/login.php',
+    '/register.php'          => 'dist/views/register.php',
+    '/logout.php'            => 'dist/views/logout.php',
+    '/forgot_password.php'   => 'dist/views/forgot_password.php',
+    '/tiket/pesan.php'       => 'dist/views/tiket/pesan.php',
+    '/tiket/nota.php'        => 'dist/views/tiket/nota.php',
+    '/dashboard/dashboard.php' => 'dist/views/dashboard/dashboard.php',
+    '/transaksi/transaksi.php' => 'dist/views/transaksi/transaksi.php',
+    '/transaksi/staf.php'    => 'dist/views/transaksi/staf.php',
+    '/transaksi/tambah.php'  => 'dist/views/transaksi/tambah.php',
+    '/transaksi/update.php'  => 'dist/views/transaksi/update.php',
+    '/tiket/tiket.php'       => 'dist/views/tiket/tiket.php',
+    '/tiket/tambah.php'      => 'dist/views/tiket/tambah.php',
+    '/tiket/update.php'      => 'dist/views/tiket/update.php',
+    '/user/user.php'         => 'dist/views/user/user.php',
+    '/user/tambah.php'       => 'dist/views/user/tambah.php',
+    '/user/update.php'       => 'dist/views/user/update.php',
+    '/ulasan/ulasan.php'     => 'dist/views/ulasan/ulasan.php',
+    '/profile/profile.php'   => 'dist/views/profile/profile.php',
+    '/settings/guide.php'    => 'dist/views/settings/guide.php',
+    '/settings/version.php'  => 'dist/views/settings/version.php',
+];
+
+$normalizedUri = rtrim($uri, '/');
+if ($normalizedUri === '') {
+    $normalizedUri = '/';
 }
 
-// 3. If file exists on disk, let built-in server handle it (CSS, JS, images, PHP scripts)
+if (isset($cleanRoutes[$normalizedUri])) {
+    $targetFile = __DIR__ . '/' . $cleanRoutes[$normalizedUri];
+    if (file_exists($targetFile)) {
+        chdir(dirname($targetFile));
+        require $targetFile;
+        exit;
+    }
+}
+
+// 3. Static assets: If physical file exists on disk, let built-in server handle it (CSS, JS, images, fonts)
 if (file_exists($fullPath) && !is_dir($fullPath)) {
     return false;
 }
 
-// 4. If directory is accessed directly and has index.php
-if (is_dir($fullPath) && file_exists(rtrim($fullPath, '/') . '/index.php')) {
-    header("Location: " . rtrim($uri, '/') . "/index.php");
+// 4. Backward compatibility: if direct file in /dist/views/... is accessed directly
+if (file_exists($fullPath) && is_file($fullPath) && pathinfo($fullPath, PATHINFO_EXTENSION) === 'php') {
+    chdir(dirname($fullPath));
+    require $fullPath;
     exit;
 }
 
 // 5. Fallback 404
 http_response_code(404);
-echo "<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style='font-family:sans-serif;text-align:center;padding:50px;'><h1>404 Not Found</h1><p>Halaman yang Anda tuju tidak ditemukan.</p><a href='/dist/views/index.php'>Kembali ke Beranda</a></body></html>";
+echo "<!DOCTYPE html><html><head><title>404 Not Found - Pemandian Patemon</title><link rel='stylesheet' href='/public/css/modern-theme.css'></head><body style='font-family:sans-serif;text-align:center;padding:80px 20px;background:#f8fafc;'><div style='max-width:500px;margin:auto;background:#fff;padding:40px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.05);'><h1 style='color:#0f172a;font-size:3rem;margin-bottom:10px;'>404</h1><h3 style='color:#334155;margin-bottom:15px;'>Halaman Tidak Ditemukan</h3><p style='color:#64748b;margin-bottom:25px;'>Alamat URL yang Anda tuju tidak tersedia atau telah dipindahkan.</p><a href='/' style='display:inline-block;padding:10px 24px;background:#0284c7;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;'>Kembali ke Beranda</a></div></body></html>";
 exit;

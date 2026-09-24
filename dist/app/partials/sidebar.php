@@ -3,8 +3,26 @@
 $current_page = $active_menu ?? '';
 $user_level   = (int)($_SESSION['level'] ?? 0);
 $user_name    = $_SESSION['nama'] ?? $_SESSION['username'] ?? 'User';
-$role_name    = ($user_level === 1) ? 'Administrator' : (($user_level === 2) ? 'Staf Kasir' : 'Pengguna');
+$role_name    = get_role_name($user_level);
 $initial      = strtoupper(substr($user_name, 0, 1));
+$is_admin_or_super = ($user_level === 1 || $user_level === 2);
+$is_staff          = ($user_level === 3);
+
+// Ambil avatar jika ada
+$sidebar_avatar = '';
+if (!empty($_SESSION['id_user'])) {
+    $uid = (int)$_SESSION['id_user'];
+    $stmt_av = $conn->prepare("SELECT avatar FROM users WHERE id_user = ? LIMIT 1");
+    if ($stmt_av) {
+        $stmt_av->bind_param("i", $uid);
+        $stmt_av->execute();
+        $av_res = $stmt_av->get_result()->fetch_assoc();
+        $stmt_av->close();
+        if (!empty($av_res['avatar']) && file_exists(__DIR__ . '/../../../public/img/avatars/' . $av_res['avatar'])) {
+            $sidebar_avatar = public_url('img/avatars/' . $av_res['avatar']);
+        }
+    }
+}
 
 // Fallback helper jika file belum memanggil config.php secara global
 if (!function_exists('views_url')) {
@@ -24,8 +42,6 @@ if (!function_exists('public_url')) {
         return rtrim($root, '/') . '/public/' . ltrim($path, '/');
     }
 }
-
-$is_laporan_active = in_array($current_page, ['laporan_harian', 'laporan_bulanan', 'laporan_tahunan']);
 ?>
 <div id="sidebar" class="active">
     <div class="sidebar-wrapper active" style="box-shadow: 4px 0 20px rgba(0,0,0,0.03); display: flex; flex-direction: column; background: #ffffff;">
@@ -33,7 +49,7 @@ $is_laporan_active = in_array($current_page, ['laporan_harian', 'laporan_bulanan
         <div class="sidebar-header position-relative" style="padding: 1.5rem 1.5rem 1rem;">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="logo">
-                    <a href="<?= ($user_level === 1) ? views_url('dashboard/dashboard.php') : views_url('index.php') ?>" class="d-flex align-items-center gap-2 text-decoration-none">
+                    <a href="<?= in_array($user_level, [1, 2, 3], true) ? route_url('dashboard') : route_url('home') ?>" class="d-flex align-items-center gap-2 text-decoration-none">
                         <img src="<?= public_url('img/icon.png') ?>" alt="Logo" style="height: 36px; width: auto; max-width: 48px; object-fit: contain;">
                         <div>
                             <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a; line-height: 1.2;">PATEMON</div>
@@ -58,9 +74,9 @@ $is_laporan_active = in_array($current_page, ['laporan_harian', 'laporan_bulanan
                     Navigasi Utama
                 </li>
 
-                <?php if ($user_level === 1): ?>
+                <?php if (in_array($user_level, [1, 2, 3], true)): ?>
                 <li class="sidebar-item <?= ($current_page === 'dashboard') ? 'active' : '' ?>">
-                    <a href="<?= views_url('dashboard/dashboard.php') ?>" class="sidebar-link" style="border-radius: 10px;">
+                    <a href="<?= route_url('dashboard') ?>" class="sidebar-link" style="border-radius: 10px;">
                         <i class="fa-solid fa-chart-pie"></i>
                         <span>Dashboard</span>
                     </a>
@@ -68,8 +84,8 @@ $is_laporan_active = in_array($current_page, ['laporan_harian', 'laporan_bulanan
                 <?php endif; ?>
 
                 <li class="sidebar-item">
-                    <a href="<?= views_url('index.php') ?>" class="sidebar-link" target="_blank" style="border-radius: 10px;">
-                        <i class="fa-solid fa-arrow-up-right-from-square text-primary"></i>
+                    <a href="<?= route_url('home') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-globe text-primary"></i>
                         <span>Lihat Website</span>
                     </a>
                 </li>
@@ -79,83 +95,87 @@ $is_laporan_active = in_array($current_page, ['laporan_harian', 'laporan_bulanan
                     Loket & Kasir
                 </li>
 
-                <?php if ($user_level === 1): ?>
+                <?php if ($is_admin_or_super): ?>
                 <li class="sidebar-item <?= ($current_page === 'transaksi') ? 'active' : '' ?>">
-                    <a href="<?= views_url('transaksi/transaksi.php') ?>" class="sidebar-link" style="border-radius: 10px;">
+                    <a href="<?= route_url('transaksi') ?>" class="sidebar-link" style="border-radius: 10px;">
                         <i class="fa-solid fa-cash-register"></i>
                         <span>Transaksi Kasir</span>
                     </a>
                 </li>
                 <li class="sidebar-item <?= ($current_page === 'tiket') ? 'active' : '' ?>">
-                    <a href="<?= views_url('tiket/tiket.php') ?>" class="sidebar-link" style="border-radius: 10px;">
+                    <a href="<?= route_url('tiket_kategori') ?>" class="sidebar-link" style="border-radius: 10px;">
                         <i class="fa-solid fa-ticket"></i>
                         <span>Kategori Tiket</span>
                     </a>
                 </li>
                 <?php else: ?>
-                <li class="sidebar-item <?= ($current_page === 'staf') ? 'active' : '' ?>">
-                    <a href="<?= views_url('transaksi/staf.php') ?>" class="sidebar-link" style="border-radius: 10px;">
+                <!-- Khusus Staf: Hanya 1 menu sidebar Kasir Loket (Feedback-2 Poin 2) -->
+                <li class="sidebar-item <?= ($current_page === 'staf' || $current_page === 'kasir') ? 'active' : '' ?>">
+                    <a href="<?= route_url('kasir') ?>" class="sidebar-link" style="border-radius: 10px;">
                         <i class="fa-solid fa-cash-register"></i>
                         <span>Kasir Loket</span>
                     </a>
                 </li>
                 <?php endif; ?>
 
-                <!-- Section: Analitik & Laporan (Admin Only) -->
-                <?php if ($user_level === 1): ?>
+                <!-- Section: Analitik & Laporan -->
                 <li class="sidebar-title" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 700; padding: 1rem 0.75rem 0.35rem;">
                     Analitik & Laporan
                 </li>
 
-                <li class="sidebar-item has-sub <?= $is_laporan_active ? 'active open' : '' ?>">
-                    <a href="javascript:void(0)" class="sidebar-link sidebar-dropdown-toggle" style="border-radius: 10px; display: flex; align-items: center; justify-content: space-between;">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-file-invoice-dollar"></i>
-                            <span>Laporan Omzet</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-down submenu-chevron" style="font-size: 0.75rem; transition: transform 0.25s ease;"></i>
-                    </a>
-                    <ul class="submenu <?= $is_laporan_active ? 'active' : '' ?>" style="list-style: none; padding-left: 1.25rem; margin-top: 0.25rem; display: <?= $is_laporan_active ? 'block' : 'none' ?>;">
-                        <li class="submenu-item <?= ($current_page === 'laporan_harian') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
-                            <a href="<?= views_url('transaksi/laporan_harian.php') ?>" class="submenu-link" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.875rem; color: <?= ($current_page === 'laporan_harian') ? '#0284c7; font-weight: 700; background: #e0f2fe;' : '#64748b;' ?> text-decoration: none;">
-                                <i class="fa-regular fa-calendar-check" style="font-size: 0.85rem;"></i>
-                                <span>Laporan Harian</span>
-                            </a>
-                        </li>
-                        <li class="submenu-item <?= ($current_page === 'laporan_bulanan') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
-                            <a href="<?= views_url('transaksi/laporan_bulanan.php') ?>" class="submenu-link" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.875rem; color: <?= ($current_page === 'laporan_bulanan') ? '#0284c7; font-weight: 700; background: #e0f2fe;' : '#64748b;' ?> text-decoration: none;">
-                                <i class="fa-regular fa-calendar-days" style="font-size: 0.85rem;"></i>
-                                <span>Laporan Bulanan</span>
-                            </a>
-                        </li>
-                        <li class="submenu-item <?= ($current_page === 'laporan_tahunan') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
-                            <a href="<?= views_url('transaksi/laporan_tahunan.php') ?>" class="submenu-link" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.875rem; color: <?= ($current_page === 'laporan_tahunan') ? '#0284c7; font-weight: 700; background: #e0f2fe;' : '#64748b;' ?> text-decoration: none;">
-                                <i class="fa-regular fa-calendar" style="font-size: 0.85rem;"></i>
-                                <span>Laporan Tahunan</span>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <!-- Section: Pengaturan Sistem (Admin Only) -->
-                <li class="sidebar-title" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 700; padding: 1rem 0.75rem 0.35rem;">
-                    Pengaturan Sistem
-                </li>
-
-                <li class="sidebar-item <?= ($current_page === 'user') ? 'active' : '' ?>">
-                    <a href="<?= views_url('user/user.php') ?>" class="sidebar-link" style="border-radius: 10px;">
-                        <i class="fa-solid fa-users-gear"></i>
-                        <span>Manajemen User</span>
+                <!-- Satu Menu Laporan Terpadu (Feedback-2 Poin 3) -->
+                <li class="sidebar-item <?= ($current_page === 'laporan' || in_array($current_page, ['laporan_harian', 'laporan_bulanan', 'laporan_tahunan', 'laporan_preview'])) ? 'active' : '' ?>">
+                    <a href="<?= route_url('laporan') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <span><?= ($user_level === 3) ? 'Laporan Saya' : 'Laporan Omzet' ?></span>
                     </a>
                 </li>
 
+                <?php if ($is_admin_or_super): ?>
+                <!-- Kritik & Saran Dipindahkan ke Analitik & Laporan (Feedback-2 Poin 4) -->
                 <li class="sidebar-item <?= ($current_page === 'ulasan') ? 'active' : '' ?>">
-                    <a href="<?= views_url('ulasan/ulasan.php') ?>" class="sidebar-link" style="border-radius: 10px;">
+                    <a href="<?= route_url('ulasan') ?>" class="sidebar-link" style="border-radius: 10px;">
                         <i class="fa-solid fa-comments"></i>
                         <span>Kritik & Saran</span>
                     </a>
                 </li>
                 <?php endif; ?>
+
+                <!-- Section: Pengaturan Sistem -->
+                <li class="sidebar-title" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 700; padding: 1rem 0.75rem 0.35rem;">
+                    Pengaturan & Standar
+                </li>
+
+                <?php if ($user_level === 1): ?>
+                <!-- Manajemen User Khusus Super Admin (Level 1) -->
+                <li class="sidebar-item <?= ($current_page === 'user') ? 'active' : '' ?>">
+                    <a href="<?= route_url('users') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span>Manajemen User</span>
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <li class="sidebar-item <?= ($current_page === 'profile') ? 'active' : '' ?>">
+                    <a href="<?= route_url('profile') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>Profil Saya</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item <?= ($current_page === 'guide') ? 'active' : '' ?>">
+                    <a href="<?= route_url('guide') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                        <span>Buku Panduan</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-item <?= ($current_page === 'version') ? 'active' : '' ?>">
+                    <a href="<?= route_url('version') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>Informasi Versi</span>
+                    </a>
+                </li>
             </ul>
         </div>
 
@@ -163,19 +183,29 @@ $is_laporan_active = in_array($current_page, ['laporan_harian', 'laporan_bulanan
         <div style="padding: 1rem 1.25rem; border-top: 1px solid #f1f5f9; background: #ffffff;">
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2">
-                    <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.2);">
-                        <?= $initial ?>
-                    </div>
+                    <?php if (!empty($sidebar_avatar)): ?>
+                        <img src="<?= e($sidebar_avatar) ?>" alt="Avatar" style="width: 38px; height: 38px; border-radius: 10px; object-fit: cover; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                    <?php else: ?>
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.2);">
+                            <?= $initial ?>
+                        </div>
+                    <?php endif; ?>
                     <div style="overflow: hidden;">
                         <div style="font-weight: 700; font-size: 0.875rem; color: #1e293b; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 120px;" title="<?= e($user_name) ?>">
                             <?= e($user_name) ?>
                         </div>
-                        <span class="badge" style="font-size: 0.675rem; font-weight: 600; padding: 0.2rem 0.5rem; background: <?= ($user_level === 1) ? '#ede9fe; color: #6d28d9;' : '#e0f2fe; color: #0369a1;' ?>">
-                            <?= $role_name ?>
+                        <?php
+                        $badge_bg = '#f1f5f9; color: #475569;';
+                        if ($user_level === 1) $badge_bg = '#ede9fe; color: #6d28d9;';
+                        elseif ($user_level === 2) $badge_bg = '#e0f2fe; color: #0284c7;';
+                        elseif ($user_level === 3) $badge_bg = '#dcfce7; color: #15803d;';
+                        ?>
+                        <span class="badge" style="font-size: 0.675rem; font-weight: 600; padding: 0.2rem 0.5rem; background: <?= $badge_bg ?>">
+                            <?= e($role_name) ?>
                         </span>
                     </div>
                 </div>
-                <a href="<?= views_url('logout.php') ?>" class="btn btn-sm btn-outline-danger" title="Keluar / Logout" style="border-radius: 8px; width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                <a href="<?= route_url('logout') ?>" class="btn btn-sm btn-outline-danger" title="Keluar / Logout" style="border-radius: 8px; width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
                     <i class="fa-solid fa-power-off"></i>
                 </a>
             </div>

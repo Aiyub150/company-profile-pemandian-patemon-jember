@@ -4,161 +4,160 @@ require '../../app/config.php';
 // Hak Akses Khusus: Hanya Administrator (Level 1)
 check_auth([1]);
 
-$active_menu = 'user';
-$base_view = '..';
+$active_menu     = 'user';
+$page_title      = 'Manajemen Pengguna - Pemandian Patemon';
+$page_heading    = 'Manajemen Pengguna';
+$page_subheading = 'Kelola akun administrator, staf kasir loket, dan pengunjung terdaftar.';
 
-$sql = "SELECT id_user, nama, username, email, no_telepon, level FROM users ORDER BY level ASC, id_user ASC";
-$result = $conn->query($sql);
+$header_actions = '
+    <a href="' . route_url('users_tambah') . '" class="btn btn-brand">
+        <i class="fa-solid fa-user-plus me-1"></i> Tambah Pengguna Baru
+    </a>
+';
+
+$search = trim($_GET['search'] ?? '');
+
+if (!empty($search)) {
+    $search_like = "%" . $search . "%";
+    $stmt = $conn->prepare("
+        SELECT id_user, nama, username, email, no_telepon, level 
+        FROM users 
+        WHERE nama LIKE ? 
+           OR username LIKE ? 
+           OR email LIKE ? 
+           OR no_telepon LIKE ?
+        ORDER BY level ASC, id_user ASC
+    ");
+    $stmt->bind_param("ssss", $search_like, $search_like, $search_like, $search_like);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+} else {
+    $sql = "SELECT id_user, nama, username, email, no_telepon, level FROM users ORDER BY level ASC, id_user ASC";
+    $result = $conn->query($sql);
+}
+
+require '../../app/layouts/admin_header.php';
 ?>
-<!DOCTYPE html>
-<html lang="id">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Pengguna - Pemandian Patemon</title>
-
-    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-
-<body>
-    <div id="app">
-        <?php include '../../app/partials/sidebar.php'; ?>
-
-        <div id="main">
-            <!-- Header Topbar -->
-            <header class="mb-4 d-flex justify-content-between align-items-center">
-                <a href="#" class="burger-btn d-block d-xl-none text-dark">
-                    <i class="fa-solid fa-bars fs-3"></i>
-                </a>
-                <div class="d-flex align-items-center gap-2 ms-auto">
-                    <span class="badge badge-modern-primary">Admin Control</span>
-                </div>
-            </header>
-
-            <div class="page-heading mb-4">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <div>
-                        <h2 class="fw-bold mb-1" style="font-size: 1.75rem; color: #0f172a;">Manajemen Pengguna</h2>
-                        <p class="text-muted mb-0">Kelola akun administrator, staf kasir loket, dan pengunjung terdaftar.</p>
-                    </div>
-                    <div>
-                        <a href="tambah.php" class="btn btn-brand">
-                            <i class="fa-solid fa-user-plus me-1"></i> Tambah Pengguna Baru
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="page-content">
-                <div class="modern-card">
-                    <div class="modern-card-header">
-                        <span class="fw-bold fs-6" style="color: #0f172a;"><i class="fa-solid fa-users-gear text-primary me-2"></i> Daftar Akun Pengguna</span>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table-modern">
-                            <thead>
-                                <tr>
-                                    <th>Pengguna</th>
-                                    <th>Username</th>
-                                    <th>Email</th>
-                                    <th>No Telepon</th>
-                                    <th>Peran (Role)</th>
-                                    <th class="text-center" style="width: 140px;">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php if ($result && $result->num_rows > 0): ?>
-                                <?php while ($row = $result->fetch_assoc()): ?>
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center gap-2">
-                                                <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-                                                    <?= strtoupper(substr($row['nama'] ?: $row['username'], 0, 1)) ?>
-                                                </div>
-                                                <div>
-                                                    <div class="fw-bold" style="color: #0f172a;"><?= e($row["nama"] ?: '-') ?></div>
-                                                    <small class="text-muted">ID: #<?= (int)$row["id_user"] ?></small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td><code style="background: #f0f9ff; color: #0284c7; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 600;"><?= e($row["username"]) ?></code></td>
-                                        <td style="color: #334155;"><?= e($row["email"]) ?></td>
-                                        <td style="color: #334155;"><?= e($row["no_telepon"] ?: '-') ?></td>
-                                        <td>
-                                            <?php 
-                                             $lvl = (int)$row["level"];
-                                             if ($lvl === 1) {
-                                                 echo '<span class="badge-modern badge-modern-purple"><i class="fa-solid fa-shield-halved"></i> Administrator</span>';
-                                             } elseif ($lvl === 2) {
-                                                 echo '<span class="badge-modern badge-modern-primary"><i class="fa-solid fa-cash-register"></i> Staf Kasir</span>';
-                                             } else {
-                                                 echo '<span class="badge-modern badge-modern-warning"><i class="fa-solid fa-user"></i> Pengguna</span>';
-                                             }
-                                             ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="d-inline-flex gap-1">
-                                                <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Ubah Akun" href="update.php?id=<?= $row["id_user"] ?>">
-                                                    <i class="fa-solid fa-pen-to-square"></i>
-                                                </a>
-                                                <?php if ((int)$row["id_user"] !== (int)$_SESSION['id_user']): ?>
-                                                    <button type="button" class="btn btn-sm btn-soft-danger btn-action-icon" title="Hapus User" onclick="confirmDelete(<?= (int)$row['id_user'] ?>, '<?= e($row['username']) ?>')">
-                                                        <i class="fa-solid fa-trash"></i>
-                                                    </button>
-                                                <?php else: ?>
-                                                    <button class="btn btn-sm btn-soft-secondary btn-action-icon" disabled title="Akun Anda yang sedang aktif">
-                                                        <i class="fa-solid fa-lock"></i>
-                                                    </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-5">
-                                        Tidak ada akun pengguna ditemukan.
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-5">
-                <?php include '../../app/partials/footer.php'; ?>
+<div class="page-content">
+    <div class="modern-card">
+        <div class="modern-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="fw-bold fs-6" style="color: #0f172a;">
+                <i class="fa-solid fa-users-gear text-primary me-2"></i> Daftar Akun Pengguna
+            </span>
+            <div class="d-flex align-items-center gap-2">
+                <form method="GET" action="" class="input-icon-group" style="width: 280px;">
+                    <i class="fa-solid fa-search input-icon"></i>
+                    <input type="text" name="search" class="form-control-modern form-control-sm" placeholder="Cari nama, user, email..." value="<?= e($search) ?>">
+                </form>
+                <?php if (!empty($search)): ?>
+                    <a href="<?= route_url('users') ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
+                <?php endif; ?>
             </div>
         </div>
-    </div>
 
-    <!-- Scripts -->
-    <script src="../../../public/assets/js/bootstrap.js"></script>
-    <script>
-    function confirmDelete(id, username) {
-        Swal.fire({
-            title: 'Hapus Akun ' + username + '?',
-            text: 'Akun yang dihapus tidak akan dapat login kembali ke sistem!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Hapus Akun',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = 'delete.php?id=' + id + '&csrf=<?= csrf_token() ?>';
-            }
-        });
-    }
-    </script>
-</body>
-</html>
+        <div class="table-responsive">
+            <table class="table-modern" id="tableUsers">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;" class="text-center">No</th>
+                        <th>Kode & Pengguna</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>No Telepon</th>
+                        <th>Peran (Role)</th>
+                        <th class="text-center" style="width: 140px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if ($result && $result->num_rows > 0): ?>
+                    <?php 
+                    $no = 1;
+                    while ($row = $result->fetch_assoc()): 
+                        $lvl = (int)$row["level"];
+                    ?>
+                        <tr>
+                            <td class="text-center text-muted fw-semibold"><?= $no++ ?></td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                                        <?= strtoupper(substr($row['nama'] ?: $row['username'], 0, 1)) ?>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold" style="color: #0f172a;"><?= e($row["nama"] ?: '-') ?></div>
+                                        <small class="text-muted font-monospace">#USR-<?= sprintf('%03d', (int)$row["id_user"]) ?></small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><code style="background: #f0f9ff; color: #0284c7; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 600;"><?= e($row["username"]) ?></code></td>
+                            <td style="color: #334155;"><?= e($row["email"] ?: '-') ?></td>
+                            <td style="color: #334155;"><?= e($row["no_telepon"] ?: '-') ?></td>
+                            <td>
+                                <?php 
+                                if ($lvl === 1) {
+                                    echo '<span class="badge-modern badge-modern-purple"><i class="fa-solid fa-shield-halved"></i> Super Admin</span>';
+                                } elseif ($lvl === 2) {
+                                    echo '<span class="badge-modern badge-modern-primary"><i class="fa-solid fa-user-tie"></i> Admin</span>';
+                                } elseif ($lvl === 3) {
+                                    echo '<span class="badge-modern badge-modern-success"><i class="fa-solid fa-cash-register"></i> Staf Kasir</span>';
+                                } else {
+                                    echo '<span class="badge-modern badge-modern-secondary"><i class="fa-solid fa-user"></i> Pengunjung</span>';
+                                }
+                                ?>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-1">
+                                    <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Edit Akun" href="<?= route_url('users_update', ['id' => $row['id_user']]) ?>">
+                                        <i class="fa-solid fa-user-pen"></i>
+                                    </a>
+                                    <?php if ($row["id_user"] != $_SESSION['id_user']): ?>
+                                        <button type="button" class="btn btn-sm btn-soft-danger btn-action-icon" title="Hapus Pengguna" onclick="confirmDelete(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['username'])) ?>')">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="button" class="btn btn-sm btn-light btn-action-icon" title="Akun Anda Saat Ini" disabled>
+                                            <i class="fa-solid fa-lock text-muted"></i>
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-user-xmark fs-2 mb-2 d-block text-secondary"></i>
+                            Tidak ada data pengguna yang sesuai.
+                        </td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<?php
+$extra_js = '
+<script>
+function confirmDelete(id, username) {
+    Swal.fire({
+        title: "Hapus Pengguna @" + username + "?",
+        text: "Akun ini akan dinonaktifkan dan dihapus dari sistem.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = "' . route_url('users_delete') . '?id=" + id + "&csrf=' . csrf_token() . '";
+        }
+    });
+}
+</script>
+';
+require '../../app/layouts/admin_footer.php';
+?>

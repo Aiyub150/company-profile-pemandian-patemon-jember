@@ -1,0 +1,60 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Blokir akses ke file sensitif
+    RewriteRule ^\.env - [F,L,NC]
+    RewriteRule ^\.git - [F,L,NC]
+    RewriteRule \.sql$ - [F,L,NC]
+    RewriteRule composer\.(json|lock)$ - [F,L,NC]
+    RewriteRule \.md$ - [F,L,NC]
+    RewriteRule ^database/ - [F,L,NC]
+
+    # Jangan rewrite jika file fisik / direktori aset ada (CSS, JS, gambar)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Clean Routes Mapping
+    RewriteRule ^$ dist/views/index.php [L,QSA]
+    RewriteRule ^home$ dist/views/index.php [L,QSA]
+    RewriteRule ^login$ dist/views/login.php [L,QSA]
+    RewriteRule ^register$ dist/views/register.php [L,QSA]
+    RewriteRule ^logout$ dist/views/logout.php [L,QSA]
+    RewriteRule ^forgot-password$ dist/views/forgot_password.php [L,QSA]
+    RewriteRule ^tiket/pesan$ dist/views/tiket/pesan.php [L,QSA]
+    RewriteRule ^tiket/nota$ dist/views/tiket/nota.php [L,QSA]
+    RewriteRule ^nota$ dist/views/tiket/nota.php [L,QSA]
+
+    RewriteRule ^dashboard$ dist/views/dashboard/dashboard.php [L,QSA]
+    RewriteRule ^kasir$ dist/views/transaksi/staf.php [L,QSA]
+    RewriteRule ^kasir/pos$ dist/views/transaksi/tambah.php [L,QSA]
+
+    RewriteRule ^admin/transaksi$ dist/views/transaksi/transaksi.php [L,QSA]
+    RewriteRule ^admin/transaksi/tambah$ dist/views/transaksi/tambah.php [L,QSA]
+    RewriteRule ^admin/transaksi/update$ dist/views/transaksi/update.php [L,QSA]
+    RewriteRule ^admin/transaksi/delete$ dist/views/transaksi/delete.php [L,QSA]
+
+    RewriteRule ^admin/tiket$ dist/views/tiket/tiket.php [L,QSA]
+    RewriteRule ^admin/tiket/tambah$ dist/views/tiket/tambah.php [L,QSA]
+    RewriteRule ^admin/tiket/update$ dist/views/tiket/update.php [L,QSA]
+    RewriteRule ^admin/tiket/delete$ dist/views/tiket/delete.php [L,QSA]
+
+    RewriteRule ^admin/laporan/harian$ dist/views/transaksi/laporan_harian.php [L,QSA]
+    RewriteRule ^admin/laporan/bulanan$ dist/views/transaksi/laporan_bulanan.php [L,QSA]
+    RewriteRule ^admin/laporan/tahunan$ dist/views/transaksi/laporan_tahunan.php [L,QSA]
+    RewriteRule ^admin/laporan/preview$ dist/views/transaksi/laporan_preview.php [L,QSA]
+
+    RewriteRule ^admin/ulasan$ dist/views/ulasan/ulasan.php [L,QSA]
+    RewriteRule ^admin/ulasan/delete$ dist/views/ulasan/delete.php [L,QSA]
+
+    RewriteRule ^admin/users$ dist/views/user/user.php [L,QSA]
+    RewriteRule ^admin/users/tambah$ dist/views/user/tambah.php [L,QSA]
+    RewriteRule ^admin/users/update$ dist/views/user/update.php [L,QSA]
+    RewriteRule ^admin/users/delete$ dist/views/user/delete.php [L,QSA]
+
+    RewriteRule ^profile$ dist/views/profile/profile.php [L,QSA]
+    RewriteRule ^guide$ dist/views/settings/guide.php [L,QSA]
+    RewriteRule ^guide/preview-pdf$ dist/views/settings/guide_preview_pdf.php [L,QSA]
+    RewriteRule ^settings/version$ dist/views/settings/version.php [L,QSA]
+</IfModule>

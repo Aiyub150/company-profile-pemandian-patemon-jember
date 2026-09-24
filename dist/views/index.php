@@ -8,14 +8,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_ulasan'])) {
     if (!validate_csrf($_POST['csrf_token'] ?? '')) {
         $review_error = 'Token keamanan tidak valid. Silakan muat ulang halaman.';
     } else {
-        $username   = trim($_POST['username'] ?? '');
-        $email      = trim($_POST['email'] ?? '');
-        $no_telepon = trim($_POST['no_telepon'] ?? '');
-        $ulasan     = trim($_POST['ulasan'] ?? '');
-        $tgl_ulasan = date("Y-m-d");
+        // Sanitasi ketat untuk mencegah serangan XSS (Cross Site Scripting)
+        $raw_username = trim($_POST['username'] ?? '');
+        $username     = htmlspecialchars(strip_tags($raw_username), ENT_QUOTES, 'UTF-8');
+        $username     = mb_substr($username, 0, 50);
+
+        $email_input  = trim($_POST['email'] ?? '');
+        $email        = !empty($email_input) ? filter_var($email_input, FILTER_SANITIZE_EMAIL) : '';
+
+        $no_telepon   = trim($_POST['no_telepon'] ?? '');
+
+        $raw_ulasan   = trim($_POST['ulasan'] ?? '');
+        $ulasan       = htmlspecialchars(strip_tags($raw_ulasan), ENT_QUOTES, 'UTF-8');
+        $ulasan       = mb_substr($ulasan, 0, 500);
+        $tgl_ulasan   = date("Y-m-d");
 
         if (empty($username) || empty($ulasan)) {
-            $review_error = 'Nama dan ulasan wajib diisi.';
+            $review_error = 'Nama Anda dan isi ulasan wajib diisi.';
+        } elseif (mb_strlen($raw_username) > 50) {
+            $review_error = 'Panjang nama pengirim maksimal 50 karakter.';
+        } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $review_error = 'Format alamat email tidak valid.';
+        } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
+            $review_error = 'Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka).';
         } else {
             $stmt = $conn->prepare("INSERT INTO ulasan (username, email, no_telepon, ulasan, tgl_ulasan) VALUES (?, ?, ?, ?, ?)");
             if ($stmt) {
@@ -358,7 +373,7 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
         }
     </style>
 </head>
-<body id="page-top">
+<body id="page-top" data-bs-spy="scroll" data-bs-target="#mainNav" data-bs-offset="100">
 
     <!-- Navigation Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNav">
@@ -378,30 +393,31 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                     <li class="nav-item"><a class="nav-link" href="#services">Fasilitas</a></li>
                     <li class="nav-item"><a class="nav-link" href="#portfolio">Galeri</a></li>
                     <li class="nav-item"><a class="nav-link" href="#pricing">Tarif Tiket</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#team">Pimpinan Daerah</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#lokasi">Lokasi & Peta</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#kontak-info">Kontak Kami</a></li>
                     <li class="nav-item"><a class="nav-link" href="#contact">Kritik & Saran</a></li>
                     
                     <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                        <a class="btn btn-pesan-nav text-white" href="tiket/pesan.php">
+                        <a class="btn btn-pesan-nav text-white" href="<?= route_url('tiket_pesan') ?>">
                             <i class="fa-solid fa-ticket me-1"></i> Pesan Tiket
                         </a>
                     </li>
                     <?php if (isset($_SESSION['id_user'])): ?>
-                        <?php if (isset($_SESSION['level']) && ($_SESSION['level'] == '1' || $_SESSION['level'] == '2')): ?>
+                        <?php if (isset($_SESSION['level']) && in_array((int)$_SESSION['level'], [1, 2, 3])): ?>
                             <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                                <a class="btn btn-panel-nav text-white" href="<?= ($_SESSION['level'] == 1) ? 'dashboard/dashboard.php' : 'transaksi/staf.php' ?>">
+                                <a class="btn btn-panel-nav text-white" href="<?= ((int)$_SESSION['level'] === 3) ? route_url('kasir') : route_url('dashboard') ?>">
                                     <i class="fa-solid fa-gauge me-1"></i> Panel Kasir
                                 </a>
                             </li>
                         <?php endif; ?>
                         <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                            <a class="btn btn-logout-nav" href="logout.php" title="Keluar dari Akun">
+                            <a class="btn btn-logout-nav" href="<?= route_url('logout') ?>" title="Keluar dari Akun">
                                 <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
                             </a>
                         </li>
                     <?php else: ?>
                         <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                            <a class="btn btn-login-nav text-white" href="login.php" title="Masuk ke Akun / Petugas">
+                            <a class="btn btn-login-nav text-white" href="<?= route_url('login') ?>" title="Masuk ke Akun / Petugas">
                                 <i class="fa-solid fa-right-to-bracket me-1"></i> Login
                             </a>
                         </li>
@@ -422,7 +438,7 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                 Rasakan kejernihan mata air pegunungan alami yang dingin dan menyejukkan. Destinasi rekreasi sempurna untuk kebersamaan keluarga dan sahabat.
             </p>
             <div class="d-flex justify-content-center gap-3 flex-wrap">
-                <a class="btn btn-accent btn-lg px-4 py-3" href="tiket/pesan.php">
+                <a class="btn btn-accent btn-lg px-4 py-3" href="<?= route_url('tiket_pesan') ?>">
                     <i class="fa-solid fa-ticket me-2"></i> Pesan Tiket Sekarang
                 </a>
                 <a class="btn btn-outline-light btn-lg px-4 py-3" href="#services">
@@ -560,7 +576,7 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Area Gazebo & Tempat Duduk Teduh</li>
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Parkir Aman & Terjaga</li>
                         </ul>
-                        <a href="tiket/pesan.php" class="btn btn-brand w-100 py-3 fs-6">
+                        <a href="<?= route_url('tiket_pesan') ?>" class="btn btn-brand w-100 py-3 fs-6">
                             <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Dewasa
                         </a>
                     </div>
@@ -579,7 +595,7 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Pengawasan Lifeguard Khusus Area Anak</li>
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Wahana Bermain Air Menyenangkan</li>
                         </ul>
-                        <a href="tiket/pesan.php" class="btn btn-accent w-100 py-3 fs-6">
+                        <a href="<?= route_url('tiket_pesan') ?>" class="btn btn-accent w-100 py-3 fs-6">
                             <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Anak
                         </a>
                     </div>
@@ -630,38 +646,149 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
         </div>
     </section>
 
-    <!-- Location & Socials -->
-    <div class="py-5 bg-white border-top border-bottom">
-        <div class="container text-center">
-            <h5 class="fw-bold text-dark mb-4">Kunjungi & Ikuti Informasi Terkini Kami</h5>
-            <div class="row align-items-center justify-content-center g-4">
-                <div class="col-md-3 col-6">
-                    <a href="https://maps.app.goo.gl/PemandianPatemon" target="_blank" class="d-inline-flex align-items-center gap-2 text-decoration-none text-dark fw-semibold p-2 rounded hover-bg">
-                        <img src="../../public/img/google_maps.png" alt="Google Maps" style="height: 32px; width: auto; object-fit: contain;" />
-                        <span>Google Maps</span>
-                    </a>
+    <!-- Google Maps Lokasi Pemandian Patemon (Feedback-2 Poin 11) -->
+    <section class="py-5 bg-white border-top border-bottom" id="lokasi">
+        <div class="container">
+            <div class="text-center mb-4">
+                <span class="badge badge-modern-primary mb-2 text-uppercase"><i class="fa-solid fa-map-location-dot me-1"></i> Lokasi Destinasi</span>
+                <h3 class="fw-extrabold text-dark" style="font-size: 2rem;">Peta Lokasi Wisata Pemandian Patemon</h3>
+                <p class="text-muted" style="max-width: 650px; margin: auto;">Temukan rute tercepat dan termudah menuju segarnya sumber mata air alami Pemandian Patemon di Tanggul, Jember.</p>
+            </div>
+            
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="ratio ratio-21x9" style="min-height: 380px;">
+                    <iframe 
+                        src="https://maps.google.com/maps?q=Pemandian+Patemon+Tanggul+Jember&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                        style="border:0; width: 100%; height: 100%;" 
+                        allowfullscreen="" 
+                        loading="lazy" 
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="Peta Lokasi Pemandian Patemon">
+                    </iframe>
                 </div>
-                <div class="col-md-3 col-6">
-                    <a href="https://facebook.com/pemandian.patemon" target="_blank" class="d-inline-flex align-items-center gap-2 text-decoration-none text-dark fw-semibold p-2 rounded hover-bg">
-                        <i class="fa-brands fa-facebook fs-2 text-primary"></i>
-                        <span>Facebook</span>
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="https://instagram.com" target="_blank" class="d-inline-flex align-items-center gap-2 text-decoration-none text-dark fw-semibold p-2 rounded hover-bg">
-                        <i class="fa-brands fa-instagram fs-2 text-danger"></i>
-                        <span>Instagram</span>
-                    </a>
-                </div>
-                <div class="col-md-3 col-6">
-                    <a href="https://youtube.com" target="_blank" class="d-inline-flex align-items-center gap-2 text-decoration-none text-dark fw-semibold p-2 rounded hover-bg">
-                        <i class="fa-brands fa-youtube fs-2 text-danger"></i>
-                        <span>YouTube</span>
-                    </a>
+                <div class="card-body bg-light p-3 px-md-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2 text-secondary small">
+                        <i class="fa-solid fa-location-dot text-danger fs-5"></i>
+                        <span>Desa Patemon, Kecamatan Tanggul, Kabupaten Jember, Jawa Timur 68155</span>
+                    </div>
+                    <div>
+                        <a href="https://maps.app.goo.gl/G8KMqbT6vdZRJE8F6" target="_blank" rel="noopener noreferrer" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm">
+                            <i class="fa-solid fa-diamond-turn-right me-1"></i> Buka Navigasi Rute (Google Maps)
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- Kontak Resmi, Wadul Gus'e, & Pemkab Jember (Feedback-2 Poin 12 & Data Resmi wadulgus.jemberkab.go.id) -->
+    <section class="py-5 bg-light" id="kontak-info">
+        <div class="container">
+            <div class="text-center mb-5">
+                <span class="badge badge-modern-warning mb-2 text-uppercase"><i class="fa-solid fa-headset me-1"></i> Saluran Informasi & Pengaduan Resmi</span>
+                <h3 class="fw-extrabold text-dark" style="font-size: 2rem;">Kontak Resmi, Wadul Gus'e & Pemkab Jember</h3>
+                <p class="text-muted" style="max-width: 650px; margin: auto;">Sampaikan laporan, keluhan, dan aspirasi melalui Wadul Gus’e serta kanal resmi Pemerintah Kabupaten Jember secara cepat dan transparan.</p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                <!-- Card 1: Wadul Gus'e (Layanan Pengaduan Masyarakat Jember) -->
+                <div class="col-lg-5 col-md-6">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4 text-center" style="background: linear-gradient(145deg, #ffffff, #fdf2f8); border: 2px solid #fbcfe8 !important;">
+                        <div class="d-inline-flex align-items-center justify-content-center mx-auto mb-3" style="width: 76px; height: 76px; border-radius: 22px; background: linear-gradient(135deg, #ff005c, #be123c); color: #fff; box-shadow: 0 10px 25px rgba(255, 0, 92, 0.35);">
+                            <i class="fa-solid fa-bullhorn fs-1"></i>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                            <span class="badge" style="background: #ff005c; color: #fff; font-size: 0.75rem; letter-spacing: 0.5px;">PORTAL RESMI PEMKAB</span>
+                            <span class="badge bg-white text-dark border small">Online 24 Jam</span>
+                        </div>
+                        <h4 class="fw-bold mb-1" style="color: #0f172a; font-size: 1.35rem;">Wadul Gus'e Jember</h4>
+                        <p class="text-muted small mb-3">
+                            Layanan Resmi Pengaduan Masyarakat Kabupaten Jember untuk menyampaikan laporan, keluhan, dan aspirasi warga secara cepat dan transparan.
+                        </p>
+                        
+                        <!-- Link Web Portal Wadul Gus'e -->
+                        <div class="mb-3">
+                            <a href="https://wadulgus.jemberkab.go.id/" target="_blank" rel="noopener noreferrer" class="btn btn-sm w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2" style="background: #ff005c; color: #ffffff; border-radius: 10px;">
+                                <i class="fa-solid fa-globe"></i>
+                                <span>Buka Portal: wadulgus.jemberkab.go.id</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square small ms-1"></i>
+                            </a>
+                        </div>
+
+                        <!-- Kanal WhatsApp & Social Media Wadul Gus'e -->
+                        <div class="d-flex flex-column gap-2 text-start mt-auto pt-2 border-top">
+                            <a href="https://wa.me/6281130311188" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success fw-semibold d-flex align-items-center justify-content-between px-3 py-2 rounded-3 small">
+                                <span><i class="fa-brands fa-whatsapp text-success fs-5 me-2"></i> WhatsApp: <strong>+62 811-3031-1188</strong></span>
+                                <i class="fa-solid fa-arrow-up-right-from-square small text-muted"></i>
+                            </a>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <a href="https://www.instagram.com/wadul.guse/" target="_blank" rel="noopener noreferrer" class="btn btn-outline-danger fw-semibold w-100 d-flex align-items-center justify-content-between px-2.5 py-1.5 rounded-3 small">
+                                        <span class="text-truncate"><i class="fa-brands fa-instagram me-1"></i> @wadul.guse</span>
+                                        <i class="fa-solid fa-arrow-up-right-from-square small text-muted"></i>
+                                    </a>
+                                </div>
+                                <div class="col-6">
+                                    <a href="https://www.tiktok.com/@wadulguse" target="_blank" rel="noopener noreferrer" class="btn btn-outline-dark fw-semibold w-100 d-flex align-items-center justify-content-between px-2.5 py-1.5 rounded-3 small">
+                                        <span class="text-truncate"><i class="fa-brands fa-tiktok me-1"></i> @wadulguse</span>
+                                        <i class="fa-solid fa-arrow-up-right-from-square small text-muted"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="text-muted small mt-2" style="font-size: 0.76rem;">
+                                <i class="fa-solid fa-location-dot text-danger me-1"></i> <strong>Command Center:</strong> Jember Nusantara, Jl. PB Sudirman, Kec. Patrang, Kab. Jember 68118
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Kantor Pemkab Jember & Dinas Pariwisata -->
+                <div class="col-lg-7 col-md-6">
+                    <div class="row g-3 h-100">
+                        <!-- Kantor Pemkab Jember -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white border h-100">
+                                <div class="d-flex align-items-center gap-3 mb-3">
+                                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg, #475569, #1e293b); color: #fff; box-shadow: 0 6px 16px rgba(30, 41, 59, 0.2); flex-shrink: 0;">
+                                        <i class="fa-solid fa-landmark-dome fs-3"></i>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-secondary text-white px-2 py-0.5 small">Pusat Pemerintahan Daerah</span>
+                                        <h5 class="fw-bold text-dark mb-0">Kantor Pemerintah Kabupaten Jember</h5>
+                                    </div>
+                                </div>
+                                <div class="small text-muted border-top pt-2">
+                                    <div class="mb-1.5"><i class="fa-solid fa-location-dot text-primary me-2"></i> <strong>Alamat Kantor:</strong> Jl. Sudarman No. 1, Jemberlor, Kec. Patrang, Kab. Jember, Jawa Timur 68118</div>
+                                    <div class="mb-1.5"><i class="fa-solid fa-globe text-primary me-2"></i> <strong>Situs Resmi:</strong> <a href="https://jemberkab.go.id" target="_blank" rel="noopener noreferrer" class="text-decoration-none fw-semibold">jemberkab.go.id</a></div>
+                                    <div><i class="fa-solid fa-phone text-primary me-2"></i> <strong>Telepon / Call Center:</strong> (0331) 487222 / (0331) 487223</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Disparbud & UPT Pemandian Patemon -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white border h-100">
+                                <div class="d-flex align-items-center gap-3 mb-3">
+                                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg, #0284c7, #0284c7); color: #fff; box-shadow: 0 6px 16px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
+                                        <i class="fa-solid fa-umbrella-beach fs-3"></i>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-primary text-white px-2 py-0.5 small">Pengelola Pariwisata & Rekreasi</span>
+                                        <h5 class="fw-bold text-dark mb-0">Disparbud & UPT Wisata Patemon</h5>
+                                    </div>
+                                </div>
+                                <div class="small text-muted border-top pt-2">
+                                    <div class="mb-1.5"><i class="fa-solid fa-building text-primary me-2"></i> <strong>Kantor Disparbud:</strong> Jl. Jawa No. 58, Kec. Sumbersari, Kab. Jember, Jawa Timur 68121</div>
+                                    <div class="mb-1.5"><i class="fa-solid fa-water-ladder text-primary me-2"></i> <strong>Lokasi Wisata & Loket:</strong> Desa Patemon, Kec. Tanggul, Kab. Jember 68155</div>
+                                    <div><i class="fa-solid fa-clock text-primary me-2"></i> <strong>Jam Operasional:</strong> Buka Setiap Hari (07.00 - 17.00 WIB)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- Contact / Feedback Section -->
     <section class="page-section" id="contact">
@@ -674,13 +801,14 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
 
             <div class="row justify-content-center">
                 <div class="col-12 col-lg-8">
-                    <form id="contactForm" method="post" action="index.php#contact" class="p-4 p-md-5 rounded-4" style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.15);">
+                    <form id="contactForm" method="post" action="<?= route_url('home') ?>#contact" class="p-4 p-md-5 rounded-4" style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.15);">
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label class="form-label text-light small fw-semibold">Nama Anda <span class="text-danger">*</span></label>
-                                <input class="form-control-modern" id="name" name="username" type="text" placeholder="Masukkan nama Anda" required />
+                                <input class="form-control-modern" id="name" name="username" type="text" placeholder="Masukkan nama Anda (maks. 50 karakter)" maxlength="50" required />
+                                <small class="text-light-50" style="font-size: 0.72rem; color: rgba(255,255,255,0.7);">Maksimal 50 karakter.</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label text-light small fw-semibold">Alamat Email</label>
@@ -688,11 +816,15 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                             </div>
                             <div class="col-12">
                                 <label class="form-label text-light small fw-semibold">Nomor WhatsApp / HP</label>
-                                <input class="form-control-modern" name="no_telepon" id="phone" type="tel" placeholder="08xxxxxxxxxx" />
+                                <input class="form-control-modern" name="no_telepon" id="phone" type="tel" placeholder="08xxxxxxxxxx" pattern="^0[0-9]{8,14}$" inputmode="numeric" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" title="Gunakan format nomor HP diawali 0 (9-15 digit angka saja)" />
+                                <small class="text-light-50" style="font-size: 0.72rem; color: rgba(255,255,255,0.7);">Format nomor Indonesia diawali angka 0 (9–15 digit angka).</small>
                             </div>
                             <div class="col-12">
-                                <label class="form-label text-light small fw-semibold">Ulasan, Kritik & Saran <span class="text-danger">*</span></label>
-                                <textarea class="form-control-modern" name="ulasan" id="message" placeholder="Tuliskan pengalaman atau saran Anda mengenai kebersihan, kolam, dan fasilitas kami..." required style="min-height: 140px;"></textarea>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label text-light small fw-semibold mb-0">Ulasan, Kritik & Saran <span class="text-danger">*</span></label>
+                                    <span id="charCounter" class="badge bg-secondary opacity-75 small">0 / 500 Karakter</span>
+                                </div>
+                                <textarea class="form-control-modern" name="ulasan" id="message" maxlength="500" placeholder="Tuliskan pengalaman atau saran Anda mengenai kebersihan, kolam, dan fasilitas kami (maksimal 500 karakter)..." required style="min-height: 140px;" oninput="updateCharCount(this)"></textarea>
                             </div>
                         </div>
 
@@ -779,6 +911,58 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
     <!-- Bootstrap core JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../../public/js/scripts.js"></script>
+
+    <script>
+    // Live Character Counter for Feedback Form
+    function updateCharCount(el) {
+        const currentLength = el.value.length;
+        const max = 500;
+        const counter = document.getElementById('charCounter');
+        if (counter) {
+            counter.textContent = `${currentLength} / ${max} Karakter`;
+            if (currentLength >= max) {
+                counter.className = 'badge bg-danger small';
+            } else if (currentLength >= 400) {
+                counter.className = 'badge bg-warning text-dark small';
+            } else {
+                counter.className = 'badge bg-secondary opacity-75 small';
+            }
+        }
+    }
+
+    // Dynamic Navbar Active State on Scroll (IntersectionObserver fallback)
+    document.addEventListener('DOMContentLoaded', () => {
+        const sections = document.querySelectorAll('section[id], header[id]');
+        const navLinks = document.querySelectorAll('#mainNav .nav-link[href^="#"]');
+
+        function updateActiveNav() {
+            let currentId = '';
+            const scrollPos = window.scrollY + 140;
+
+            sections.forEach(section => {
+                const top = section.offsetTop;
+                const height = section.offsetHeight;
+                if (scrollPos >= top && scrollPos < top + height) {
+                    currentId = section.getAttribute('id');
+                }
+            });
+
+            if (currentId) {
+                navLinks.forEach(link => {
+                    const href = link.getAttribute('href').replace('#', '');
+                    if (href === currentId) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        window.addEventListener('scroll', updateActiveNav, { passive: true });
+        updateActiveNav();
+    });
+    </script>
 
     <?php if ($review_success): ?>
     <script>

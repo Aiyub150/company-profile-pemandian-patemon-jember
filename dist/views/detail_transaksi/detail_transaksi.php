@@ -8,7 +8,7 @@ $base_view = '..';
 $id_transaksi = (int)($_GET["id"] ?? 0);
 
 if ($id_transaksi <= 0) {
-    header("Location: ../transaksi/transaksi.php");
+    header("Location: " . route_url('transaksi'));
     exit();
 }
 
@@ -31,7 +31,7 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-$back_link = ($_SESSION['level'] == 2) ? "../transaksi/staf.php" : "../transaksi/transaksi.php";
+$back_link = ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi');
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -41,10 +41,10 @@ $back_link = ($_SESSION['level'] == 2) ? "../transaksi/staf.php" : "../transaksi
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detail Transaksi #<?= $id_transaksi ?> - Pemandian Patemon</title>
 
-    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
 </head>
 
 <body>
@@ -71,7 +71,7 @@ $back_link = ($_SESSION['level'] == 2) ? "../transaksi/staf.php" : "../transaksi
                         <p class="text-muted mb-0">Rincian detail pemesanan tiket pengunjung pemandian.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="../tiket/nota.php?id_transaksi=<?= $id_transaksi ?>" class="btn btn-brand" target="_blank">
+                        <a href="<?= route_url('nota', ['id' => $id_transaksi]) ?>" class="btn btn-brand">
                             <i class="fa-solid fa-print me-1"></i> Cetak Struk Nota
                         </a>
                     </div>
@@ -187,6 +187,6 @@ $back_link = ($_SESSION['level'] == 2) ? "../transaksi/staf.php" : "../transaksi
         </div>
     </div>
 
-    <script src="../../../public/assets/js/bootstrap.js"></script>
+    <script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
 </body>
 </html>

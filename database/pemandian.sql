@@ -31,6 +31,7 @@ CREATE TABLE `users` (
   `email` varchar(100) NOT NULL,
   `no_telepon` varchar(20) DEFAULT NULL,
   `level` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=pengguna, 1=admin, 2=staff',
+  `avatar` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_user`),
   UNIQUE KEY `uniq_users_username` (`username`),
   UNIQUE KEY `uniq_users_email` (`email`)
@@ -40,6 +41,7 @@ CREATE TABLE `tiket` (
   `id_tiket` int(11) NOT NULL AUTO_INCREMENT,
   `nama_tiket` varchar(50) NOT NULL,
   `harga` int(11) NOT NULL DEFAULT 0,
+  `ikon` varchar(50) DEFAULT 'fa-ticket',
   PRIMARY KEY (`id_tiket`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -93,9 +95,10 @@ INSERT INTO `users` (`id_user`, `nama`, `username`, `password`, `email`, `no_tel
 (5, 'Alvi Ramadhan', 'alvi', '$2y$10$G.tALcgdjx6tVwuw281WvervdeMiP1XuVtOemFEPSrEdHee4WdZv6', 'alvi@example.com', '081234567005', 0);
 
 -- Seed Data Tiket
-INSERT INTO `tiket` (`id_tiket`, `nama_tiket`, `harga`) VALUES
-(1, 'Dewasa', 10000),
-(2, 'Anak-Anak', 5000);
+INSERT INTO `tiket` (`id_tiket`, `nama_tiket`, `harga`, `ikon`) VALUES
+(1, 'Dewasa', 10000, 'fa-person'),
+(2, 'Anak-Anak', 5000, 'fa-child-reaching'),
+(3, 'Lansia', 7000, 'fa-person-cane');
 
 -- Seed Data Transaksi
 INSERT INTO `transaksi` (`id_transaksi`, `id_user`, `tgl_pemesanan`, `total_harga`, `metode_pembayaran`, `bukti_pembayaran`, `status`) VALUES

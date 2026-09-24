@@ -8,7 +8,7 @@ $base_view = '..';
 $id_transaksi = (int)($_GET["id"] ?? $_POST['id_transaksi'] ?? 0);
 
 if ($id_transaksi <= 0) {
-    header("Location: " . (($_SESSION['level'] == 2) ? "staf.php" : "transaksi.php"));
+    header("Location: " . (($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi')));
     exit();
 }
 
@@ -65,7 +65,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $ins_d->close();
 
             $conn->commit();
-            $redirect = ($_SESSION['level'] == 2) ? "staf.php" : "transaksi.php";
+            $redirect = ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi');
             header("Location: " . $redirect);
             exit();
         } catch (Exception $e) {
@@ -83,7 +83,7 @@ $data = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$data) {
-    header("Location: " . (($_SESSION['level'] == 2) ? "staf.php" : "transaksi.php"));
+    header("Location: " . (($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi')));
     exit();
 }
 
@@ -112,10 +112,10 @@ $stmt_a->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Transaksi #<?= $id_transaksi ?> - Pemandian Patemon</title>
 
-    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
 </head>
 
 <body>
@@ -129,7 +129,7 @@ $stmt_a->close();
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <a href="<?= ($_SESSION['level'] == 2) ? 'staf.php' : 'transaksi.php' ?>" class="btn btn-sm btn-outline-secondary">
+                    <a href="<?= ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
                         <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Riwayat
                     </a>
                 </div>
@@ -279,7 +279,7 @@ $stmt_a->close();
                             </button>
 
                             <div class="text-center mt-3">
-                                <a href="<?= ($_SESSION['level'] == 2) ? 'staf.php' : 'transaksi.php' ?>" class="text-secondary small text-decoration-none">
+                                <a href="<?= ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi') ?>" class="text-secondary small text-decoration-none">
                                     <i class="fa-solid fa-xmark me-1"></i> Batalkan
                                 </a>
                             </div>
@@ -295,7 +295,7 @@ $stmt_a->close();
     </div>
 
     <!-- Scripts -->
-    <script src="../../../public/assets/js/bootstrap.js"></script>
+    <script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
     <script>
     const hargaDewasa = parseInt(document.getElementById('hargaDewasa').value) || 10000;
     const hargaAnak   = parseInt(document.getElementById('hargaAnak').value) || 5000;

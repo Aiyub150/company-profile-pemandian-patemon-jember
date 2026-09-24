@@ -10,7 +10,7 @@ $csrf = $_GET["csrf"] ?? '';
 if ($id_user > 0 && validate_csrf($csrf)) {
     // Larang menghapus akun yang sedang aktif login
     if ($id_user === (int)$_SESSION['id_user']) {
-        header("Location: user.php?err=self_delete");
+        header("Location: " . route_url('users', ['err' => 'self_delete']));
         exit();
     }
 
@@ -20,6 +20,6 @@ if ($id_user > 0 && validate_csrf($csrf)) {
     $stmt->close();
 }
 
-header("Location: user.php");
+header("Location: " . route_url('users'));
 exit();
 ?>

@@ -1,13 +1,14 @@
 <?php
-session_start();
+require_once __DIR__ . '/../app/config.php';
 
 // Hapus semua variabel sesi
-session_unset();
+$_SESSION = [];
+if (session_id() !== '') {
+    @session_unset();
+    @session_destroy();
+}
 
-// Hancurkan sesi
-session_destroy();
-
-// Arahkan kembali ke halaman login
-header("location: index.php");
+// Arahkan kembali ke halaman beranda
+header("Location: " . route_url('home'));
 exit();
 ?>

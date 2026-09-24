@@ -16,7 +16,7 @@ if ($id_transaksi > 0 && validate_csrf($csrf)) {
     $stmt->close();
 }
 
-$redirect = ($_SESSION['level'] == 2) ? "staf.php" : "transaksi.php";
+$redirect = ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi');
 header("Location: " . $redirect);
 exit();
 ?>

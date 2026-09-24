@@ -1,6 +1,13 @@
 {
+    "name": "aiyub/pemandian-patemon",
+    "description": "Sistem Kasir & Portofolio Wisata Pemandian Patemon Jember",
+    "type": "project",
     "require": {
-        "gopay/payments-sdk-php": "^1.7",
-        "picqer/php-barcode-generator": "^2.4"
+        "php": ">=8.1",
+        "picqer/php-barcode-generator": "^2.4",
+        "dompdf/dompdf": "^3.0"
+    },
+    "config": {
+        "allow-plugins": {}
     }
 }

@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $conn->commit();
                 
                 // Langsung arahkan ke halaman nota cetak atau daftar transaksi
-                header("Location: ../tiket/nota.php?id_transaksi=" . $new_id);
+                header("Location: " . route_url('nota', ['id' => $new_id]));
                 exit();
             } catch (Exception $e) {
                 $conn->rollback();
@@ -81,10 +81,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kasir Loket (POS) - Pemandian Patemon</title>
 
-    <link rel="icon" type="image/x-icon" href="../../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../../public/assets/css/main/app.css">
-    <link rel="stylesheet" href="../../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
     <style>
         .pos-ticket-card {
             border: 2px solid #e2e8f0;
@@ -139,7 +139,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <a href="<?= ($_SESSION['level'] == 2) ? 'staf.php' : 'transaksi.php' ?>" class="btn btn-sm btn-outline-secondary">
+                    <a href="<?= ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
                         <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Riwayat
                     </a>
                 </div>
@@ -331,7 +331,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             </button>
 
                             <div class="text-center mt-3">
-                                <a href="<?= ($_SESSION['level'] == 2) ? 'staf.php' : 'transaksi.php' ?>" class="text-secondary small text-decoration-none">
+                                <a href="<?= ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi') ?>" class="text-secondary small text-decoration-none">
                                     <i class="fa-solid fa-xmark me-1"></i> Batalkan Transaksi
                                 </a>
                             </div>
@@ -347,7 +347,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <!-- Scripts -->
-    <script src="../../../public/assets/js/bootstrap.js"></script>
+    <script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
     <script>
     const hargaDewasa = parseInt(document.getElementById('hargaDewasa').value) || 10000;
     const hargaAnak   = parseInt(document.getElementById('hargaAnak').value) || 5000;

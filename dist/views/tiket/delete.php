@@ -12,6 +12,6 @@ if ($id_tiket > 0 && validate_csrf($csrf)) {
     $stmt->close();
 }
 
-header("Location: tiket.php");
+header("Location: " . route_url('admin_tiket'));
 exit();
 ?>

@@ -34,9 +34,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lupa Password - Pemandian Patemon</title>
-    <link rel="icon" type="image/x-icon" href="../../public/img/icon.png" />
+    <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../../public/css/modern-theme.css">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
     <style>
         body {
             min-height: 100vh;
@@ -147,8 +147,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <div class="auth-card-single">
     <div class="auth-header">
-        <a href="index.php">
-            <img src="../../public/img/logo_pemandian_transparant.png" alt="Logo Pemandian Patemon">
+        <a href="<?= route_url('home') ?>">
+            <img src="<?= public_url('img/logo_pemandian_transparant.png') ?>" alt="Logo Pemandian Patemon">
         </a>
         <h1>Pemulihan Akun</h1>
         <p>Masukkan alamat email Anda yang terdaftar untuk menerima petunjuk reset password.</p>
@@ -193,10 +193,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </form>
 
     <div class="auth-footer">
-        <div>Sudah ingat password? <a href="login.php">Masuk di sini</a></div>
-        <div style="margin-top: 0.5rem;"><a href="register.php">Daftar Akun Baru</a></div>
+        <div>Sudah ingat password? <a href="<?= route_url('login') ?>">Masuk di sini</a></div>
+        <div style="margin-top: 0.5rem;"><a href="<?= route_url('register') ?>">Daftar Akun Baru</a></div>
         <div style="margin-top: 1rem;">
-            <a href="index.php" style="color: #64748b; font-size: 0.85rem;">
+            <a href="<?= route_url('home') ?>" style="color: #64748b; font-size: 0.85rem;">
                 <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
             </a>
         </div>

@@ -3,12 +3,12 @@ require_once __DIR__ . '/../app/config.php';
 
 // Jika sudah login, redirect sesuai peran
 if (isset($_SESSION['id_user'])) {
-    if ($_SESSION['level'] === 1) {
-        header("Location: dashboard/dashboard.php");
-    } elseif ($_SESSION['level'] === 2) {
-        header("Location: transaksi/staf.php");
+    if ((int)$_SESSION['level'] === 1) {
+        header("Location: " . route_url('dashboard'));
+    } elseif ((int)$_SESSION['level'] === 2) {
+        header("Location: " . route_url('kasir'));
     } else {
-        header("Location: index.php");
+        header("Location: " . route_url('home'));
     }
     exit();
 }
@@ -52,12 +52,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['level']    = (int)$user['level'];
 
-                    if ($_SESSION['level'] === 1) {
-                        header("Location: dashboard/dashboard.php");
-                    } elseif ($_SESSION['level'] === 2) {
-                        header("Location: transaksi/staf.php");
+                    if ((int)$_SESSION['level'] === 1) {
+                        header("Location: " . route_url('dashboard'));
+                    } elseif ((int)$_SESSION['level'] === 2) {
+                        header("Location: " . route_url('kasir'));
                     } else {
-                        header("Location: index.php");
+                        header("Location: " . route_url('home'));
                     }
                     exit();
                 } else {
@@ -294,7 +294,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Right Login Form -->
     <div class="auth-form-section">
         <div class="auth-header">
-            <a href="index.php">
+            <a href="<?= route_url('home') ?>">
                 <img src="../../public/img/logo_pemandian_transparant.png" alt="Logo Pemandian Patemon">
             </a>
             <h1>Selamat Datang</h1>
@@ -308,7 +308,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         <?php endif; ?>
 
-        <form method="POST" action="">
+        <form method="POST" action="<?= route_url('login') ?>">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 
             <div class="form-group-item">
@@ -331,7 +331,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="form-group-item">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <label class="form-label-modern" for="password" style="margin-bottom: 0;">Password</label>
-                    <a href="forgot_password.php" style="font-size: 0.825rem; color: #0284c7; text-decoration: none; font-weight: 600;">Lupa Password?</a>
+                    <a href="<?= route_url('forgot_password') ?>" style="font-size: 0.825rem; color: #0284c7; text-decoration: none; font-weight: 600;">Lupa Password?</a>
                 </div>
                 <div class="input-icon-group">
                     <i class="fa-solid fa-lock input-icon"></i>
@@ -356,9 +356,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </form>
 
         <div class="auth-footer">
-            Belum punya akun? <a href="register.php">Daftar Akun Baru</a>
+            Belum punya akun? <a href="<?= route_url('register') ?>">Daftar Akun Baru</a>
             <div style="margin-top: 0.75rem;">
-                <a href="index.php" style="color: #64748b; font-weight: 500; font-size: 0.85rem;">
+                <a href="<?= route_url('home') ?>" style="color: #64748b; font-weight: 500; font-size: 0.85rem;">
                     <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
                 </a>
             </div>
