@@ -54,7 +54,7 @@ foreach ($holidays as $h) {
     text-align: center;
     font-size: 0.75rem;
     font-weight: bold;
-    color: #6c757d;
+    color: var(--text-muted, #6c757d);
     padding-bottom: 4px;
 }
 .cal-cell {
@@ -66,11 +66,11 @@ foreach ($holidays as $h) {
     font-size: 0.85rem;
     font-weight: 600;
     position: relative;
-    border: 1px solid #dee2e6;
-    background: #fff;
-    color: #212529;
+    border: 1px solid var(--border-color, #dee2e6);
+    background: var(--bg-card, #fff);
+    color: var(--text-main, #212529);
     user-select: none;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 .cal-cell:hover:not(.empty) {
     transform: scale(1.06);
@@ -78,38 +78,74 @@ foreach ($holidays as $h) {
     z-index: 2;
 }
 .cal-cell.empty {
-    background: #f8f9fa;
-    border-color: #f8f9fa;
+    background: var(--bg-page, #f8f9fa);
+    border-color: var(--border-color, #f8f9fa);
+    opacity: 0.6;
 }
 .cal-cell.sunday {
-    color: #dc3545;
+    color: #ef4444;
 }
 .cal-cell.today {
-    border: 2px solid #0284c7;
+    border: 2px solid #0284c7 !important;
     font-weight: 700;
 }
 .cal-cell.holiday {
-    background: #dc3545;
-    color: #fff;
-    border-color: #dc3545;
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
     cursor: help;
 }
 .cal-cell.cuti {
-    background: #ffc107;
-    color: #212529;
-    border-color: #ffc107;
+    background: #f59e0b !important;
+    color: #1e293b !important;
+    border-color: #f59e0b !important;
     cursor: help;
+}
+
+/* Dark mode overrides for calendar */
+body.theme-dark .cal-cell,
+html.theme-dark .cal-cell {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #334155;
+}
+body.theme-dark .cal-cell.empty,
+html.theme-dark .cal-cell.empty {
+    background: #0f172a;
+    border-color: #1e293b;
+}
+body.theme-dark .cal-cell.sunday,
+html.theme-dark .cal-cell.sunday {
+    color: #f87171;
+}
+body.theme-dark .cal-day-header,
+html.theme-dark .cal-day-header {
+    color: #94a3b8;
+}
+body.theme-dark .cal-nav-btn,
+html.theme-dark .cal-nav-btn {
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+body.theme-dark .cal-month-title,
+html.theme-dark .cal-month-title {
+    color: #f8fafc !important;
+}
+body.theme-dark .calendar-loading-overlay,
+html.theme-dark .calendar-loading-overlay {
+    background: rgba(15, 23, 42, 0.75) !important;
 }
 </style>
 
 <div class="calendar-widget position-relative">
-    <div id="calendar-loading" class="position-absolute w-100 h-100 d-none" style="background:rgba(255,255,255,0.7); z-index:10; top:0; left:0; display:flex; align-items:center; justify-content:center; border-radius:6px;">
+    <div id="calendar-loading" class="position-absolute w-100 h-100 d-none calendar-loading-overlay" style="background:rgba(255,255,255,0.7); z-index:10; top:0; left:0; display:flex; align-items:center; justify-content:center; border-radius:6px;">
         <div class="spinner-border text-primary spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>
     </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <button type="button" onclick="loadCalendar(<?= $prevYear ?>, <?= $prevMonth ?>)" class="btn btn-sm btn-light border px-2 py-1" title="Bulan Sebelumnya">&laquo;</button>
-        <h6 class="mb-0 fw-bold text-dark"><?= e($calMonthTitle) ?></h6>
-        <button type="button" onclick="loadCalendar(<?= $nextYear ?>, <?= $nextMonth ?>)" class="btn btn-sm btn-light border px-2 py-1" title="Bulan Berikutnya">&raquo;</button>
+        <button type="button" onclick="loadCalendar(<?= $prevYear ?>, <?= $prevMonth ?>)" class="btn btn-sm btn-light border px-2 py-1 cal-nav-btn" title="Bulan Sebelumnya">&laquo;</button>
+        <h6 class="mb-0 fw-bold cal-month-title"><?= e($calMonthTitle) ?></h6>
+        <button type="button" onclick="loadCalendar(<?= $nextYear ?>, <?= $nextMonth ?>)" class="btn btn-sm btn-light border px-2 py-1 cal-nav-btn" title="Bulan Berikutnya">&raquo;</button>
     </div>
     
     <div class="cal-grid mb-2">

@@ -40,6 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_profile
 
         if (empty($nama) || empty($email)) {
             $error_msg = 'Nama lengkap dan email tidak boleh kosong.';
+        } elseif (mb_strlen($nama) > 50) {
+            $error_msg = 'Nama lengkap maksimal 50 karakter.';
+        } elseif (!preg_match("/^[a-zA-Z\s\.\']+$/", $nama)) {
+            $error_msg = 'Nama lengkap hanya boleh berisi huruf, spasi, titik, atau tanda petik.';
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error_msg = 'Format alamat email tidak valid.';
         } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
@@ -258,11 +262,11 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark">Nama Lengkap <span class="text-danger">*</span></label>
-                            <input type="text" name="nama" class="form-control-modern" value="<?= e($curr_user['nama']) ?>" required>
+                            <input type="text" name="nama" class="form-control-modern" value="<?= e($curr_user['nama']) ?>" required maxlength="50" pattern="^[a-zA-Z\s\.\']+$" title="Nama hanya boleh berisi huruf, spasi, titik, atau tanda petik (maksimal 50 karakter)">
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark">Alamat Email <span class="text-danger">*</span></label>
-                            <input type="email" name="email" class="form-control-modern" value="<?= e($curr_user['email']) ?>" required>
+                            <input type="email" name="email" class="form-control-modern" value="<?= e($curr_user['email']) ?>" required maxlength="60">
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold text-dark">Nomor Telepon / WhatsApp</label>

@@ -3,9 +3,10 @@ require_once __DIR__ . '/../app/config.php';
 
 // Jika sudah login, redirect sesuai peran
 if (isset($_SESSION['id_user'])) {
-    if ((int)$_SESSION['level'] === 1) {
+    $lvl = (int)($_SESSION['level'] ?? 0);
+    if ($lvl === 1 || $lvl === 2) {
         header("Location: " . route_url('dashboard'));
-    } elseif ((int)$_SESSION['level'] === 2) {
+    } elseif ($lvl === 3) {
         header("Location: " . route_url('kasir'));
     } else {
         header("Location: " . route_url('home'));
@@ -52,9 +53,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['level']    = (int)$user['level'];
 
-                    if ((int)$_SESSION['level'] === 1) {
+                    $lvl = (int)$_SESSION['level'];
+                    if ($lvl === 1 || $lvl === 2) {
                         header("Location: " . route_url('dashboard'));
-                    } elseif ((int)$_SESSION['level'] === 2) {
+                    } elseif ($lvl === 3) {
                         header("Location: " . route_url('kasir'));
                     } else {
                         header("Location: " . route_url('home'));

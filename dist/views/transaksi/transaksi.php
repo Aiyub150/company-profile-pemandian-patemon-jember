@@ -28,7 +28,7 @@ $search = trim($_GET['search'] ?? ($_GET['id_transaksi'] ?? ''));
 // Multi-field search query: ID, Nama, Metode, Status, Tanggal
 if (!empty($search)) {
     $id_search = 0;
-    if (preg_match('/(?:TRX-\d{8}-)?(\d+)/i', $search, $m)) {
+    if (preg_match('/(?:TRX-\d{8}-)?0*(\d+)/i', $search, $m)) {
         $id_search = (int)$m[1];
     }
     $search_like = "%" . $search . "%";
@@ -189,8 +189,8 @@ require '../../app/layouts/admin_header.php';
                                 $bukti = $row["bukti_pembayaran"];
                                 if (!empty($bukti) && strtolower($bukti) !== 'bayar di loket' && file_exists(__DIR__ . '/../../app/payment/' . $bukti)): 
                                 ?>
-                                    <a href="../../app/payment/<?= e($bukti) ?>" target="_blank" title="Lihat Bukti Transfer">
-                                        <img src="../../app/payment/<?= e($bukti) ?>" alt="Bukti" style="width: 42px; height: 42px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e2e8f0;">
+                                    <a href="<?= payment_url($bukti) ?>" target="_blank" title="Lihat Bukti Transfer">
+                                        <img src="<?= payment_url($bukti) ?>" alt="Bukti" style="width: 42px; height: 42px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e2e8f0; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                                     </a>
                                 <?php else: ?>
                                     <span class="badge bg-light text-secondary border" style="font-weight: 500;">Loket Kasir</span>
@@ -259,7 +259,7 @@ function confirmDelete(id, kode) {
     });
 }
 
-// Print and Export Functions
+// Print Table
 function printTable(tableId, title) {
     const table = document.getElementById(tableId);
     const win = window.open("", "_blank");
@@ -271,25 +271,43 @@ function printTable(tableId, title) {
     win.document.close();
     win.print();
 }
-
-function exportToExcel(tableId, filename) {
-    const table = document.getElementById(tableId);
-    const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet JS" });
-    XLSX.writeFile(wb, (filename || "transaksi") + ".xlsx");
-}
-
-// HTML5 QR Scanner
+</script>
+<script src="' . public_url('js/exportToExcel.js') . '"></script>
+<script>
+// HTML5 QR & Barcode Scanner Otomatis
 let html5QrcodeScanner;
 document.addEventListener("DOMContentLoaded", () => {
     const collapseElem = document.getElementById("scannerCollapse");
     collapseElem.addEventListener("shown.bs.collapse", () => {
         if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner("my-qr-reader", { fps: 10, qrbox: 250 });
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "my-qr-reader", 
+                { 
+                    fps: 20, 
+                    qrbox: (vfWidth, vfHeight) => ({
+                        width: Math.min(Math.floor(vfWidth * 0.92), 480),
+                        height: Math.min(Math.floor(vfHeight * 0.65), 240)
+                    }),
+                    aspectRatio: 1.777778,
+                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.UPC_A
+                    ]
+                },
+                false
+            );
             html5QrcodeScanner.render((decodedText) => {
-                document.getElementById("your-qr-result").innerText = "Ditemukan: " + decodedText;
+                const resEl = document.getElementById("your-qr-result");
+                if (resEl) {
+                    resEl.innerHTML = \'<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: \' + decodedText + \'</span>\';
+                }
                 setTimeout(() => {
-                    window.location.href = "transaksi.php?search=" + encodeURIComponent(decodedText);
-                }, 800);
+                    window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);
+                }, 700);
             });
         }
     });

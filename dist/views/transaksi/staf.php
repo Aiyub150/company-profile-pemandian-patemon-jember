@@ -25,83 +25,45 @@ $header_actions = '
 
 $search = trim($_GET['search'] ?? ($_GET['id_transaksi'] ?? ''));
 
-// Query Transaksi dengan isolasi Staf jika level 3
-if ($user_level === 3) {
-    if (!empty($search)) {
-        $id_search = 0;
-        if (preg_match('/(?:TRX-\d{8}-)?(\d+)/i', $search, $m)) {
-            $id_search = (int)$m[1];
-        }
-        $search_like = "%" . $search . "%";
-
-        $stmt = $conn->prepare("
-            SELECT transaksi.*, users.nama 
-            FROM transaksi 
-            INNER JOIN users ON transaksi.id_user = users.id_user 
-            WHERE transaksi.id_user = ? AND (
-                transaksi.id_transaksi = ? 
-                OR users.nama LIKE ? 
-                OR transaksi.metode_pembayaran LIKE ? 
-                OR transaksi.status LIKE ?
-                OR transaksi.tgl_pemesanan LIKE ?
-            )
-            ORDER BY tgl_pemesanan DESC, id_transaksi DESC
-        ");
-        $stmt->bind_param("iissss", $user_id, $id_search, $search_like, $search_like, $search_like, $search_like);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $stmt->close();
-    } else {
-        $stmt = $conn->prepare("SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user WHERE transaksi.id_user = ? ORDER BY tgl_pemesanan DESC, id_transaksi DESC");
-        $stmt->bind_param("i", $user_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $stmt->close();
+// Query Transaksi: Ketika mencari (termasuk hasil scan barcode), cari ke seluruh transaksi agar kasir dapat memverifikasi tiket pengunjung online
+if (!empty($search)) {
+    $id_search = 0;
+    if (preg_match('/(?:TRX-\d{8}-)?0*(\d+)/i', $search, $m)) {
+        $id_search = (int)$m[1];
     }
+    $search_like = "%" . $search . "%";
 
-    // Rekap Staf Hari Ini
-    $stmt_rc = $conn->prepare("SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND id_user = ?");
-    $stmt_rc->bind_param("i", $user_id);
-    $stmt_rc->execute();
-    $rc = $stmt_rc->get_result()->fetch_assoc();
-    $stmt_rc->close();
-    $today_omzet = (float)($rc['omzet'] ?? 0);
-    $today_tickets = (int)($rc['cnt'] ?? 0);
+    $stmt = $conn->prepare("
+        SELECT transaksi.*, users.nama 
+        FROM transaksi 
+        INNER JOIN users ON transaksi.id_user = users.id_user 
+        WHERE transaksi.id_transaksi = ? 
+           OR users.nama LIKE ? 
+           OR transaksi.metode_pembayaran LIKE ? 
+           OR transaksi.status LIKE ?
+           OR transaksi.tgl_pemesanan LIKE ?
+        ORDER BY tgl_pemesanan DESC, id_transaksi DESC
+    ");
+    $stmt->bind_param("issss", $id_search, $search_like, $search_like, $search_like, $search_like);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
 } else {
-    if (!empty($search)) {
-        $id_search = 0;
-        if (preg_match('/(?:TRX-\d{8}-)?(\d+)/i', $search, $m)) {
-            $id_search = (int)$m[1];
-        }
-        $search_like = "%" . $search . "%";
-
-        $stmt = $conn->prepare("
-            SELECT transaksi.*, users.nama 
+    // Tampilkan transaksi terbaru loket & online agar staf kasir dapat melihat pemesanan masuk
+    $sql = "SELECT transaksi.*, users.nama 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
-            WHERE transaksi.id_transaksi = ? 
-               OR users.nama LIKE ? 
-               OR transaksi.metode_pembayaran LIKE ? 
-               OR transaksi.status LIKE ?
-               OR transaksi.tgl_pemesanan LIKE ?
-            ORDER BY tgl_pemesanan DESC, id_transaksi DESC
-        ");
-        $stmt->bind_param("issss", $id_search, $search_like, $search_like, $search_like, $search_like);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $stmt->close();
-    } else {
-        $sql = "SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
-        $result = $conn->query($sql);
-    }
+            ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
+    $result = $conn->query($sql);
+}
 
-    $today_omzet = 0;
-    $today_tickets = 0;
-    $recap = $conn->query("SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done'");
-    if ($recap && $rc = $recap->fetch_assoc()) {
-        $today_omzet = (float)($rc['omzet'] ?? 0);
-        $today_tickets = (int)$rc['cnt'];
-    }
+// Rekap Omzet Hari Ini
+$today_omzet = 0;
+$today_tickets = 0;
+$recap = $conn->query("SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done'");
+if ($recap && $rc = $recap->fetch_assoc()) {
+    $today_omzet = (float)($rc['omzet'] ?? 0);
+    $today_tickets = (int)$rc['cnt'];
 }
 
 $extra_css = '
@@ -217,8 +179,8 @@ require '../../app/layouts/admin_header.php';
                                 $bukti = $row["bukti_pembayaran"];
                                 if (!empty($bukti) && strtolower($bukti) !== 'bayar di loket' && file_exists(__DIR__ . '/../../app/payment/' . $bukti)): 
                                 ?>
-                                    <a href="../../app/payment/<?= e($bukti) ?>" target="_blank" title="Lihat Bukti Transfer">
-                                        <img src="../../app/payment/<?= e($bukti) ?>" alt="Bukti" style="width: 42px; height: 42px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e2e8f0;">
+                                    <a href="<?= payment_url($bukti) ?>" target="_blank" title="Lihat Bukti Transfer">
+                                        <img src="<?= payment_url($bukti) ?>" alt="Bukti" style="width: 42px; height: 42px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e2e8f0; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                                     </a>
                                 <?php else: ?>
                                     <span class="badge bg-light text-secondary border" style="font-weight: 500;">Loket Kasir</span>
@@ -279,18 +241,40 @@ function printTable(tableId, title) {
     win.print();
 }
 
-// HTML5 QR Scanner
+// HTML5 QR & Barcode Scanner Otomatis
 let html5QrcodeScanner;
 document.addEventListener("DOMContentLoaded", () => {
     const collapseElem = document.getElementById("scannerCollapse");
     collapseElem.addEventListener("shown.bs.collapse", () => {
         if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner("my-qr-reader", { fps: 10, qrbox: 250 });
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "my-qr-reader", 
+                { 
+                    fps: 20, 
+                    qrbox: (vfWidth, vfHeight) => ({
+                        width: Math.min(Math.floor(vfWidth * 0.92), 480),
+                        height: Math.min(Math.floor(vfHeight * 0.65), 240)
+                    }),
+                    aspectRatio: 1.777778,
+                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.UPC_A
+                    ]
+                },
+                false
+            );
             html5QrcodeScanner.render((decodedText) => {
-                document.getElementById("your-qr-result").innerText = "Ditemukan: " + decodedText;
+                const resEl = document.getElementById("your-qr-result");
+                if (resEl) {
+                    resEl.innerHTML = \'<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: \' + decodedText + \'</span>\';
+                }
                 setTimeout(() => {
-                    window.location.href = "staf.php?search=" + encodeURIComponent(decodedText);
-                }, 800);
+                    window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);
+                }, 700);
             });
         }
     });

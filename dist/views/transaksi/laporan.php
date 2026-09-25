@@ -481,16 +481,9 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
 
 <?php
 $extra_js = '
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="' . public_url('js/exportToExcel.js') . '"></script>
 <script>
 setupTableSearch("laporanSearch", "tableLaporan");
-
-function exportToExcel(tableId, filename) {
-    const table = document.getElementById(tableId);
-    if (!table) return;
-    const wb = XLSX.utils.table_to_book(table, {sheet: "Laporan"});
-    XLSX.writeFile(wb, filename + ".xlsx");
-}
 </script>
 ';
 require_once __DIR__ . '/../../app/layouts/admin_footer.php';

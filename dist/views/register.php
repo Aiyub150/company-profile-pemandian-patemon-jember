@@ -19,8 +19,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Validasi dasar
         if (empty($nama) || empty($username) || empty($email) || empty($password)) {
             $error = "Semua field yang bertanda bintang (*) wajib diisi.";
+        } elseif (mb_strlen($nama) > 50) {
+            $error = "Nama lengkap maksimal 50 karakter.";
+        } elseif (!preg_match("/^[a-zA-Z\s\.\']+$/", $nama)) {
+            $error = "Nama lengkap hanya boleh berisi huruf, spasi, titik, atau tanda petik.";
+        } elseif (mb_strlen($username) > 30) {
+            $error = "Username maksimal 30 karakter.";
+        } elseif (!preg_match("/^[a-zA-Z0-9_\.]+$/", $username)) {
+            $error = "Username hanya boleh berisi huruf, angka, garis bawah (_), atau titik (.).";
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error = "Format alamat email tidak valid.";
+        } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
+            $error = "Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit).";
         } elseif (strlen($password) < 6) {
             $error = "Password minimal terdiri dari 6 karakter.";
         } elseif ($password !== $password_confirm) {
@@ -278,8 +288,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             class="form-control-modern" 
                             id="nama" 
                             name="nama" 
-                            placeholder="Nama Lengkap" 
+                            placeholder="Nama Lengkap (maks. 50 karakter)" 
                             required 
+                            maxlength="50"
+                            pattern="^[a-zA-Z\s\.\']+$"
+                            title="Nama hanya boleh berisi huruf, spasi, titik, atau tanda petik (maksimal 50 karakter)"
                             value="<?= e($_POST['nama'] ?? '') ?>"
                         >
                     </div>
@@ -294,8 +307,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             class="form-control-modern" 
                             id="username" 
                             name="username" 
-                            placeholder="Username" 
+                            placeholder="Username (maks. 30 karakter)" 
                             required 
+                            maxlength="30"
+                            pattern="^[a-zA-Z0-9_\.]+$"
+                            title="Username hanya boleh berisi huruf, angka, underscore, atau titik (maksimal 30 karakter)"
                             value="<?= e($_POST['username'] ?? '') ?>"
                         >
                     </div>
@@ -314,6 +330,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             name="email" 
                             placeholder="nama@email.com" 
                             required 
+                            maxlength="60"
                             value="<?= e($_POST['email'] ?? '') ?>"
                         >
                     </div>
@@ -329,6 +346,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="no_telepon" 
                             name="no_telepon" 
                             placeholder="08xxxxxxxxxx" 
+                            pattern="^0[0-9]{8,14}$"
+                            inputmode="numeric"
+                            maxlength="15"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            title="Format nomor Indonesia diawali angka 0 (9–15 digit angka saja)"
                             value="<?= e($_POST['no_telepon'] ?? '') ?>"
                         >
                     </div>

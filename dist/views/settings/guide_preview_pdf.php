@@ -13,6 +13,19 @@ use Dompdf\Options;
 
 check_auth([0, 1, 2, 3], route_url('login'));
 
+// Load logo panjang Pemandian Patemon untuk halaman cover (JPEG untuk kompatibilitas Dompdf tanpa ekstensi GD)
+$logo_jpg = __DIR__ . '/../../../public/img/logo_pemandian_wide.jpg';
+$logo_png = __DIR__ . '/../../../public/img/logo_pemandian_transparant.png';
+$logo_img_tag = '';
+
+if (file_exists($logo_jpg)) {
+    $logo_base64 = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logo_jpg));
+    $logo_img_tag = '<div style="margin-bottom: 25px;"><img src="' . $logo_base64 . '" alt="Wisata Pemandian Patemon" style="width: 290px; max-width: 80%; height: auto;"></div>';
+} elseif (file_exists($logo_png)) {
+    $logo_base64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logo_png));
+    $logo_img_tag = '<div style="margin-bottom: 25px;"><img src="' . $logo_base64 . '" alt="Wisata Pemandian Patemon" style="width: 290px; max-width: 80%; height: auto;"></div>';
+}
+
 // Siapkan konten HTML buku panduan standar
 $html = '
 <!DOCTYPE html>
@@ -74,7 +87,7 @@ $html = '
             border-radius: 2px;
         }
         .cover-meta {
-            margin-top: 180px;
+            margin-top: 80px;
             font-size: 9.5pt;
             color: #64748b;
             line-height: 1.8;
@@ -174,6 +187,7 @@ $html = '
 
     <!-- HALAMAN COVER RESMI -->
     <div class="cover-container">
+        ' . $logo_img_tag . '
         <div class="cover-badge">BUKU PANDUAN PENGGUNA RESMI</div>
         <h1 class="cover-title">MANUAL SISTEM INFORMASI KASIR & WISATA PEMANDIAN PATEMON</h1>
         <div class="cover-subtitle">Tata Kelola Loket Retribusi, Pemesanan Tiket Online & Pelaporan Akuntabilitas Daerah</div>

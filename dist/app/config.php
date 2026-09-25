@@ -195,6 +195,12 @@ if (!function_exists('public_url')) {
     }
 }
 
+if (!function_exists('payment_url')) {
+    function payment_url($path = '') {
+        return base_url('dist/app/payment/' . ltrim($path, '/'));
+    }
+}
+
 /**
  * Helper Clean Route Name Resolver
  */
@@ -265,6 +271,10 @@ if (!function_exists('route_url')) {
             'users_tambah'           => 'admin/users/tambah',
             'users_update'           => 'admin/users/update',
             'users_delete'           => 'admin/users/delete',
+
+            // Gallery
+            'gallery'                => 'admin/gallery',
+            'admin_gallery'          => 'admin/gallery',
 
             // Profil, Panduan, Versi
             'profile'                => 'profile',

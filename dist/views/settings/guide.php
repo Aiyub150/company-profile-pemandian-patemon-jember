@@ -5,8 +5,8 @@
  */
 require_once __DIR__ . '/../../app/config.php';
 
-// Dapat diakses oleh semua pengguna login (Admin & Staf)
-check_auth([0, 1, 2], route_url('login'));
+// Dapat diakses oleh semua pengguna login (Super Admin, Admin, Staf Kasir)
+check_auth([0, 1, 2, 3], route_url('login'));
 
 $active_menu = 'guide';
 $page_title = 'Buku Panduan Penggunaan Sistem - Pemandian Patemon';

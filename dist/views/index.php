@@ -27,6 +27,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_ulasan'])) {
             $review_error = 'Nama Anda dan isi ulasan wajib diisi.';
         } elseif (mb_strlen($raw_username) > 50) {
             $review_error = 'Panjang nama pengirim maksimal 50 karakter.';
+        } elseif (!preg_match("/^[a-zA-Z\s\.\']+$/", $raw_username)) {
+            $review_error = 'Nama pengirim hanya boleh berisi huruf, spasi, titik, atau tanda petik.';
         } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $review_error = 'Format alamat email tidak valid.';
         } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
@@ -58,8 +60,28 @@ if ($res_t) {
 }
 $harga_dewasa = $harga_tiket['Dewasa'] ?? 10000;
 $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
+
+// Ambil item galeri dari database (dengan fallback ke default)
+$gallery_items_pub = [];
+$g_table_exists = $conn->query("SHOW TABLES LIKE 'gallery'");
+if ($g_table_exists && $g_table_exists->num_rows > 0) {
+    $res_gallery = $conn->query("SELECT * FROM `gallery` ORDER BY urutan ASC, id_gallery ASC LIMIT 3");
+    if ($res_gallery) {
+        while ($gr = $res_gallery->fetch_assoc()) {
+            $gallery_items_pub[] = $gr;
+        }
+    }
+}
+if (empty($gallery_items_pub)) {
+    $gallery_items_pub = [
+        ['id_gallery' => 1, 'judul' => 'Wahana Kolam & Waterpark',       'deskripsi_card' => 'Fasilitas Rekreasi Keluarga di Pemandian Patemon Tanggul',  'deskripsi_popup' => 'Pemandian Patemon menyediakan kolam renang bertingkat serta wahana seluncuran air yang aman dan menyenangkan untuk anak-anak maupun dewasa. Air kolam di Pemandian Patemon dialirkan langsung secara alami dari sumber mata air tanpa kaporit.',     'gambar_card' => 'gambar5.png', 'gambar_popup' => 'gambar9.png'],
+        ['id_gallery' => 2, 'judul' => 'Kunjungan Mantan Bupati Jember', 'deskripsi_card' => 'Peninjauan Pemandian Patemon Tanggul (Periode 2021-2025)', 'deskripsi_popup' => 'Mantan Bupati Jember, Ir. H. Hendy Siswanto, ST. IPU. (periode 2021-2025), melakukan peninjauan langsung ke Pemandian Patemon untuk mengecek kelayakan fasilitas wisata.', 'gambar_card' => 'gambar7.png', 'gambar_popup' => 'gambar8.png'],
+        ['id_gallery' => 3, 'judul' => 'Mata Air Alami Argopuro',        'deskripsi_card' => 'Kejernihan Sumber Air Alami Pemandian Patemon Tanggul',   'deskripsi_popup' => 'Keistimewaan utama Pemandian Patemon adalah limpahan mata air alami dari lereng Pegunungan Argopuro yang mengalir jernih, dingin, dan murni tanpa kaporit.',                                                                                                                         'gambar_card' => 'gambar4.png', 'gambar_popup' => 'gambar4.png'],
+    ];
+}
 ?>
 <!DOCTYPE html>
+
 <html lang="id">
 <head>
     <meta charset="utf-8" />
@@ -513,45 +535,31 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                 <p class="text-muted" style="max-width: 650px; margin: auto;">Dokumentasi fasilitas terkini, panorama mata air pegunungan alami, serta sejarah peninjauan destinasi.</p>
             </div>
             <div class="row g-4">
-                <!-- Galeri 1: Wahana Waterpark & Kolam Anak -->
+                <?php
+                $modal_ids = ['portfolioModal4', 'portfolioModal5', 'portfolioModal6'];
+                foreach ($gallery_items_pub as $idx => $gi):
+                    $modal_id  = $modal_ids[$idx] ?? ('portfolioModal' . ($idx + 4));
+                    $img_card  = e($gi['gambar_card']);
+                    $img_popup = e($gi['gambar_popup']);
+                    $judul     = e($gi['judul']);
+                    $desc_card = e($gi['deskripsi_card'] ?? '');
+                ?>
                 <div class="col-lg-4 col-sm-6">
                     <div class="portfolio-item modern-card overflow-hidden h-100">
-                        <a class="portfolio-link d-block position-relative" data-bs-toggle="modal" href="#portfolioModal4">
-                            <img class="img-fluid w-100" src="../../public/img/gambar5.png" alt="Wahana Waterpark Patemon" style="height: 240px; width: 100%; object-fit: cover; aspect-ratio: 16 / 10;" />
+                        <a class="portfolio-link d-block position-relative" data-bs-toggle="modal" href="#<?= $modal_id ?>">
+                            <img class="img-fluid w-100" src="../../public/img/<?= $img_card ?>" alt="<?= $judul ?>" style="height: 240px; width: 100%; object-fit: cover; aspect-ratio: 16 / 10;" onerror="this.src='../../public/img/gambar5.png'" />
                         </a>
                         <div class="p-3 text-center">
-                            <h5 class="fw-bold mb-1" style="color: #0f172a;">Wahana Kolam & Waterpark</h5>
-                            <p class="text-muted small mb-0">Fasilitas Rekreasi Keluarga Modern & Asri</p>
+                            <h5 class="fw-bold mb-1" style="color: #0f172a;"><?= $judul ?></h5>
+                            <p class="text-muted small mb-0"><?= $desc_card ?></p>
                         </div>
                     </div>
                 </div>
-                <!-- Galeri 2: Kunjungan Mantan Bupati Jember Ir. H. Hendy Siswanto -->
-                <div class="col-lg-4 col-sm-6">
-                    <div class="portfolio-item modern-card overflow-hidden h-100">
-                        <a class="portfolio-link d-block position-relative" data-bs-toggle="modal" href="#portfolioModal5">
-                            <img class="img-fluid w-100" src="../../public/img/gambar7.png" alt="Kunjungan Mantan Bupati Jember" style="height: 240px; width: 100%; object-fit: cover; aspect-ratio: 16 / 10;" />
-                        </a>
-                        <div class="p-3 text-center">
-                            <h5 class="fw-bold mb-1" style="color: #0f172a;">Kunjungan Mantan Bupati Jember</h5>
-                            <p class="text-muted small mb-0">Peninjauan Pemandian Patemon (Periode 2021–2025)</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Galeri 3: Panorama Sumber Mata Air Alami Pegunungan -->
-                <div class="col-lg-4 col-sm-6">
-                    <div class="portfolio-item modern-card overflow-hidden h-100">
-                        <a class="portfolio-link d-block position-relative" data-bs-toggle="modal" href="#portfolioModal6">
-                            <img class="img-fluid w-100" src="../../public/img/gambar4.png" alt="Mata Air Alami Gunung Argopuro" style="height: 240px; width: 100%; object-fit: cover; aspect-ratio: 16 / 10;" />
-                        </a>
-                        <div class="p-3 text-center">
-                            <h5 class="fw-bold mb-1" style="color: #0f172a;">Mata Air Alami Argopuro</h5>
-                            <p class="text-muted small mb-0">Air Dingin Jernih Tanpa Bahan Kaporit</p>
-                        </div>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
         </div>
     </section>
+
 
     <!-- Pricing Section (Tarif Tiket Masuk) -->
     <section class="page-section py-5 my-5" id="pricing">
@@ -807,7 +815,7 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label class="form-label text-light small fw-semibold">Nama Anda <span class="text-danger">*</span></label>
-                                <input class="form-control-modern" id="name" name="username" type="text" placeholder="Masukkan nama Anda (maks. 50 karakter)" maxlength="50" required />
+                                <input class="form-control-modern" id="name" name="username" type="text" placeholder="Masukkan nama Anda (maks. 50 karakter)" maxlength="50" pattern="^[a-zA-Z\s\.\']+$" title="Nama hanya boleh berisi huruf, spasi, titik, atau tanda petik (maksimal 50 karakter)" required />
                                 <small class="text-light-50" style="font-size: 0.72rem; color: rgba(255,255,255,0.7);">Maksimal 50 karakter.</small>
                             </div>
                             <div class="col-md-6">
@@ -853,60 +861,36 @@ $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
         </div>
     </footer>
 
-    <!-- Portfolio Modals -->
-    <div class="modal fade" id="portfolioModal4" tabindex="-1" role="dialog" aria-hidden="true">
+    <!-- Portfolio Modals (Dynamic from DB) -->
+    <?php
+    $modal_ids = ['portfolioModal4', 'portfolioModal5', 'portfolioModal6'];
+    foreach ($gallery_items_pub as $midx => $gm):
+        $mid       = $modal_ids[$midx] ?? ('portfolioModal' . ($midx + 4));
+        $gm_judul  = e($gm['judul']);
+        $gm_dcard  = e($gm['deskripsi_card'] ?? '');
+        $gm_dpopup = e($gm['deskripsi_popup'] ?? $gm['deskripsi_card'] ?? '');
+        $gm_card   = e($gm['gambar_card']);
+        $gm_popup  = e($gm['gambar_popup']);
+    ?>
+    <div class="modal fade" id="<?= $mid ?>" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
             <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
                 <div class="modal-header border-0 pb-0 pt-3 px-4 d-flex justify-content-between align-items-center">
-                    <span class="badge badge-modern-primary">FASILITAS WISATA PATEMON</span>
+                    <span class="badge badge-modern-primary"><?= strtoupper($gm_judul) ?></span>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body text-center px-4 py-3">
-                    <h4 class="fw-bold mb-1" style="color: #0f172a;">Wahana Kolam & Waterpark</h4>
-                    <p class="text-muted small mb-3">Fasilitas Rekreasi Keluarga di Pemandian Patemon Tanggul</p>
-                    <img class="img-fluid d-block mx-auto rounded-3 mb-3 shadow-sm" src="../../public/img/gambar5.png" alt="Wahana Kolam & Waterpark" style="max-height: 230px; width: 100%; object-fit: cover; aspect-ratio: 16 / 9;" />
-                    <p class="text-muted small mb-3" style="line-height: 1.6;">Pemandian Patemon menyediakan kolam renang bertingkat serta wahana seluncuran air yang aman dan menyenangkan untuk anak-anak maupun dewasa. Air kolam di Pemandian Patemon dialirkan langsung secara alami dari sumber mata air tanpa kaporit, menghadirkan kesegaran alami di tengah suasana asri Pemandian Patemon.</p>
+                    <h4 class="fw-bold mb-1" style="color: #0f172a;"><?= $gm_judul ?></h4>
+                    <p class="text-muted small mb-3"><?= $gm_dcard ?></p>
+                    <img class="img-fluid d-block mx-auto rounded-3 mb-3 shadow-sm" src="../../public/img/<?= $gm_popup ?>" alt="<?= $gm_judul ?>" style="max-height: 230px; width: 100%; object-fit: cover; aspect-ratio: 16 / 9;" onerror="this.src='../../public/img/<?= $gm_card ?>'" />
+                    <p class="text-muted small mb-3" style="line-height: 1.6;"><?= $gm_dpopup ?></p>
                     <button class="btn btn-secondary btn-sm px-4 py-2" data-bs-dismiss="modal" type="button"><i class="fas fa-xmark me-1"></i> Tutup</button>
                 </div>
             </div>
         </div>
     </div>
+    <?php endforeach; ?>
 
-    <div class="modal fade" id="portfolioModal5" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
-            <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
-                <div class="modal-header border-0 pb-0 pt-3 px-4 d-flex justify-content-between align-items-center">
-                    <span class="badge badge-modern-primary">PENINJAUAN PEMANDIAN PATEMON</span>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center px-4 py-3">
-                    <h4 class="fw-bold mb-1" style="color: #0f172a;">Kunjungan Mantan Bupati Jember</h4>
-                    <p class="text-muted small mb-3">Peninjauan Pemandian Patemon Tanggul (Periode 2021–2025)</p>
-                    <img class="img-fluid d-block mx-auto rounded-3 mb-3 shadow-sm" src="../../public/img/gambar7.png" alt="Kunjungan Mantan Bupati Jember" style="max-height: 230px; width: 100%; object-fit: cover; aspect-ratio: 16 / 9;" />
-                    <p class="text-muted small mb-3" style="line-height: 1.6;">Mantan Bupati Jember, Ir. H. Hendy Siswanto, ST. IPU. (periode 2021–2025), melakukan peninjauan langsung ke Pemandian Patemon di Tanggul untuk mengecek kelayakan kolam, kebersihan sumber mata air, serta fasilitas penunjang wisata. Kunjungan ini difokuskan untuk memastikan percepatan perbaikan sarana Pemandian Patemon agar aman, nyaman, dan kembali menggerakkan usaha warga di sekitar Pemandian Patemon.</p>
-                    <button class="btn btn-secondary btn-sm px-4 py-2" data-bs-dismiss="modal" type="button"><i class="fas fa-xmark me-1"></i> Tutup</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="portfolioModal6" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 580px;">
-            <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
-                <div class="modal-header border-0 pb-0 pt-3 px-4 d-flex justify-content-between align-items-center">
-                    <span class="badge badge-modern-primary">MATA AIR ALAMI PATEMON</span>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center px-4 py-3">
-                    <h4 class="fw-bold mb-1" style="color: #0f172a;">Mata Air Alami Pemandian Patemon</h4>
-                    <p class="text-muted small mb-3">Kejernihan Sumber Air Alami Pemandian Patemon Tanggul</p>
-                    <img class="img-fluid d-block mx-auto rounded-3 mb-3 shadow-sm" src="../../public/img/gambar4.png" alt="Mata Air Alami Patemon" style="max-height: 230px; width: 100%; object-fit: cover; aspect-ratio: 16 / 9;" />
-                    <p class="text-muted small mb-3" style="line-height: 1.6;">Keistimewaan utama Pemandian Patemon adalah limpahan mata air alami dari lereng Pegunungan Argopuro yang mengalir jernih, dingin, dan murni tanpa zat kimia kaporit. Suasana rindang dan sejuk di kawasan Pemandian Patemon menjadikannya destinasi favorit keluarga untuk berenang dan menyegarkan tubuh.</p>
-                    <button class="btn btn-secondary btn-sm px-4 py-2" data-bs-dismiss="modal" type="button"><i class="fas fa-xmark me-1"></i> Tutup</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Bootstrap core JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>

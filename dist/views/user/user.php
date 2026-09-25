@@ -20,7 +20,7 @@ $search = trim($_GET['search'] ?? '');
 if (!empty($search)) {
     $search_like = "%" . $search . "%";
     $stmt = $conn->prepare("
-        SELECT id_user, nama, username, email, no_telepon, level 
+        SELECT id_user, nama, username, email, no_telepon, level, avatar 
         FROM users 
         WHERE nama LIKE ? 
            OR username LIKE ? 
@@ -33,7 +33,7 @@ if (!empty($search)) {
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    $sql = "SELECT id_user, nama, username, email, no_telepon, level FROM users ORDER BY level ASC, id_user ASC";
+    $sql = "SELECT id_user, nama, username, email, no_telepon, level, avatar FROM users ORDER BY level ASC, id_user ASC";
     $result = $conn->query($sql);
 }
 
@@ -76,14 +76,22 @@ require '../../app/layouts/admin_header.php';
                     $no = 1;
                     while ($row = $result->fetch_assoc()): 
                         $lvl = (int)$row["level"];
+                        $user_avatar = '';
+                        if (!empty($row['avatar']) && file_exists(__DIR__ . '/../../../public/img/avatars/' . $row['avatar'])) {
+                            $user_avatar = public_url('img/avatars/' . $row['avatar']);
+                        }
                     ?>
                         <tr>
                             <td class="text-center text-muted fw-semibold"><?= $no++ ?></td>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
-                                    <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
-                                        <?= strtoupper(substr($row['nama'] ?: $row['username'], 0, 1)) ?>
-                                    </div>
+                                    <?php if (!empty($user_avatar)): ?>
+                                        <img src="<?= e($user_avatar) ?>" alt="Avatar" style="width: 38px; height: 38px; border-radius: 10px; object-fit: cover; border: 1.5px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                                    <?php else: ?>
+                                        <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2);">
+                                            <?= strtoupper(substr($row['nama'] ?: $row['username'], 0, 1)) ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div>
                                         <div class="fw-bold" style="color: #0f172a;"><?= e($row["nama"] ?: '-') ?></div>
                                         <small class="text-muted font-monospace">#USR-<?= sprintf('%03d', (int)$row["id_user"]) ?></small>

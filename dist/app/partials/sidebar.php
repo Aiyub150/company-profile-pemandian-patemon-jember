@@ -44,7 +44,7 @@ if (!function_exists('public_url')) {
 }
 ?>
 <div id="sidebar" class="active">
-    <div class="sidebar-wrapper active" style="box-shadow: 4px 0 20px rgba(0,0,0,0.03); display: flex; flex-direction: column; background: #ffffff;">
+    <div class="sidebar-wrapper active" style="box-shadow: 4px 0 20px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
         <!-- Brand Header -->
         <div class="sidebar-header position-relative" style="padding: 1.5rem 1.5rem 1rem;">
             <div class="d-flex justify-content-between align-items-center">
@@ -52,7 +52,7 @@ if (!function_exists('public_url')) {
                     <a href="<?= in_array($user_level, [1, 2, 3], true) ? route_url('dashboard') : route_url('home') ?>" class="d-flex align-items-center gap-2 text-decoration-none">
                         <img src="<?= public_url('img/icon.png') ?>" alt="Logo" style="height: 36px; width: auto; max-width: 48px; object-fit: contain;">
                         <div>
-                            <div style="font-weight: 800; font-size: 1.05rem; color: #0f172a; line-height: 1.2;">PATEMON</div>
+                            <div class="sidebar-brand-name" style="font-weight: 800; font-size: 1.05rem; line-height: 1.2;">PATEMON</div>
                             <div style="font-size: 0.725rem; font-weight: 600; color: #0284c7; letter-spacing: 0.05em; text-transform: uppercase;">Wisata Pemandian</div>
                         </div>
                     </a>
@@ -156,6 +156,16 @@ if (!function_exists('public_url')) {
                 </li>
                 <?php endif; ?>
 
+                <?php if ($is_admin_or_super): ?>
+                <!-- Kelola Galeri: Admin & Super Admin -->
+                <li class="sidebar-item <?= ($current_page === 'gallery') ? 'active' : '' ?>">
+                    <a href="<?= route_url('gallery') ?>" class="sidebar-link" style="border-radius: 10px;">
+                        <i class="fa-solid fa-images"></i>
+                        <span>Kelola Galeri</span>
+                    </a>
+                </li>
+                <?php endif; ?>
+
                 <li class="sidebar-item <?= ($current_page === 'profile') ? 'active' : '' ?>">
                     <a href="<?= route_url('profile') ?>" class="sidebar-link" style="border-radius: 10px;">
                         <i class="fa-solid fa-id-card"></i>
@@ -180,7 +190,7 @@ if (!function_exists('public_url')) {
         </div>
 
         <!-- User Profile Card & Quick Logout -->
-        <div style="padding: 1rem 1.25rem; border-top: 1px solid #f1f5f9; background: #ffffff;">
+        <div class="sidebar-footer-card" style="padding: 1rem 1.25rem;">
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2">
                     <?php if (!empty($sidebar_avatar)): ?>
@@ -191,7 +201,7 @@ if (!function_exists('public_url')) {
                         </div>
                     <?php endif; ?>
                     <div style="overflow: hidden;">
-                        <div style="font-weight: 700; font-size: 0.875rem; color: #1e293b; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 120px;" title="<?= e($user_name) ?>">
+                        <div class="sidebar-user-name" style="font-weight: 700; font-size: 0.875rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 120px;" title="<?= e($user_name) ?>">
                             <?= e($user_name) ?>
                         </div>
                         <?php

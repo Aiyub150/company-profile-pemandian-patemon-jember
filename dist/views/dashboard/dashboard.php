@@ -184,7 +184,7 @@ require '../../app/layouts/admin_header.php';
                 </div>
                 <div class="col">
                     <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                        <span class="badge bg-white text-dark fw-bold px-2.5 py-1" style="font-size: 0.75rem; letter-spacing: 0.03em;">
+                        <span class="badge fw-bold px-2.5 py-1" style="font-size: 0.75rem; letter-spacing: 0.03em; background: #ffffff !important; color: #0369a1 !important;">
                             <i class="fa-solid <?= ($user_level === 1) ? 'fa-shield-halved text-purple' : (($user_level === 2) ? 'fa-user-tie text-primary' : 'fa-cash-register text-success') ?> me-1"></i>
                             <?= e($role_name_display) ?>
                         </span>
@@ -200,7 +200,7 @@ require '../../app/layouts/admin_header.php';
                     </div>
                 </div>
                 <div class="col-12 col-md-auto text-md-end mt-2 mt-md-0">
-                    <a href="<?= route_url('profile') ?>" class="btn btn-light fw-bold px-3 py-2 text-primary shadow-sm" style="border-radius: 10px;">
+                    <a href="<?= route_url('profile') ?>" class="btn fw-bold px-3 py-2 shadow-sm" style="border-radius: 10px; background: #ffffff !important; color: #0284c7 !important;">
                         <i class="fa-solid fa-user-pen me-1"></i> Kelola Profil
                     </a>
                 </div>
@@ -243,7 +243,7 @@ require '../../app/layouts/admin_header.php';
                 </div>
                 <div class="metric-content">
                     <div class="metric-label"><?= ($user_level === 3) ? 'Tiket Anda Jual' : 'Total Tiket Terjual' ?></div>
-                    <div class="metric-value"><?= number_format($total_tiket_terjual, 0, ',', '.') ?> <small style="font-size: 0.85rem; font-weight: 500; color: #64748b;">lbr</small></div>
+                    <div class="metric-value"><?= number_format($total_tiket_terjual, 0, ',', '.') ?> <small class="text-muted" style="font-size: 0.85rem; font-weight: 500;">lbr</small></div>
                 </div>
             </div>
         </div>
@@ -255,7 +255,7 @@ require '../../app/layouts/admin_header.php';
                 </div>
                 <div class="metric-content">
                     <div class="metric-label">Libur Nasional (<?= $current_year ?>)</div>
-                    <div class="metric-value text-warning"><?= count($holidays_list) ?> <small style="font-size: 0.85rem; font-weight: 500; color: #64748b;">hari</small></div>
+                    <div class="metric-value text-warning"><?= count($holidays_list) ?> <small class="text-muted" style="font-size: 0.85rem; font-weight: 500;">hari</small></div>
                 </div>
             </div>
         </div>
@@ -267,7 +267,7 @@ require '../../app/layouts/admin_header.php';
                 </div>
                 <div class="metric-content">
                     <div class="metric-label"><?= ($user_level === 3) ? 'Total Transaksi Anda' : 'Pengguna Terdaftar' ?></div>
-                    <div class="metric-value"><?= number_format($total_users, 0, ',', '.') ?> <small style="font-size: 0.85rem; font-weight: 500; color: #64748b;"><?= ($user_level === 3) ? 'trx' : 'akun' ?></small></div>
+                    <div class="metric-value"><?= number_format($total_users, 0, ',', '.') ?> <small class="text-muted" style="font-size: 0.85rem; font-weight: 500;"><?= ($user_level === 3) ? 'trx' : 'akun' ?></small></div>
                 </div>
             </div>
         </div>
@@ -383,43 +383,70 @@ $extra_js = '
 <script>
 const DASHBOARD_URL = ' . json_encode($dashboard_url) . ';
 
-// Modern Bar Chart
-const ctxBar = document.getElementById("monthlyChart").getContext("2d");
-const barGradient = ctxBar.createLinearGradient(0, 0, 0, 300);
-barGradient.addColorStop(0, "#0284c7");
-barGradient.addColorStop(1, "#38bdf8");
+// Modern Bar Chart with Dynamic Theme Adaptation
+const chartEl = document.getElementById("monthlyChart");
+if (chartEl) {
+    const ctxBar = chartEl.getContext("2d");
+    const barGradient = ctxBar.createLinearGradient(0, 0, 0, 300);
+    barGradient.addColorStop(0, "#0284c7");
+    barGradient.addColorStop(1, "#38bdf8");
 
-new Chart(ctxBar, {
-    type: "bar",
-    data: {
-        labels: ' . json_encode($labels_bulan) . ',
-        datasets: [{
-            label: "Jumlah Transaksi",
-            data: ' . json_encode($transaksi_per_bulan) . ',
-            backgroundColor: barGradient,
-            borderRadius: 8,
-            borderSkipped: false
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: { display: false }
+    function getChartThemeColors() {
+        const isDark = document.documentElement.classList.contains("theme-dark") || document.body.classList.contains("theme-dark");
+        return {
+            grid: isDark ? "rgba(255, 255, 255, 0.08)" : "#f1f5f9",
+            text: isDark ? "#94a3b8" : "#64748b"
+        };
+    }
+
+    const initialColors = getChartThemeColors();
+
+    const monthlyChart = new Chart(ctxBar, {
+        type: "bar",
+        data: {
+            labels: ' . json_encode($labels_bulan) . ',
+            datasets: [{
+                label: "Jumlah Transaksi",
+                data: ' . json_encode($transaksi_per_bulan) . ',
+                backgroundColor: barGradient,
+                borderRadius: 8,
+                borderSkipped: false
+            }]
         },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: { precision: 0, font: { family: "Inter" } },
-                grid: { color: "#f1f5f9" }
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
             },
-            x: {
-                ticks: { font: { family: "Inter" } },
-                grid: { display: false }
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { family: "Inter" }, color: initialColors.text },
+                    grid: { color: initialColors.grid }
+                },
+                x: {
+                    ticks: { font: { family: "Inter" }, color: initialColors.text },
+                    grid: { display: false }
+                }
             }
         }
-    }
-});
+    });
+
+    window.addEventListener("patemon_theme_changed", function(e) {
+        if (monthlyChart && monthlyChart.options && monthlyChart.options.scales) {
+            const colors = getChartThemeColors();
+            if (monthlyChart.options.scales.y) {
+                monthlyChart.options.scales.y.grid.color = colors.grid;
+                monthlyChart.options.scales.y.ticks.color = colors.text;
+            }
+            if (monthlyChart.options.scales.x) {
+                monthlyChart.options.scales.x.ticks.color = colors.text;
+            }
+            monthlyChart.update();
+        }
+    });
+}
 
 // SIM-ASET Calendar Async Navigation
 window.loadCalendar = function(year, month) {

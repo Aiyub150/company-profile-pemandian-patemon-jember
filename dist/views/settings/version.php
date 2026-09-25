@@ -28,17 +28,48 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
 <div class="row g-4">
     <!-- Header Banner Sistem -->
     <div class="col-12">
-        <div class="modern-card text-center p-5 position-relative overflow-hidden" style="background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%); border: 1.5px solid #bae6fd;">
+        <div class="modern-card version-hero-card text-center p-5 position-relative overflow-hidden">
             <div class="mb-3">
                 <img src="<?= public_url('img/icon.png') ?>" alt="Logo Patemon" style="height: 72px; width: auto; object-fit: contain;">
             </div>
-            <h3 class="fw-bold mb-1" style="color: #0f172a;">Sistem Kasir & Portofolio Wisata Pemandian Patemon</h3>
+            <h3 class="fw-bold mb-1">Sistem Kasir & Portofolio Wisata Pemandian Patemon</h3>
             <p class="text-muted mb-3" style="max-width: 650px; margin: auto;">
                 Aplikasi manajemen retribusi loket tiket terpadu, pemesanan tiket online, pelaporan akuntabilitas keuangan daerah, dan portofolio wisata alam Tanggul, Jember.
             </p>
             <div class="d-flex justify-content-center gap-2 flex-wrap">
                 <span class="badge badge-modern-primary fs-6 px-3 py-2"><i class="fa-solid fa-code-commit me-1"></i> Versi <?= APP_VERSION ?></span>
                 <span class="badge badge-modern-purple fs-6 px-3 py-2"><i class="fa-solid fa-building me-1"></i> Pemkab Jember - Disparbud</span>
+                <span class="badge bg-white text-dark border fs-6 px-3 py-2 shadow-sm d-inline-flex align-items-center"><i class="fa-solid fa-user-check text-primary me-2"></i> Dibuat oleh: <strong class="ms-1">Aiyub Heriyanto</strong></span>
+                <a href="https://github.com/Aiyub150/company-profile-pemandian-patemon-jember" target="_blank" rel="noopener noreferrer" class="btn-github py-2 px-3 fs-6" style="background: #0f172a !important; color: #ffffff !important; border-radius: 8px !important; border: 1px solid #1e293b !important; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25) !important;">
+                    <i class="fa-brands fa-github me-1" style="color: #ffffff !important; font-size: 1.15rem !important;"></i>
+                    <span style="color: #ffffff !important;">Repositori GitHub</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square small ms-1" style="color: #94a3b8 !important; font-size: 0.75rem !important;"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informasi Pengembang & Repositori Proyek -->
+    <div class="col-12">
+        <div class="modern-card p-4" style="border-left: 5px solid #0284c7;">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">
+                        <i class="fa-solid fa-laptop-code"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Informasi Pengembang</div>
+                        <h5 class="fw-bold mb-1">Dibuat oleh Aiyub Heriyanto</h5>
+                        <p class="text-muted small mb-0">Kode sumber resmi dan pemeliharaan aplikasi Sistem Kasir & Portofolio Wisata Pemandian Patemon Jember.</p>
+                    </div>
+                </div>
+                <div>
+                    <a href="https://github.com/Aiyub150/company-profile-pemandian-patemon-jember" target="_blank" rel="noopener noreferrer" class="btn-github px-4 py-2.5 fw-bold d-inline-flex align-items-center gap-2 shadow" style="background: #0f172a !important; color: #ffffff !important; border: 1.5px solid #1e293b !important; border-radius: 12px !important;">
+                        <i class="fa-brands fa-github fs-4" style="color: #ffffff !important; line-height: 1 !important;"></i>
+                        <span style="color: #ffffff !important; font-weight: 700 !important; font-size: 0.95rem !important;">Kunjungi Repositori GitHub</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square small" style="color: #94a3b8 !important; font-size: 0.75rem !important;"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -47,7 +78,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12 col-md-6">
         <div class="modern-card h-100">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-server text-primary me-2"></i> Lingkungan Server & Runtime</span>
+                <span class="fw-bold"><i class="fa-solid fa-server text-primary me-2"></i> Lingkungan Server & Runtime</span>
             </div>
             <div class="p-3">
                 <table class="table table-borderless align-middle mb-0" style="font-size: 0.885rem;">
@@ -86,7 +117,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12 col-md-6">
         <div class="modern-card h-100">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-shield-halved text-success me-2"></i> Kepatuhan & Fitur Keamanan</span>
+                <span class="fw-bold"><i class="fa-solid fa-shield-halved text-success me-2"></i> Kepatuhan & Fitur Keamanan</span>
             </div>
             <div class="p-4">
                 <div class="d-flex align-items-start gap-3 mb-3">

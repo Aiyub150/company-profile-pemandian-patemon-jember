@@ -43,6 +43,46 @@
             setInterval(tick, 1000);
         }
     })();
+
+    // Dark / Light Theme Controller
+    function togglePatemonTheme() {
+        const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyPatemonTheme(newTheme);
+        localStorage.setItem('patemon_theme', newTheme);
+    }
+
+    function applyPatemonTheme(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const label = document.getElementById('themeLabelText');
+        if (theme === 'dark') {
+            document.body.classList.add('theme-dark');
+            document.documentElement.classList.add('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            if (btn) {
+                btn.classList.add('active-dark');
+                btn.setAttribute('title', 'Beralih ke Mode Terang');
+            }
+            if (label) label.textContent = 'Gelap';
+        } else {
+            document.body.classList.remove('theme-dark');
+            document.documentElement.classList.remove('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            if (btn) {
+                btn.classList.remove('active-dark');
+                btn.setAttribute('title', 'Beralih ke Mode Gelap');
+            }
+            if (label) label.textContent = 'Terang';
+        }
+
+        // Broadcast event agar komponen dinamis seperti grafik / widget kalender merespons
+        window.dispatchEvent(new CustomEvent('patemon_theme_changed', { detail: { theme: theme } }));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentTheme = localStorage.getItem('patemon_theme') || 'light';
+        applyPatemonTheme(currentTheme);
+    });
     </script>
     <?php if (isset($extra_js)) echo $extra_js; ?>
 </body>

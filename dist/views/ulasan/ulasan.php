@@ -1,7 +1,7 @@
 <?php
 /**
  * Modul Kritik & Saran Pengunjung
- * Sesuai Feedback-2 Poin 4
+ * Sesuai Feedback-2 Poin 4 & Feedback-3 Poin 9
  */
 require '../../app/config.php';
 check_auth([1, 2]);
@@ -10,6 +10,13 @@ $active_menu     = 'ulasan';
 $page_title      = 'Kritik & Saran Pengunjung - Pemandian Patemon';
 $page_heading    = 'Kritik & Saran Pengunjung';
 $page_subheading = 'Feedback, ulasan, dan testimoni masuk dari wisatawan Pemandian Patemon.';
+
+// Tandai semua ulasan belum dibaca sebagai sudah dibaca (bersihkan notif badge)
+$col_check = $conn->query("SHOW COLUMNS FROM ulasan LIKE 'is_read'");
+if ($col_check && $col_check->num_rows > 0) {
+    @$conn->query("UPDATE ulasan SET is_read = 1 WHERE is_read = 0");
+}
+
 
 // Filter Parameter
 $search_q     = trim($_GET['q'] ?? '');
@@ -90,9 +97,9 @@ require '../../app/layouts/admin_header.php';
                     <label class="form-label small fw-semibold text-muted mb-1">
                         <i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Cari Data Ulasan
                     </label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light text-muted border-end-0"><i class="fa-solid fa-search"></i></span>
-                        <input type="text" name="q" class="form-control-modern border-start-0" placeholder="Ketik nama, kontak, atau kata kunci pesan..." value="<?= e($search_q) ?>">
+                    <div class="input-icon-group">
+                        <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                        <input type="text" name="q" class="form-control-modern" placeholder="Ketik nama, kontak, atau kata kunci pesan..." value="<?= e($search_q) ?>">
                     </div>
                 </div>
 
@@ -157,12 +164,10 @@ require '../../app/layouts/admin_header.php';
                 </span>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <a href="https://wadulgus.jemberkab.go.id/" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-danger px-3 py-1.5 rounded-pill fw-semibold d-none d-sm-inline-flex align-items-center gap-1" title="Buka Portal Resmi Pengaduan Masyarakat Wadul Gus'e Pemkab Jember">
-                    <i class="fa-solid fa-bullhorn"></i>
-                    <span>Portal Wadul Gus'e</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square small"></i>
-                </a>
-                <input type="text" id="liveTableSearch" class="form-control-modern form-control-sm" placeholder="Pencarian cepat tabel..." style="width: 200px;">
+                <div class="input-icon-group" style="width: 240px;">
+                    <i class="fa-solid fa-magnifying-glass input-icon" style="font-size: 0.85rem; left: 0.85rem;"></i>
+                    <input type="text" id="liveTableSearch" class="form-control-modern form-control-sm" placeholder="Pencarian cepat tabel..." style="padding-left: 2.3rem;">
+                </div>
             </div>
         </div>
 

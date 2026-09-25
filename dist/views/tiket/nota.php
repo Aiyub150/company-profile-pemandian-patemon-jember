@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../../../vendor/autoload.php';
 require_once __DIR__ . '/../../app/config.php';
 
-use Picqer\Barcode\BarcodeGeneratorHTML;
+use Picqer\Barcode\BarcodeGeneratorSVG;
 
 if (!isset($_SESSION['id_user'])) {
     header('Location: ' . route_url('login'));
@@ -18,16 +18,19 @@ if ($id_transaksi <= 0) {
     exit();
 }
 
-// Ambil transaksi menggunakan Prepared Statement
+// Ambil transaksi menggunakan Prepared Statement (mendukung semua role level: 1=Super Admin, 2=Admin, 3=Kasir, 0=Pengunjung)
 $user_lvl = (int)($_SESSION['level'] ?? 0);
-$stmt = $conn->prepare("SELECT transaksi.*, users.nama as user_nama, users.no_telepon, users.email FROM transaksi LEFT JOIN users ON transaksi.id_user = users.id_user WHERE id_transaksi = ? AND (transaksi.id_user = ? OR ? = 1 OR ? = 2 OR ? = 3) LIMIT 1");
-$stmt->bind_param("iiiii", $id_transaksi, $id_user, $user_lvl, $user_lvl, $user_lvl);
+$session_tx_id = (int)($_SESSION['id_transaksi'] ?? 0);
+$is_own_session = ($session_tx_id > 0 && $session_tx_id === $id_transaksi) ? 1 : 0;
+
+$stmt = $conn->prepare("SELECT transaksi.*, users.nama as user_nama, users.no_telepon, users.email FROM transaksi LEFT JOIN users ON transaksi.id_user = users.id_user WHERE id_transaksi = ? AND (transaksi.id_user = ? OR ? = 1 OR ? = 2 OR ? = 3 OR ? = 1) LIMIT 1");
+$stmt->bind_param("iiiiii", $id_transaksi, $id_user, $user_lvl, $user_lvl, $user_lvl, $is_own_session);
 $stmt->execute();
 $transaksi_data = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$transaksi_data) {
-    die("<div style='text-align:center; padding: 50px; font-family: sans-serif;'><h2>Nota Transaksi Tidak Ditemukan</h2><p>Anda tidak memiliki akses ke transaksi ini atau nomor ID salah.</p><a href='" . route_url('home') . "'>Kembali ke Beranda</a></div>");
+    die("<div style='text-align:center; padding: 50px; font-family: sans-serif;'><h2>Nota Transaksi Tidak Ditemukan</h2><p>Anda tidak memiliki akses ke transaksi ini atau nomor ID salah.</p><a href='" . route_url('home') . "' style='color: #0284c7; text-decoration: none; font-weight: bold;'>Kembali ke Beranda</a></div>");
 }
 
 // Standardized Transaction Code
@@ -47,13 +50,24 @@ while ($row = $res_items->fetch_assoc()) {
 }
 $stmt_d->close();
 
-// Generate Barcode
-$barcodeHTML = '';
+// Generate Barcode 1D menggunakan BarcodeGeneratorSVG (vector SVG presisi tinggi)
+$barcodeSVG = '';
 try {
-    $generator = new BarcodeGeneratorHTML();
-    $barcodeHTML = $generator->getBarcode((string)$id_transaksi, $generator::TYPE_CODE_128);
+    $generator = new BarcodeGeneratorSVG();
+    $barcodeRaw = $generator->getBarcode($kode_transaksi, $generator::TYPE_CODE_128, 2, 60);
+    $barcodeRaw = preg_replace('/<\?xml.*?\?>/s', '', $barcodeRaw);
+    $barcodeSVG = preg_replace('/<!DOCTYPE.*?>/s', '', $barcodeRaw);
 } catch (Throwable $e) {
-    $barcodeHTML = "<div style='letter-spacing: 4px; font-weight: bold;'>*" . e($kode_transaksi) . "*</div>";
+    $barcodeSVG = "<div style='letter-spacing: 4px; font-weight: bold; padding: 12px 0;'>*" . e($kode_transaksi) . "*</div>";
+}
+
+// Logo base64 encode untuk memastikan 100% offline support & bebas CORS saat ditangkap html2canvas
+$logo_file = __DIR__ . '/../../../public/img/icon.png';
+$logo_src = '';
+if (file_exists($logo_file)) {
+    $logo_src = 'data:image/png;base64,' . base64_encode(file_get_contents($logo_file));
+} else {
+    $logo_src = public_url('img/icon.png');
 }
 ?>
 <!DOCTYPE html>
@@ -65,6 +79,7 @@ try {
     <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
             background-color: #f1f5f9;
@@ -76,6 +91,7 @@ try {
             padding: 2rem 1rem;
             margin: 0;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #0f172a;
         }
 
         .ticket-voucher {
@@ -83,24 +99,28 @@ try {
             max-width: 440px;
             background: #ffffff;
             border-radius: 20px;
-            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.08);
             overflow: hidden;
             border: 1px solid #e2e8f0;
             position: relative;
+            box-sizing: border-box;
         }
 
         .voucher-header {
             background: linear-gradient(135deg, #0284c7, #0ea5e9);
             color: #ffffff;
-            padding: 2rem 1.75rem 1.5rem;
+            padding: 1.75rem 1.5rem 1.4rem;
             text-align: center;
             position: relative;
         }
 
-        .voucher-header img {
-            width: 48px;
-            height: auto;
-            margin-bottom: 0.5rem;
+        .voucher-logo {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+            margin: 0 auto 0.6rem auto;
+            display: block;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
         }
 
         .voucher-header h1 {
@@ -113,36 +133,100 @@ try {
 
         .voucher-header p {
             font-size: 0.75rem;
-            opacity: 0.9;
+            opacity: 0.92;
             margin: 0.25rem 0 0;
+            letter-spacing: 0.01em;
         }
 
         .voucher-body {
-            padding: 1.75rem;
+            padding: 1.75rem 1.5rem;
             background: #ffffff;
         }
 
+        /* Barcode Section Presisi Tengah & Responsif */
         .barcode-section {
             text-align: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
             border-bottom: 2px dashed #e2e8f0;
         }
 
-        .barcode-wrapper {
-            display: inline-block;
-            max-width: 260px;
-            margin: 0.5rem auto;
+        .barcode-label {
+            font-size: 0.725rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.25rem;
         }
 
-        .barcode-wrapper div {
+        .barcode-code {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: 0.04em;
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            margin-bottom: 0.65rem;
+        }
+
+        .dual-code-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            margin: 0.5rem auto 0.75rem auto;
+        }
+
+        .qr-code-box {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
             margin: 0 auto;
+        }
+
+        .qr-code-box img, .qr-code-box canvas {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .barcode-wrapper {
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #ffffff;
+            padding: 6px 12px;
+            box-sizing: border-box;
+            border-radius: 8px;
+        }
+
+        .barcode-wrapper svg {
+            width: 100% !important;
+            height: 52px !important;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .barcode-note {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.45rem;
+            line-height: 1.35;
         }
 
         .perforated-divider {
             position: relative;
             border-top: 2px dashed #cbd5e1;
-            margin: 1.5rem -1.75rem;
+            margin: 1.5rem -1.5rem;
         }
 
         .perforated-divider::before, .perforated-divider::after {
@@ -171,12 +255,143 @@ try {
             font-size: 0.925rem;
         }
 
+        /* Typography & Utility Fallbacks */
+        .text-muted { color: #64748b !important; }
+        .text-dark { color: #0f172a !important; }
+        .text-primary { color: #0284c7 !important; }
+        .fw-bold { font-weight: 700 !important; }
+        .fs-4 { font-size: 1.35rem !important; }
+        .fs-5 { font-size: 1.15rem !important; }
+        .fs-6 { font-size: 0.95rem !important; }
+        .text-center { text-align: center !important; }
+        .mt-1 { margin-top: 0.25rem !important; }
+        .mt-2 { margin-top: 0.5rem !important; }
+        .mt-3 { margin-top: 0.75rem !important; }
+        .mt-4 { margin-top: 1rem !important; }
+        .pt-2 { padding-top: 0.5rem !important; }
+        .me-1 { margin-right: 0.25rem !important; }
+        .border-top { border-top: 1px solid #e2e8f0 !important; }
+
+        .badge-payment {
+            display: inline-block;
+            padding: 0.35rem 0.65rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: #f8fafc;
+            color: #1e293b;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+        }
+
+        .badge-modern {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            font-weight: 700;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            padding: 0.55rem 1.15rem;
+            line-height: 1.2;
+        }
+
+        .badge-modern-success {
+            background-color: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .badge-modern-warning {
+            background-color: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        /* Action Buttons: Desain Selaras & Modern */
         .action-bar {
             margin-top: 1.5rem;
             display: flex;
+            flex-direction: column;
             gap: 0.75rem;
             width: 100%;
             max-width: 440px;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        .btn-nota-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            padding: 0.85rem 1.25rem;
+            font-weight: 700;
+            font-size: 0.925rem;
+            border-radius: 14px;
+            border: none;
+            outline: none;
+            text-decoration: none !important;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+            box-sizing: border-box;
+        }
+
+        .btn-nota-action i {
+            font-size: 1rem;
+        }
+
+        .btn-nota-action:active {
+            transform: translateY(1px);
+        }
+
+        .btn-nota-download {
+            width: 100%;
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            color: #ffffff !important;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+        }
+
+        .btn-nota-download:hover {
+            background: linear-gradient(135deg, #0369a1, #0284c7);
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(2, 132, 199, 0.45);
+        }
+
+        .btn-nota-print {
+            flex: 1;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #ffffff !important;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.32);
+        }
+
+        .btn-nota-print:hover {
+            background: linear-gradient(135deg, #047857, #059669);
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(16, 185, 129, 0.42);
+        }
+
+        .btn-nota-back {
+            flex: 1;
+            background: linear-gradient(135deg, #475569, #64748b);
+            color: #ffffff !important;
+            box-shadow: 0 4px 14px rgba(71, 85, 105, 0.28);
+        }
+
+        .btn-nota-back:hover {
+            background: linear-gradient(135deg, #334155, #475569);
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(71, 85, 105, 0.38);
         }
 
         @media print {
@@ -207,23 +422,28 @@ try {
 <body>
 
 <div class="ticket-voucher" id="ticketPrintArea">
-    <!-- Header -->
+    <!-- Header Struk -->
     <div class="voucher-header">
-        <img src="<?= public_url('img/icon.png') ?>" alt="Logo">
+        <img src="<?= $logo_src ?>" alt="Logo Patemon" class="voucher-logo">
         <h1>PEMANDIAN PATEMON</h1>
         <p>Jl. Patemon, Tanggul Kulon, Kec. Tanggul, Jember, Jawa Timur</p>
     </div>
 
     <!-- Voucher Body -->
     <div class="voucher-body">
-        <!-- Barcode Section -->
+        <!-- Barcode & QR Code Section Presisi Tengah -->
         <div class="barcode-section">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">NOMOR REFERENSI TRANSAKSI</div>
-            <div class="fw-bold fs-4 text-dark mt-1"><?= e($kode_transaksi) ?></div>
-            <div class="barcode-wrapper">
-                <?= $barcodeHTML ?>
+            <div class="barcode-label">NOMOR REFERENSI TRANSAKSI</div>
+            <div class="barcode-code"><?= e($kode_transaksi) ?></div>
+            <div class="dual-code-container">
+                <!-- QR Code untuk Kamera Webcam / HP Kasir -->
+                <div class="qr-code-box" id="qrcode"></div>
+                <!-- 1D Barcode untuk Barcode Scanner Garis Loket -->
+                <div class="barcode-wrapper">
+                    <?= $barcodeSVG ?>
+                </div>
             </div>
-            <div class="small text-muted">Tunjukkan barcode ini kepada petugas loket pintu masuk</div>
+            <div class="barcode-note">Tunjukkan QR Code / Barcode ini kepada petugas loket untuk verifikasi tiket masuk</div>
         </div>
 
         <!-- Detail Pemesanan -->
@@ -237,7 +457,7 @@ try {
         </div>
         <div class="item-row">
             <span class="text-muted">Metode Pembayaran:</span>
-            <span class="badge bg-light text-dark border"><?= strtoupper(e($transaksi_data['metode_pembayaran'] ?? 'TUNAI')) ?></span>
+            <span class="badge-payment"><?= strtoupper(e($transaksi_data['metode_pembayaran'] ?? 'TUNAI')) ?></span>
         </div>
 
         <div class="perforated-divider"></div>
@@ -271,15 +491,15 @@ try {
             <strong class="text-primary fs-5"><?= format_rupiah($transaksi_data['total_harga']) ?></strong>
         </div>
 
-        <!-- Status Lunas -->
+        <!-- Status Lunas / Verifikasi -->
         <div class="text-center mt-3 pt-2">
             <?php if ($transaksi_data['status'] === 'done'): ?>
-                <span class="badge-modern badge-modern-success py-2 px-3 fs-6">
-                    <i class="fa-solid fa-circle-check me-1"></i> LUNAS / TERVERIFIKASI
+                <span class="badge-modern badge-modern-success">
+                    <i class="fa-solid fa-circle-check"></i> LUNAS / TERVERIFIKASI
                 </span>
             <?php else: ?>
-                <span class="badge-modern badge-modern-warning py-2 px-3 fs-6">
-                    <i class="fa-solid fa-clock me-1"></i> MENUNGGU PEMBAYARAN
+                <span class="badge-modern badge-modern-warning">
+                    <i class="fa-solid fa-clock"></i> MENUNGGU PEMBAYARAN
                 </span>
             <?php endif; ?>
         </div>
@@ -292,19 +512,139 @@ try {
 </div>
 
 <!-- Floating Action Buttons -->
-<div class="action-bar">
-    <button onclick="window.print()" class="btn btn-brand flex-grow-1 py-2">
-        <i class="fa-solid fa-print me-1"></i> Cetak Struk Nota
+<div class="action-bar no-print">
+    <button type="button" id="btnDownloadNota" onclick="downloadNotaImage()" class="btn-nota-action btn-nota-download" title="Unduh nota dalam format gambar PNG">
+        <i class="fa-solid fa-download"></i> Download Gambar Nota
     </button>
-    <?php
-    $back_url = route_url('home');
-    if ($user_lvl === 1 || $user_lvl === 2) $back_url = route_url('transaksi');
-    if ($user_lvl === 3) $back_url = route_url('kasir');
-    ?>
-    <a href="<?= $back_url ?>" class="btn btn-outline-secondary px-3 py-2">
-        <i class="fa-solid fa-arrow-left me-1"></i> Kembali
-    </a>
+    <div class="action-row">
+        <button type="button" onclick="window.print()" class="btn-nota-action btn-nota-print" title="Cetak langsung ke printer atau simpan PDF">
+            <i class="fa-solid fa-print"></i> Cetak
+        </button>
+        <?php
+        $back_url = route_url('home');
+        if ($user_lvl === 1 || $user_lvl === 2) {
+            $back_url = route_url('transaksi');
+        } elseif ($user_lvl === 3) {
+            $back_url = route_url('kasir');
+        } else {
+            $back_url = route_url('home');
+        }
+        ?>
+        <a href="<?= $back_url ?>" class="btn-nota-action btn-nota-back" title="Kembali ke halaman sebelumnya">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+        </a>
+    </div>
 </div>
+
+<!-- Local html2canvas library dengan CDN Fallback -->
+<script src="<?= public_url('js/html2canvas.min.js') ?>"></script>
+<script>
+if (typeof html2canvas === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"><\/script>');
+}
+</script>
+
+<script>
+function downloadNotaImage() {
+    const btn = document.getElementById('btnDownloadNota');
+    if (!btn) return;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Menyiapkan Gambar...';
+
+    const ticket = document.getElementById('ticketPrintArea');
+    if (!ticket) {
+        alert('Area struk nota tidak ditemukan.');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+    }
+
+    if (typeof html2canvas !== 'function') {
+        alert('Modul pembuat gambar sedang dimuat atau diblokir peramban. Silakan gunakan tombol Cetak.');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+    }
+
+    // Scroll ke atas agar koordinat render html2canvas presisi
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    html2canvas(ticket, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0
+    }).then(function(canvas) {
+        const fileName = 'Nota_Patemon_<?= e($kode_transaksi) ?>.png';
+
+        if (canvas.toBlob) {
+            canvas.toBlob(function(blob) {
+                if (blob) {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = fileName;
+                    link.href = blobUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(function() {
+                        if (document.body.contains(link)) document.body.removeChild(link);
+                        URL.revokeObjectURL(blobUrl);
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }, 500);
+                    return;
+                }
+                fallbackDownload(canvas, fileName, btn, originalText);
+            }, 'image/png');
+        } else {
+            fallbackDownload(canvas, fileName, btn, originalText);
+        }
+    }).catch(function(err) {
+        console.error('Error html2canvas:', err);
+        alert('Gagal membuat gambar nota. Silakan coba kembali atau gunakan tombol Cetak.');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+function fallbackDownload(canvas, fileName, btn, originalText) {
+    try {
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(function() {
+            if (document.body.contains(link)) document.body.removeChild(link);
+        }, 300);
+    } catch (e) {
+        console.error('Fallback download error:', e);
+        alert('Peramban membatasi unduhan otomatis. Silakan gunakan tombol Cetak.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+// Render QR Code untuk scan cepat di kamera loket / smartphone
+document.addEventListener("DOMContentLoaded", function() {
+    const qrEl = document.getElementById("qrcode");
+    if (qrEl && typeof QRCode !== "undefined") {
+        new QRCode(qrEl, {
+            text: "<?= e($kode_transaksi) ?>",
+            width: 120,
+            height: 120,
+            colorDark: "#0f172a",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    }
+});
+</script>
 
 </body>
 </html>

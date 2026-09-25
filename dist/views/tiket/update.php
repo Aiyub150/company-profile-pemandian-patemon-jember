@@ -1,6 +1,6 @@
 <?php
 require '../../app/config.php';
-check_auth([1]);
+check_auth([1, 2]);
 
 $active_menu     = 'tiket';
 $page_title      = 'Edit Kategori Tiket - Pemandian Patemon';
@@ -45,6 +45,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if (empty($nama_tiket) || $harga <= 0) {
             $error_msg = "Nama tiket dan tarif harga harus diisi dengan benar.";
+        } elseif (mb_strlen($nama_tiket) > 50) {
+            $error_msg = "Nama tiket maksimal 50 karakter.";
+        } elseif (!preg_match("/^[a-zA-Z0-9\s\(\)\-\/\.\+]+$/", $nama_tiket)) {
+            $error_msg = "Nama tiket hanya boleh berisi huruf, angka, spasi, tanda kurung, atau strip (-).";
+        } elseif ($harga > 5000000) {
+            $error_msg = "Tarif tiket maksimal Rp 5.000.000.";
         } else {
             $stmt_up = $conn->prepare("UPDATE tiket SET nama_tiket = ?, harga = ?, ikon = ? WHERE id_tiket = ?");
             $stmt_up->bind_param("sisi", $nama_tiket, $harga, $ikon, $id_tiket);
@@ -99,7 +105,7 @@ require '../../app/layouts/admin_header.php';
                             <label for="nama_tiket" class="form-label fw-semibold text-secondary small">Nama Kategori Tiket <span class="text-danger">*</span></label>
                             <div class="input-icon-group">
                                 <i class="fa-solid fa-ticket input-icon"></i>
-                                <input type="text" id="nama_tiket" name="nama_tiket" class="form-control-modern" value="<?= e($data["nama_tiket"]) ?>" required>
+                                <input type="text" id="nama_tiket" name="nama_tiket" class="form-control-modern" value="<?= e($data["nama_tiket"]) ?>" required maxlength="50" pattern="^[a-zA-Z0-9\s\(\)\-\/\.\+]+$" title="Nama tiket hanya boleh berisi huruf, angka, spasi, atau tanda kurung (maks. 50 karakter)">
                             </div>
                         </div>
 
@@ -107,7 +113,7 @@ require '../../app/layouts/admin_header.php';
                             <label for="harga" class="form-label fw-semibold text-secondary small">Tarif Tiket (Rupiah) <span class="text-danger">*</span></label>
                             <div class="input-icon-group">
                                 <i class="fa-solid fa-money-bill input-icon"></i>
-                                <input type="number" id="harga" name="harga" class="form-control-modern" min="500" step="500" value="<?= (int)$data["harga"] ?>" required>
+                                <input type="number" id="harga" name="harga" class="form-control-modern" min="500" max="5000000" step="500" value="<?= (int)$data["harga"] ?>" required>
                             </div>
                         </div>
 

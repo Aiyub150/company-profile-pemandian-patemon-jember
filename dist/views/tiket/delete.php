@@ -1,6 +1,6 @@
 <?php
 require '../../app/config.php';
-check_auth([1]);
+check_auth([1, 2]);
 
 $id_tiket = (int)($_GET["id"] ?? 0);
 $csrf = $_GET["csrf"] ?? '';

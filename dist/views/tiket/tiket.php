@@ -1,6 +1,6 @@
 <?php
 require '../../app/config.php';
-check_auth([1]);
+check_auth([1, 2]);
 
 $active_menu     = 'tiket';
 $page_title      = 'Tarif & Kategori Tiket - Pemandian Patemon';

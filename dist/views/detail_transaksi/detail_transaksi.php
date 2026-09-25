@@ -165,8 +165,8 @@ $back_link = ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transak
                                 $bukti = $transaksi_info['bukti_pembayaran'] ?? '';
                                 if (!empty($bukti) && strtolower($bukti) !== 'bayar di loket' && file_exists(__DIR__ . '/../../app/payment/' . $bukti)): 
                                 ?>
-                                    <a href="../../app/payment/<?= e($bukti) ?>" target="_blank" title="Klik untuk memperbesar">
-                                        <img src="../../app/payment/<?= e($bukti) ?>" alt="Bukti Transfer" class="img-fluid rounded-3 border shadow-sm" style="max-height: 280px; object-fit: contain;">
+                                    <a href="<?= payment_url($bukti) ?>" target="_blank" title="Klik untuk memperbesar">
+                                        <img src="<?= payment_url($bukti) ?>" alt="Bukti Transfer" class="img-fluid rounded-3 border shadow-sm" style="max-height: 280px; object-fit: contain;">
                                     </a>
                                     <div class="mt-2 text-muted small"><i class="fa-solid fa-magnifying-glass-plus me-1"></i> Klik gambar untuk ukuran penuh</div>
                                 <?php else: ?>

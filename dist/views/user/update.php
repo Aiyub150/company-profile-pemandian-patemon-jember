@@ -44,10 +44,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if (empty($nama) || empty($username) || empty($email)) {
             $error_msg = "Nama, Username, dan Email wajib diisi.";
+        } elseif (mb_strlen($nama) > 50) {
+            $error_msg = "Nama lengkap maksimal 50 karakter.";
+        } elseif (!preg_match("/^[a-zA-Z\s\.\']+$/", $nama)) {
+            $error_msg = "Nama lengkap hanya boleh berisi huruf, spasi, titik, atau tanda petik.";
+        } elseif (mb_strlen($username) > 30) {
+            $error_msg = "Username maksimal 30 karakter.";
+        } elseif (!preg_match("/^[a-zA-Z0-9_\.]+$/", $username)) {
+            $error_msg = "Username hanya boleh berisi huruf, angka, garis bawah (_), atau titik (.).";
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $error_msg = "Format email tidak valid.";
         } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
             $error_msg = "Nomor telepon tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka).";
+        } elseif (!empty($new_password) && strlen($new_password) < 6) {
+            $error_msg = "Password baru minimal terdiri dari 6 karakter.";
         } else {
             // Cek apakah username/email sudah digunakan akun lain
             $chk = $conn->prepare("SELECT id_user FROM users WHERE (username = ? OR email = ?) AND id_user != ? LIMIT 1");
@@ -139,7 +149,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             <label for="nama" class="form-label fw-semibold text-secondary small">Nama Lengkap <span class="text-danger">*</span></label>
                                             <div class="input-icon-group">
                                                 <i class="fa-solid fa-id-card input-icon"></i>
-                                                <input type="text" id="nama" name="nama" class="form-control-modern" required value="<?= e($data['nama']) ?>">
+                                                <input type="text" id="nama" name="nama" class="form-control-modern" required maxlength="50" pattern="^[a-zA-Z\s\.\']+$" title="Nama hanya boleh berisi huruf, spasi, titik, atau tanda petik (maksimal 50 karakter)" value="<?= e($data['nama']) ?>">
                                             </div>
                                         </div>
 
@@ -147,7 +157,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             <label for="username" class="form-label fw-semibold text-secondary small">Username <span class="text-danger">*</span></label>
                                             <div class="input-icon-group">
                                                 <i class="fa-solid fa-user input-icon"></i>
-                                                <input type="text" id="username" name="username" class="form-control-modern" required value="<?= e($data['username']) ?>">
+                                                <input type="text" id="username" name="username" class="form-control-modern" required maxlength="30" pattern="^[a-zA-Z0-9_\.]+$" title="Username hanya boleh berisi huruf, angka, underscore, atau titik (maksimal 30 karakter)" value="<?= e($data['username']) ?>">
                                             </div>
                                         </div>
 
@@ -155,7 +165,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             <label for="email" class="form-label fw-semibold text-secondary small">Alamat Email <span class="text-danger">*</span></label>
                                             <div class="input-icon-group">
                                                 <i class="fa-solid fa-envelope input-icon"></i>
-                                                <input type="email" id="email" name="email" class="form-control-modern" required value="<?= e($data['email']) ?>">
+                                                <input type="email" id="email" name="email" class="form-control-modern" required maxlength="60" value="<?= e($data['email']) ?>">
                                             </div>
                                         </div>
 

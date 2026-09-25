@@ -25,6 +25,19 @@ foreach ($blockedPatterns as $pattern) {
     }
 }
 
+// 1.5 Handle Payment Proof Uploads (supports both /app/payment/ and /dist/app/payment/)
+if (str_starts_with($uri, '/app/payment/') || str_starts_with($uri, '/dist/app/payment/')) {
+    $relPath = preg_replace('#^/(?:dist/)?app/payment/#', '', $uri);
+    $paymentFile = __DIR__ . '/dist/app/payment/' . $relPath;
+    if (file_exists($paymentFile) && !is_dir($paymentFile)) {
+        $mime = mime_content_type($paymentFile) ?: 'image/jpeg';
+        header('Content-Type: ' . $mime);
+        header('Cache-Control: public, max-age=86400');
+        readfile($paymentFile);
+        exit;
+    }
+}
+
 // 2. Clean Routing Map
 $cleanRoutes = [
     '/'                      => 'dist/views/index.php',
@@ -77,6 +90,8 @@ $cleanRoutes = [
     '/admin/users/update'    => 'dist/views/user/update.php',
     '/admin/users/delete'    => 'dist/views/user/delete.php',
 
+    '/admin/gallery'         => 'dist/views/gallery/gallery.php',
+    '/gallery'               => 'dist/views/gallery/gallery.php',
     '/profile'               => 'dist/views/profile/profile.php',
     '/guide'                 => 'dist/views/settings/guide.php',
     '/guide/preview-pdf'     => 'dist/views/settings/guide_preview_pdf.php',

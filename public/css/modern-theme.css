@@ -153,7 +153,7 @@ img.img-cover,
    Metric Stats Card
    ========================================================================== */
 .metric-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
@@ -161,7 +161,7 @@ img.img-cover,
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .metric-card:hover {
@@ -873,5 +873,534 @@ img.img-cover,
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
     transform: translateY(-1px);
 }
+
+/* ==========================================================================
+   GITHUB BUTTON & HIGH-CONTRAST DARK BUTTONS
+   ========================================================================== */
+.btn-github {
+    background: #0f172a !important;
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border: 1.5px solid #1e293b !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.65rem !important;
+    padding: 0.6rem 1.25rem !important;
+    border-radius: 12px !important;
+    text-decoration: none !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25) !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-github i, .btn-github span {
+    color: #ffffff !important;
+}
+
+.btn-github:hover {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    color: #38bdf8 !important;
+    border-color: #38bdf8 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35) !important;
+}
+
+.btn-github:hover i, .btn-github:hover span {
+    color: #38bdf8 !important;
+}
+
+.btn-dark {
+    background: #0f172a !important;
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
+    color: #ffffff !important;
+}
+
+.btn-dark:hover {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #ffffff !important;
+}
+
+.btn-dark i {
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   THEME TOGGLE SWITCHER (MODE GELAP / TERANG)
+   ========================================================================== */
+.btn-theme-switcher {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #334155;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    outline: none;
+    user-select: none;
+}
+
+.btn-theme-switcher:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.btn-theme-switcher .theme-icon-sun {
+    display: none;
+    color: #f59e0b;
+    font-size: 1rem;
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.5));
+}
+
+.btn-theme-switcher .theme-icon-moon {
+    display: inline-block;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+/* State when Dark Mode is Active */
+body.theme-dark .btn-theme-switcher,
+html.theme-dark .btn-theme-switcher {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-dark .btn-theme-switcher:hover,
+html.theme-dark .btn-theme-switcher:hover {
+    background: #334155 !important;
+    border-color: #475569 !important;
+    color: #fbbf24 !important;
+}
+
+body.theme-dark .btn-theme-switcher .theme-icon-sun,
+html.theme-dark .btn-theme-switcher .theme-icon-sun {
+    display: inline-block !important;
+}
+
+body.theme-dark .btn-theme-switcher .theme-icon-moon,
+html.theme-dark .btn-theme-switcher .theme-icon-moon {
+    display: none !important;
+}
+
+/* ==========================================================================
+   MODERN DARK THEME OVERRIDES (body.theme-dark / html.theme-dark)
+   ========================================================================== */
+body.theme-dark,
+html.theme-dark {
+    --bg-page: #0b1120;
+    --bg-card: #1e293b;
+    --bg-sidebar: #0f172a;
+    --border-color: #334155;
+    --border-focus: #38bdf8;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
+    --bs-dark: #f8fafc !important;
+    --bs-dark-rgb: 248, 250, 252 !important;
+    --bs-body-bg: #0b1120 !important;
+    --bs-body-color: #f8fafc !important;
+    color-scheme: dark;
+}
+
+body.theme-dark,
+html.theme-dark body {
+    background-color: #0b1120 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark #main,
+html.theme-dark #main {
+    background-color: #0b1120 !important;
+}
+
+body.theme-dark header,
+html.theme-dark header {
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
+}
+
+/* Sidebar in Dark Mode */
+body.theme-dark .sidebar-wrapper,
+html.theme-dark .sidebar-wrapper {
+    background: #0f172a !important;
+    border-right: 1px solid #1e293b !important;
+}
+
+body.theme-dark .sidebar-header,
+html.theme-dark .sidebar-header {
+    background: #0f172a !important;
+}
+
+body.theme-dark .sidebar-brand-name,
+html.theme-dark .sidebar-brand-name {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .sidebar-footer-card,
+html.theme-dark .sidebar-footer-card {
+    background: #0b1120 !important;
+    border-top: 1px solid #1e293b !important;
+}
+
+body.theme-dark .sidebar-user-name,
+html.theme-dark .sidebar-user-name {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .sidebar-wrapper .logo div:first-child,
+html.theme-dark .sidebar-wrapper .logo div:first-child {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .sidebar-item .sidebar-link,
+html.theme-dark .sidebar-item .sidebar-link {
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .sidebar-item.active > .sidebar-link,
+html.theme-dark .sidebar-item.active > .sidebar-link {
+    background: linear-gradient(135deg, #0284c7, #0ea5e9) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4) !important;
+}
+
+body.theme-dark .sidebar-item .sidebar-link:hover,
+html.theme-dark .sidebar-item .sidebar-link:hover {
+    background: rgba(56, 189, 248, 0.08) !important;
+    color: #38bdf8 !important;
+}
+
+body.theme-dark .sidebar-title,
+html.theme-dark .sidebar-title {
+    color: #64748b !important;
+}
+
+/* Metric Stats Cards in Dark Mode */
+body.theme-dark .metric-card,
+html.theme-dark .metric-card {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.theme-dark .metric-content .metric-label,
+html.theme-dark .metric-content .metric-label {
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .metric-content .metric-value,
+html.theme-dark .metric-content .metric-value {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .metric-content small,
+html.theme-dark .metric-content small {
+    color: #94a3b8 !important;
+}
+
+/* Modern Card Dark Styling */
+body.theme-dark .modern-card,
+html.theme-dark .modern-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.theme-dark .modern-card-header,
+html.theme-dark .modern-card-header {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark .modern-card-header .fw-bold,
+body.theme-dark .modern-card-header span,
+body.theme-dark .modern-card-header h5,
+body.theme-dark .modern-card-header h6,
+html.theme-dark .modern-card-header .fw-bold,
+html.theme-dark .modern-card-header span,
+html.theme-dark .modern-card-header h5,
+html.theme-dark .modern-card-header h6 {
+    color: #f8fafc !important;
+}
+
+/* Typography Dark Mode */
+body.theme-dark .page-heading h1,
+body.theme-dark .page-heading h2,
+body.theme-dark .page-heading h3,
+body.theme-dark .page-heading .page-title,
+html.theme-dark .page-heading h1,
+html.theme-dark .page-heading h2,
+html.theme-dark .page-heading h3,
+html.theme-dark .page-heading .page-title {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .page-heading p,
+html.theme-dark .page-heading p {
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .text-dark,
+html.theme-dark .text-dark {
+    color: #f8fafc !important;
+}
+
+body.theme-dark .text-muted,
+html.theme-dark .text-muted {
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .text-secondary,
+html.theme-dark .text-secondary {
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .burger-btn,
+html.theme-dark .burger-btn {
+    color: #f8fafc !important;
+}
+
+/* Tables in Dark Mode */
+body.theme-dark .table-modern,
+body.theme-dark .table,
+html.theme-dark .table-modern,
+html.theme-dark .table {
+    color: #e2e8f0 !important;
+}
+
+body.theme-dark .table-modern thead th,
+html.theme-dark .table-modern thead th {
+    background: #0f172a !important;
+    color: #94a3b8 !important;
+    border-bottom: 2px solid #334155 !important;
+}
+
+body.theme-dark .table-modern tbody tr,
+html.theme-dark .table-modern tbody tr {
+    border-bottom: 1px solid #334155 !important;
+    background: transparent !important;
+}
+
+body.theme-dark .table-modern tbody tr:hover,
+html.theme-dark .table-modern tbody tr:hover {
+    background: rgba(30, 41, 59, 0.7) !important;
+}
+
+body.theme-dark .table-modern tbody td,
+html.theme-dark .table-modern tbody td {
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+/* Topbar Components */
+body.theme-dark #topbar-clock,
+html.theme-dark #topbar-clock {
+    color: #38bdf8 !important;
+}
+
+body.theme-dark .topbar-time-pill,
+html.theme-dark .topbar-time-pill {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .topbar-time-pill #topbar-date,
+html.theme-dark .topbar-time-pill #topbar-date {
+    color: #cbd5e1 !important;
+}
+
+body.theme-dark .topbar-notif-btn,
+html.theme-dark .topbar-notif-btn {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .topbar-notif-btn:hover,
+html.theme-dark .topbar-notif-btn:hover {
+    background-color: #334155 !important;
+    border-color: #0284c7 !important;
+    color: #38bdf8 !important;
+}
+
+/* Bootstrap Surface Colors */
+body.theme-dark .bg-white,
+html.theme-dark .bg-white {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.theme-dark .bg-light,
+html.theme-dark .bg-light {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.theme-dark .border,
+html.theme-dark .border,
+body.theme-dark .border-bottom,
+html.theme-dark .border-bottom,
+body.theme-dark .border-top,
+html.theme-dark .border-top {
+    border-color: #334155 !important;
+}
+
+body.theme-dark .card,
+html.theme-dark .card {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark .modal-content,
+html.theme-dark .modal-content {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark .modal-header,
+html.theme-dark .modal-header {
+    border-bottom-color: #334155 !important;
+}
+
+body.theme-dark .modal-footer,
+html.theme-dark .modal-footer {
+    border-top-color: #334155 !important;
+}
+
+body.theme-dark .dropdown-menu,
+html.theme-dark .dropdown-menu {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.theme-dark .dropdown-item,
+html.theme-dark .dropdown-item {
+    color: #e2e8f0 !important;
+}
+
+body.theme-dark .dropdown-item:hover,
+html.theme-dark .dropdown-item:hover {
+    background-color: #334155 !important;
+    color: #ffffff !important;
+}
+
+body.theme-dark .btn-light,
+html.theme-dark .btn-light {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark .btn-outline-secondary,
+html.theme-dark .btn-outline-secondary {
+    border-color: #475569 !important;
+    color: #94a3b8 !important;
+}
+
+body.theme-dark .btn-outline-secondary:hover,
+html.theme-dark .btn-outline-secondary:hover {
+    background-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+/* Form Controls in Dark Mode */
+body.theme-dark .form-control-modern,
+body.theme-dark .form-control,
+body.theme-dark .form-select,
+body.theme-dark .input-group-text,
+html.theme-dark .form-control-modern,
+html.theme-dark .form-control,
+html.theme-dark .form-select,
+html.theme-dark .input-group-text {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark .form-control::placeholder,
+html.theme-dark .form-control::placeholder {
+    color: #64748b !important;
+}
+
+body.theme-dark .form-control-modern:focus,
+body.theme-dark .form-control:focus,
+body.theme-dark .form-select:focus,
+html.theme-dark .form-control-modern:focus,
+html.theme-dark .form-control:focus,
+html.theme-dark .form-select:focus {
+    background-color: #0f172a !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2) !important;
+    color: #ffffff !important;
+}
+
+/* POS & Gallery Custom Cards in Dark Mode */
+body.theme-dark .pos-ticket-card,
+html.theme-dark .pos-ticket-card,
+body.theme-dark .summary-card,
+html.theme-dark .summary-card,
+body.theme-dark .gallery-edit-card,
+html.theme-dark .gallery-edit-card {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+body.theme-dark .pos-ticket-card.active,
+html.theme-dark .pos-ticket-card.active {
+    background-color: #0c4a6e !important;
+    border-color: #0284c7 !important;
+}
+
+body.theme-dark .payment-method-selector label,
+html.theme-dark .payment-method-selector label {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.theme-dark .payment-method-selector input[type="radio"]:checked + label,
+html.theme-dark .payment-method-selector input[type="radio"]:checked + label {
+    background-color: #0c4a6e !important;
+    border-color: #0284c7 !important;
+    color: #38bdf8 !important;
+}
+
+/* Version Page Specific Dark Mode */
+body.theme-dark .version-hero-card,
+html.theme-dark .version-hero-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+    border-color: #334155 !important;
+}
+
+body.theme-dark .version-hero-card h3,
+html.theme-dark .version-hero-card h3 {
+    color: #ffffff !important;
+}
+
 
 
