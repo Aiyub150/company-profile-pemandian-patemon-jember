@@ -163,6 +163,9 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
                     $stmt_detail->close();
 
                     $conn->commit();
+                    if (function_exists('log_activity')) {
+                        log_activity('BOOKING', 'transaksi', "Pemesanan tiket online ID #{$new_id_transaksi} sebesar Rp " . number_format($total_harga, 0, ',', '.') . " ({$metode_pembayaran})", $id_user);
+                    }
                     header("Location: " . route_url('nota', ['id' => $new_id_transaksi]));
                     exit();
                 } catch (Exception $e) {

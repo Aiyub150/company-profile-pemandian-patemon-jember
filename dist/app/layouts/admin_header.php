@@ -73,12 +73,12 @@ $notif_label = $unread_ulasan_count > 99 ? '99+' : (string)$unread_ulasan_count;
     </script>
     <div id="app">
         <?php include __DIR__ . '/../partials/sidebar.php'; ?>
-        <div class="sidebar-backdrop" onclick="document.getElementById('sidebar')?.classList.remove('active')"></div>
+        <div class="sidebar-backdrop" onclick="if(typeof togglePatemonSidebar==='function'){togglePatemonSidebar(false);}else{document.getElementById('sidebar')?.classList.remove('active');document.body.style.overflow='';}"></div>
 
         <div id="main">
             <!-- Universal Topbar -->
-            <header class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom">
-                <button type="button" class="burger-btn d-inline-flex d-xl-none p-2 border-0 bg-transparent text-secondary align-items-center justify-content-center" id="mobileBurgerBtn" title="Menu Sidebar" aria-label="Buka Menu" style="cursor: pointer; z-index: 1001;">
+            <header id="adminUniversalHeader" class="admin-topbar-header mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom">
+                <button type="button" class="burger-btn d-inline-flex d-xl-none p-2 border-0 bg-transparent text-secondary align-items-center justify-content-center" id="mobileBurgerBtn" onclick="if(typeof togglePatemonSidebar==='function'){togglePatemonSidebar();}else{document.getElementById('sidebar')?.classList.toggle('active');}" title="Menu Sidebar" aria-label="Buka Menu" style="cursor: pointer; z-index: 1001;">
                     <i class="fa-solid fa-bars fs-3"></i>
                 </button>
 
@@ -121,9 +121,9 @@ $notif_label = $unread_ulasan_count > 99 ? '99+' : (string)$unread_ulasan_count;
             <div class="page-heading mb-4">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
-                        <h2 class="fw-bold mb-1" style="font-size: 1.75rem;"><?= e($page_heading) ?></h2>
+                        <h2 class="fw-bold mb-1" style="font-size: 1.75rem;" data-i18n><?= e($page_heading) ?></h2>
                         <?php if (!empty($page_subheading)): ?>
-                            <p class="text-muted mb-0"><?= e($page_subheading) ?></p>
+                            <p class="text-muted mb-0" data-i18n><?= e($page_subheading) ?></p>
                         <?php endif; ?>
                     </div>
                     <?php if (isset($header_actions)) echo $header_actions; ?>

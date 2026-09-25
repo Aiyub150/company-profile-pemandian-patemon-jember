@@ -48,6 +48,7 @@ CREATE TABLE `tiket` (
 CREATE TABLE `transaksi` (
   `id_transaksi` int(11) NOT NULL AUTO_INCREMENT,
   `id_user` int(11) NOT NULL,
+  `nama_pemesan` varchar(100) DEFAULT NULL,
   `tgl_pemesanan` date NOT NULL,
   `total_harga` int(11) NOT NULL DEFAULT 0,
   `metode_pembayaran` varchar(50) NOT NULL,

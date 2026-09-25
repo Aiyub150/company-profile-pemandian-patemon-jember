@@ -33,7 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $trx_id = (int)($_POST['id_transaksi'] ?? 0);
         if ($trx_id > 0) {
             // Delete related detail first
-            $conn->query("DELETE FROM transaksi_detail WHERE id_transaksi = {$trx_id}");
+            $del_d = $conn->prepare("DELETE FROM detail_transaksi WHERE id_transaksi = ?");
+            $del_d->bind_param("i", $trx_id);
+            $del_d->execute();
+            $del_d->close();
+
             $stmt = $conn->prepare("DELETE FROM transaksi WHERE id_transaksi = ? AND deleted_at IS NOT NULL");
             $stmt->bind_param("i", $trx_id);
             if ($stmt->execute() && $stmt->affected_rows > 0) {

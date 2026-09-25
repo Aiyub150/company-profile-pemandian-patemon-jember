@@ -48,6 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_profile
             $error_msg = 'Format alamat email tidak valid.';
         } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
             $error_msg = 'Nomor telepon tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka), tanpa spasi atau karakter khusus.';
+        } elseif (has_toxic_words($nama)) {
+            $toxicHits = find_toxic_words($nama);
+            $error_msg = 'Nama lengkap memuat kata yang dilarang (' . e(implode(', ', array_unique($toxicHits))) . '). Harap gunakan bahasa yang sopan.';
         } else {
             // Cek duplikasi email pada user lain
             $chk = $conn->prepare("SELECT id_user FROM users WHERE email = ? AND id_user != ? LIMIT 1");
@@ -116,6 +119,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_profile
                         $curr_user['no_telepon'] = $no_telepon;
                         $curr_user['avatar'] = $new_avatar_name;
                         $success_msg = 'Informasi profil dan foto Anda berhasil diperbarui!';
+                        if (function_exists('log_activity')) {
+                            log_activity('UPDATE', 'profile', "Memperbarui profil pengguna ID #{$user_id} ({$curr_user['username']})", $user_id);
+                        }
                     } else {
                         $error_msg = 'Gagal menyimpan perubahan profil ke basis data.';
                     }
@@ -158,6 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_passwor
                 $up_pass->bind_param("si", $new_hash, $user_id);
                 if ($up_pass->execute()) {
                     $success_msg = 'Kata sandi Anda berhasil diperbarui dengan aman!';
+                    if (function_exists('log_activity')) {
+                        log_activity('UPDATE', 'profile', "Memperbarui kata sandi akun ID #{$user_id} ({$curr_user['username']})", $user_id);
+                    }
                 } else {
                     $error_msg = 'Gagal memperbarui kata sandi.';
                 }

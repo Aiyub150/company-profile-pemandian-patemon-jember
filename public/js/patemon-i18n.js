@@ -563,6 +563,8 @@
         // --- PANDUAN & GUIDE OPERATIONAL ---
         "Buku Panduan": "User Guide",
         "Buku Panduan Operasional Sistem": "System Operational User Manual",
+        "Buku Panduan Penggunaan Sistem": "System User Guide Book",
+        "Buku Panduan Penggunaan Sistem - Pemandian Patemon": "System User Guide Book - Pemandian Patemon",
         "Panduan Pengoperasian Wisata Pemandian Patemon": "Operational Manual for Pemandian Patemon Tourism",
         "Dokumentasi alur kerja terpadu untuk pengelola, staf loket, dan pengunjung.": "Integrated workflow documentation for managers, counter staff, and visitors.",
         "Buka Dokumen PDF Panduan": "Open PDF Manual Document",
@@ -573,7 +575,209 @@
         "Pengunjung membuka website dan memilih tombol": "Visitors open the website and click",
         "Pengunjung menentukan jumlah lembar tiket untuk tiap kategori": "Visitors specify the number of tickets for each category",
         "Setelah form dikirim, sistem otomatis menerbitkan": "After submitting the form, the system automatically issues a",
-        "Nota Digital Ber-Barcode": "Barcode Digital Receipt"
+        "Nota Digital Ber-Barcode": "Barcode Digital Receipt",
+        "Pengunjung membuka website dan memilih tombol Pesan Tiket.": "Visitors open the website and click the Book Tickets button.",
+        "Pengunjung menentukan jumlah lembar tiket untuk tiap kategori (Dewasa, Anak-Anak, Lansia, dll.).": "Visitors specify the quantity of tickets for each category (Adults, Children, Elderly, etc.).",
+        "Sistem secara otomatis menghitung total biaya di sisi server (*server-side authoritative calculation*).": "The system automatically calculates the total cost server-side (*server-side authoritative calculation*).",
+        "Pengunjung memilih metode pembayaran:": "Visitors select their payment method:",
+        "Scan QRIS: Scan gambar QRIS resmi dari e-wallet/mobile banking lalu unggah bukti transfer.": "Scan QRIS: Scan official QRIS code via e-wallet/mobile banking and upload proof of transfer.",
+        "Transfer Bank: Salin nomor rekening resmi, lakukan transfer, lalu unggah struk mutasi.": "Bank Transfer: Copy official bank account number, execute transfer, and upload transaction slip.",
+        "Bayar di Loket: Bayar tunai setibanya di loket pintu masuk pemandian.": "Pay at Counter: Pay cash upon arrival at the bathhouse entrance counter.",
+        "Setelah form dikirim, sistem otomatis menerbitkan Nota Digital Ber-Barcode unik.": "After submitting the form, the system automatically generates a unique Barcoded Digital Receipt.",
+        "Staf masuk ke menu Panel Kasir atau Input POS Baru.": "Staff navigates to Cashier Panel or New POS Entry.",
+        "Pilih nama pembeli atau masukkan kategori pengunjung rombongan/umum.": "Select customer name or enter group/general visitor category.",
+        "Input kuantitas lembar tiket yang dibeli secara langsung di tempat.": "Enter ticket quantities purchased directly on-site.",
+        "Terima uang tunai atau verifikasi transfer/QRIS pengunjung secara teliti.": "Receive cash or carefully verify visitor transfer/QRIS payments.",
+        "Klik Simpan & Cetak Struk Tiket untuk mencetak struk masuk dengan barcode.": "Click Save & Print Ticket Receipt to print entrance slips with barcodes.",
+        "Serahkan struk kepada pengunjung sebagai tiket akses kolam pemandian.": "Hand the receipt to visitors as their bathhouse entrance ticket.",
+        "Petugas loket membuka tab Scan Barcode Nota pada menu Transaksi Kasir.": "Counter staff opens the Scan Barcode Receipt tab on Cashier Transactions menu.",
+        "Arahkan kamera perangkat atau barcode scanner ke barcode pada struk pengunjung.": "Point device camera or barcode scanner at the barcode on the visitor slip.",
+        "Sistem langsung mencocokkan kode unik transaksi (contoh: TRX-20260924-0001).": "System instantly matches unique transaction code (e.g. TRX-20260924-0001).",
+        "Jika status pembayaran Done, izinkan pengunjung masuk ke area kolam.": "If payment status is Done, grant visitor entry to the pool area.",
+        "Jika status masih Not Yet (Belum Lunas), mintakan pelunasan tunai di loket.": "If status is still Not Yet, request cash settlement at the counter.",
+        "Administrator mengakses menu Laporan Omzet (Harian, Bulanan, Tahunan).": "Administrator accesses Revenue Reports menu (Daily, Monthly, Yearly).",
+        "Tentukan filter tanggal atau periode bulan yang ingin direkapitulasi.": "Specify date filter or month period to summarize.",
+        "Klik Pratinjau Dokumen Pemkab untuk melihat format resmi naskah dinas.": "Click Preview Official Document to inspect official government report format.",
+        "Periksa kesesuaian rincian lembar tiket, akumulasi nominal pendapatan, dan tanda tangan pimpinan.": "Verify accuracy of ticket details, accumulated revenue amount, and executive signatures.",
+        "Cetak dokumen pada kertas ukuran A4 atau ekspor ke format PDF untuk arsip resmi dinas.": "Print document on A4 paper or export to PDF for official departmental archives.",
+
+        // --- SUBHEADINGS & HEADINGS ACROSS ADMIN (Feedback-5 Poin 2) ---
+        "Riwayat penjualan tiket loket, validasi bukti transfer, dan cetak struk nota.": "Counter ticket sales history, transfer proof validation, and receipt printing.",
+        "Kelola tiket masuk pengunjung, transaksi tunai/QRIS, dan cetak struk nota.": "Manage visitor entrance tickets, cash/QRIS transactions, and receipt printing.",
+        "Spesifikasi lingkungan server, arsitektur keamanan, dan riwayat pembaruan sistem.": "Server environment specifications, security architecture, and system update history.",
+        "Pedoman standar operasional (SOP) kasir, loket, pemesanan tiket, validasi barcode, dan pelaporan akuntabilitas.": "Standard operating procedure (SOP) guidelines for cashier, counter, ticket booking, barcode validation, and accountability reporting.",
+        "Kelola akun administrator, staf kasir loket, dan pengunjung terdaftar.": "Manage administrator accounts, counter cashier staff, and registered visitors.",
+        "Ubah profil pengguna, peran, atau perbarui kata sandi.": "Modify user profile, role, or update password.",
+        "Buat akun untuk administrator, staf kasir loket, atau pengunjung.": "Create accounts for administrators, counter cashier staff, or visitors.",
+        "Feedback, ulasan, dan testimoni masuk dari wisatawan Pemandian Patemon.": "Incoming feedback, reviews, and testimonials from Pemandian Patemon tourists.",
+        "Pantau rekapitulasi pendapatan tiket dan retribusi secara harian, mingguan, bulanan, maupun tahunan.": "Monitor ticket revenue and retribution summaries on a daily, weekly, monthly, or yearly basis.",
+        "Atur kategori tiket masuk pengunjung untuk loket kasir dan pemesanan online.": "Manage visitor entrance ticket categories for cashier counters and online booking.",
+        "Ubah nama, tarif, atau ikon untuk tiket terpilih.": "Modify name, rate, or icon for the selected ticket.",
+        "Tambahkan jenis tiket baru beserta ikon untuk loket dan pemesanan online.": "Add new ticket type and icon for counters and online booking.",
+        "Kelola sensor kata kasar untuk pendaftaran akun, ulasan publik, dan formulir sistem.": "Manage toxic word filters for account registration, public reviews, and system forms.",
+        "Pemantauan real-time aktivitas permintaan HTTP, respons status server, dan latency.": "Real-time monitoring of HTTP request activity, server response status, and latency.",
+        "Audit trail perubahan data sistem serta pemantauan & pemulihan transaksi yang dihapus.": "System data audit trail as well as monitoring & restoration of deleted transactions.",
+        "Kelola informasi pribadi, kontak, foto profil, dan kredensial kata sandi akun Anda.": "Manage personal information, contacts, profile photo, and account password credentials.",
+        "Atur gambar dan deskripsi 3 konten galeri yang tampil di halaman utama website.": "Manage images and descriptions of the 3 gallery items displayed on the main website.",
+        "Rincian detail pemesanan tiket pengunjung pemandian.": "Detailed breakdown of bathhouse visitor ticket orders.",
+        "Pantau transaksi loket tiket yang Anda layani secara personal.": "Monitor ticket counter transactions that you handle personally.",
+        "Pantau aktivitas operasional loket, pendapatan kasir, prediksi hari libur, dan performa wisata.": "Monitor counter operational activity, cashier revenue, holiday forecasts, and tourism performance.",
+
+        // --- INFORMASI VERSI / VERSION.PHP (Feedback-5 Poin 2) ---
+        "Informasi Versi & Sistem": "Version & System Information",
+        "Informasi Versi &amp; Sistem": "Version & System Information",
+        "Informasi Versi": "Version Information",
+        "Informasi Versi &": "Version Information &",
+        "Sistem Kasir & Portofolio Wisata Pemandian Patemon": "Pemandian Patemon Cashier & Tourism Portfolio System",
+        "Sistem Kasir &amp; Portofolio Wisata Pemandian Patemon": "Pemandian Patemon Cashier & Tourism Portfolio System",
+        "Aplikasi manajemen retribusi loket tiket terpadu, pemesanan tiket online, pelaporan akuntabilitas keuangan daerah, dan portofolio wisata alam Tanggul, Jember.": "Integrated ticket counter retribution management, online ticket booking, regional financial accountability reporting, and nature tourism portfolio of Tanggul, Jember.",
+        "Pemkab Jember - Disparbud": "Jember Regency Government - Tourism & Culture Office",
+        "Dibuat oleh:": "Created by:",
+        "Dibuat oleh Aiyub Heriyanto": "Created by Aiyub Heriyanto",
+        "Repositori GitHub": "GitHub Repository",
+        "Kunjungi Repositori GitHub": "Visit GitHub Repository",
+        "Informasi Pengembang": "Developer Information",
+        "Kode sumber resmi dan pemeliharaan aplikasi Sistem Kasir & Portofolio Wisata Pemandian Patemon Jember.": "Official source code and application maintenance for Pemandian Patemon Jember Cashier & Tourism Portfolio System.",
+        "Lingkungan Server & Runtime": "Server & Runtime Environment",
+        "Lingkungan Server &amp; Runtime": "Server & Runtime Environment",
+        "Versi Runtime PHP": "PHP Runtime Version",
+        "Database Engine": "Database Engine",
+        "Web Server Runtime": "Web Server Runtime",
+        "Sistem Operasi Host": "Host Operating System",
+        "Zona Waktu (Timezone)": "Timezone",
+        "Koneksi Database Aktif": "Active Database Connection",
+        "Kepatuhan & Fitur Keamanan": "Compliance & Security Features",
+        "Kepatuhan &amp; Fitur Keamanan": "Compliance & Security Features",
+        "CSRF Token Protection": "CSRF Token Protection",
+        "Setiap mutasi form POST dilindungi token acak berbasis sesi dengan perbandingan string aman `hash_equals`.": "Every POST form mutation is protected by session-based random tokens with safe string comparison `hash_equals`.",
+        "Setiap mutasi form POST dilindungi token acak berbasis sesi dengan perbandingan string aman hash_equals.": "Every POST form mutation is protected by session-based random tokens with safe string comparison hash_equals.",
+        "SQL Injection Mitigation": "SQL Injection Mitigation",
+        "Seluruh operasi pembacaan dan penyimpanan data menerapkan PDO / MySQLi Prepared Statements berparameter.": "All data reading and storage operations implement parameterized PDO / MySQLi Prepared Statements.",
+        "Bcrypt Password Hashing": "Bcrypt Password Hashing",
+        "Kredensial pengguna dienkripsi dengan fungsi hash satu arah Bcrypt dengan salt dinamis.": "User credentials are encrypted using one-way Bcrypt hash function with dynamic salt.",
+        "Role-Based Access Control (RBAC)": "Role-Based Access Control (RBAC)",
+        "Pemisahan hak akses ketat antara Super Admin (Level 1), Admin (Level 2), Staf Kasir (Level 3), dan Pengunjung Publik (Level 0).": "Strict access rights separation between Super Admin (Level 1), Admin (Level 2), Cashier Staff (Level 3), and Public Visitors (Level 0).",
+        "Riwayat Pembaruan Sistem (Changelog)": "System Update History (Changelog)",
+        "Riwayat Pembaruan Sistem": "System Update History",
+        "system update history": "System Update History",
+        "System Update History": "System Update History",
+        "September 2026": "September 2026",
+        "Mei 2023": "May 2023",
+        "Pembaruan Besar Standar Tata Kelola Pemda Jember": "Major Update of Jember Regional Government Governance Standards",
+        "Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code>.": "Cleaning Composer autoloader and integrating libraries <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code>.",
+        "Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> &amp; <code>picqer/php-barcode-generator</code>.": "Cleaning Composer autoloader and integrating libraries <code>dompdf/dompdf</code> &amp; <code>picqer/php-barcode-generator</code>.",
+        "Pembersihan autoloader Composer dan integrasi pustaka dompdf/dompdf & picqer/php-barcode-generator.": "Cleaning Composer autoloader and integrating libraries dompdf/dompdf & picqer/php-barcode-generator.",
+        "Pembersihan autoloader Composer dan integrasi pustaka": "Cleaning Composer autoloader and integrating libraries",
+        "Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi <code>.php</code>).": "Implementation of Clean Routing Front Controller (clean URLs without <code>.php</code> extension).",
+        "Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi .php).": "Implementation of Clean Routing Front Controller (clean URLs without .php extension).",
+        "Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi": "Implementation of Clean Routing Front Controller (clean URLs without extension",
+        "Arsitektur Master Layout terpadu untuk efisiensi kode dan konsistensi UI.": "Unified Master Layout architecture for code efficiency and UI consistency.",
+        "Pemisahan metode pembayaran Scan QRIS manual statis dan Transfer Bank dengan nomor rekening resmi.": "Separation of manual static Scan QRIS payment method and Bank Transfer with official account number.",
+        "Penyediaan arsitektur modular Dynamic QRIS / Payment Gateway (siap integrasi Midtrans/Xendit).": "Provision of modular Dynamic QRIS / Payment Gateway architecture (ready for Midtrans/Xendit integration).",
+        "Active tag navbar dinamis dengan IntersectionObserver.": "Dynamic navbar active tags with IntersectionObserver.",
+        "Penambahan kolom ikon dinamis pada kategori tiket (Lansia, Dewasa, Anak, VIP, dll.).": "Addition of dynamic icon column on ticket categories (Elderly, Adult, Child, VIP, etc.).",
+        "Standarisasi Laporan Kedinasan format resmi Pemerintah Kabupaten Jember (Dinas Pariwisata dan Kebudayaan) dengan Halaman Pratinjau PDF sebelum cetak.": "Standardization of Official Agency Reports in official Jember Regency Government format (Tourism and Culture Office) with PDF Preview page before printing.",
+        "Validasi form kritik dan saran serta penyediaan pop-up modal detail ulasan bagi admin.": "Validation of feedback form and provision of review detail modal popup for admins.",
+        "Multi-field search bar (Nama, ID/Kode, Tanggal, Metode, Status) di seluruh panel kasir & admin.": "Multi-field search bar (Name, ID/Code, Date, Method, Status) across all cashier & admin panels.",
+        "Multi-field search bar (Nama, ID/Kode, Tanggal, Metode, Status) di seluruh panel kasir &amp; admin.": "Multi-field search bar (Name, ID/Code, Date, Method, Status) across all cashier &amp; admin panels.",
+        "Pemisahan nomor urut tabel dan format kode referensi standar <code>TRX-YYYYMMDD-XXXX</code>.": "Separation of table sequence numbers and standard reference code format <code>TRX-YYYYMMDD-XXXX</code>.",
+        "Pemisahan nomor urut tabel dan format kode referensi standar TRX-YYYYMMDD-XXXX.": "Separation of table sequence numbers and standard reference code format TRX-YYYYMMDD-XXXX.",
+        "Pemisahan nomor urut tabel dan format kode referensi standar": "Separation of table sequence numbers and standard reference code format",
+        "Adopsi standar SIM-ASET: Dashboard widget Libur Nasional (Kemendesa API), Profil Pengguna, Buku Panduan Pengguna, dan Informasi Versi.": "Adoption of SIM-ASET standards: National Holiday widget (Kemendesa API), User Profile, User Manual Guide, and Version Information.",
+        "Rilis Awal Kasir & Portofolio": "Initial Release of Cashier & Portfolio",
+        "Implementasi fungsionalitas dasar landing page, kasir loket, dan pencatatan transaksi tiket.": "Implementation of basic landing page functionality, ticket counter cashier, and ticket transaction recording.",
+
+        // --- SIDEBAR MENUS (Feedback-5 Poin 4) ---
+        "Navigasi Utama": "Main Navigation",
+        "Loket & Kasir": "Counter & Cashier",
+        "Loket &amp; Kasir": "Counter & Cashier",
+        "Kasir Loket (POS)": "Counter Cashier (POS)",
+        "Kasir Loket": "Counter Cashier",
+        "Riwayat Transaksi": "Transaction History",
+        "Laporan Rekapitulasi": "Summary Reports",
+        "Administrator Settings": "Administrator Settings",
+        "Manajemen User": "User Management",
+        "Manajemen Pengguna": "User Management",
+        "Kelola Galeri": "Manage Gallery",
+        "Filter Kata Kasar": "Toxic Word Filter",
+        "Log Server": "Server Log",
+        "Log Server (Jaringan)": "Server Log (Network)",
+        "Log History & Sampah": "Audit Log & Trash",
+        "Log History &amp; Sampah": "Audit Log & Trash",
+        "Log History (Audit)": "Audit Log",
+        "Log History": "Audit Log",
+        "Bantuan & Standar SIM-ASET": "Help & SIM-ASET Standards",
+        "Bantuan &amp; Standar SIM-ASET": "Help & SIM-ASET Standards",
+        "Bantuan & Sistem": "Help & System",
+        "Bantuan &amp; Sistem": "Help & System",
+        "Profil Saya": "My Profile",
+        "Transaksi Baru (POS)": "New Transaction (POS)",
+        "Input POS Baru": "New POS Entry",
+        "Hapus Transaksi": "Delete Transaction",
+        "Ya, Hapus": "Yes, Delete",
+        "Batal": "Cancel",
+        "Scan Barcode Nota": "Scan Receipt Barcode",
+        "Arahkan kamera ke QR / Barcode pada nota transaksi": "Point camera at QR / Barcode on transaction receipt",
+
+        // --- PAGE HEADINGS & SUBHEADINGS (Feedback-5 Poin 2) ---
+        "Riwayat penjualan tiket loket, validasi bukti transfer, dan cetak struk nota.": "Counter ticket sales history, bank transfer proof validation, and receipt printing.",
+        "Riwayat penjualan tiket loket, validasi bukti transfer, dan cetak struk nota": "Counter ticket sales history, bank transfer proof validation, and receipt printing",
+        "Kelola tiket masuk pengunjung, transaksi tunai/QRIS, dan cetak struk nota.": "Manage visitor admission tickets, cash/QRIS transactions, and receipt printing.",
+        "Kelola tiket masuk pengunjung, transaksi tunai/QRIS, dan cetak struk nota": "Manage visitor admission tickets, cash/QRIS transactions, and receipt printing",
+        "Kelola akun administrator, staf kasir loket, dan pengunjung terdaftar.": "Manage administrator accounts, counter cashier staff, and registered visitors.",
+        "Kelola akun administrator, staf kasir loket, dan pengunjung terdaftar": "Manage administrator accounts, counter cashier staff, and registered visitors",
+        "Buat akun untuk administrator, staf kasir loket, atau pengunjung.": "Create accounts for administrators, counter cashier staff, or visitors.",
+        "Buat akun untuk administrator, staf kasir loket, atau pengunjung": "Create accounts for administrators, counter cashier staff, or visitors",
+        "Ubah profil pengguna, peran, atau perbarui kata sandi.": "Edit user profile, role, or update password.",
+        "Ubah profil pengguna, peran, atau perbarui kata sandi": "Edit user profile, role, or update password",
+        "Feedback, ulasan, dan testimoni masuk dari wisatawan Pemandian Patemon.": "Feedback, reviews, and testimonials submitted by Pemandian Patemon tourists.",
+        "Feedback, ulasan, dan testimoni masuk dari wisatawan Pemandian Patemon": "Feedback, reviews, and testimonials submitted by Pemandian Patemon tourists",
+        "Pantau rekapitulasi pendapatan tiket dan retribusi secara harian, mingguan, bulanan, maupun tahunan.": "Monitor ticket revenue and levy summaries on a daily, weekly, monthly, or yearly basis.",
+        "Pantau rekapitulasi pendapatan tiket dan retribusi secara harian, mingguan, bulanan, maupun tahunan": "Monitor ticket revenue and levy summaries on a daily, weekly, monthly, or yearly basis.",
+        "Atur kategori tiket masuk pengunjung untuk loket kasir dan pemesanan online.": "Manage visitor admission ticket categories for counter cashier and online booking.",
+        "Atur kategori tiket masuk pengunjung untuk loket kasir dan pemesanan online": "Manage visitor admission ticket categories for counter cashier and online booking",
+        "Tambahkan jenis tiket baru beserta ikon untuk loket dan pemesanan online.": "Add new ticket type and icon for counter and online booking.",
+        "Tambahkan jenis tiket baru beserta ikon untuk loket dan pemesanan online": "Add new ticket type and icon for counter and online booking",
+        "Ubah nama, tarif, atau ikon untuk tiket terpilih.": "Edit name, price, or icon for selected ticket.",
+        "Ubah nama, tarif, atau ikon untuk tiket terpilih": "Edit name, price, or icon for selected ticket",
+        "Spesifikasi lingkungan server, arsitektur keamanan, dan riwayat pembaruan sistem.": "Server environment specifications, security architecture, and system update history.",
+        "Spesifikasi lingkungan server, arsitektur keamanan, dan riwayat pembaruan sistem": "Server environment specifications, security architecture, and system update history",
+        "Kelola sensor kata kasar untuk pendaftaran akun, ulasan publik, dan formulir sistem.": "Manage profanity filtering for account registration, public reviews, and system forms.",
+        "Kelola sensor kata kasar untuk pendaftaran akun, ulasan publik, dan formulir sistem": "Manage profanity filtering for account registration, public reviews, and system forms",
+        "Pemantauan real-time aktivitas permintaan HTTP, respons status server, dan latency.": "Real-time monitoring of HTTP requests, server status responses, and latency.",
+        "Pemantauan real-time aktivitas permintaan HTTP, respons status server, dan latency": "Real-time monitoring of HTTP requests, server status responses, and latency",
+        "Audit trail perubahan data sistem serta pemantauan & pemulihan transaksi yang dihapus.": "Audit trail of system data changes as well as monitoring & recovery of deleted transactions.",
+        "Audit trail perubahan data sistem serta pemantauan &amp; pemulihan transaksi yang dihapus.": "Audit trail of system data changes as well as monitoring & recovery of deleted transactions.",
+        "Pedoman standar operasional (SOP) kasir, loket, pemesanan tiket, validasi barcode, dan pelaporan akuntabilitas.": "Standard operating procedures (SOP) for cashiers, counter ticketing, barcode validation, and accountability reporting.",
+        "Pedoman standar operasional (SOP) kasir, loket, pemesanan tiket, validasi barcode, dan pelaporan akuntabilitas": "Standard operating procedures (SOP) for cashiers, counter ticketing, barcode validation, and accountability reporting",
+        "Kelola informasi pribadi, kontak, foto profil, dan kredensial kata sandi akun Anda.": "Manage personal information, contacts, profile photo, and account password credentials.",
+        "Kelola informasi pribadi, kontak, foto profil, dan kredensial kata sandi akun Anda": "Manage personal information, contacts, profile photo, and account password credentials",
+        "Rincian detail pemesanan tiket pengunjung pemandian.": "Detailed admission ticket booking details of bath visitors.",
+        "Rincian detail pemesanan tiket pengunjung pemandian": "Detailed admission ticket booking details of bath visitors",
+        "Pantau transaksi loket tiket yang Anda layani secara personal.": "Monitor personal ticket counter transactions served by you.",
+        "Pantau transaksi loket tiket yang Anda layani secara personal": "Monitor personal ticket counter transactions served by you",
+        "Pantau aktivitas operasional loket, pendapatan kasir, prediksi hari libur, dan performa wisata.": "Monitor counter operational activity, cashier revenue, holiday forecasts, and tourism performance.",
+        "Pantau aktivitas operasional loket, pendapatan kasir, prediksi hari libur, dan performa wisata": "Monitor counter operational activity, cashier revenue, holiday forecasts, and tourism performance",
+        "Kelola Transaksi Tiket": "Manage Ticket Transactions",
+        "Kelola Akun Pengguna": "Manage User Accounts",
+        "Ubah Data Pengguna": "Edit User Data",
+        "Tambah Pengguna Baru": "Add New User",
+        "Kategori Tiket Masuk": "Admission Ticket Categories",
+        "Tambah Kategori Tiket": "Add Ticket Category",
+        "Edit Kategori Tiket": "Edit Ticket Category",
+        "Laporan Penjualan Tiket": "Ticket Sales Report",
+        "Laporan Penjualan": "Sales Report",
+        "Total Omzet Pendapatan": "Total Revenue",
+        "Total Omzet": "Total Revenue",
+        "Total Transaksi": "Total Transactions",
+        "Total Omzet Loket": "Total Counter Revenue",
+        "Tiket Terverifikasi": "Verified Tickets",
+
+        // --- CHANGELOG / SYSTEM UPDATE HISTORY (version.php HTML Keys) ---
+        "Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code>.": "Composer autoloader cleanup and integration of <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code> libraries.",
+        "Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> &amp; <code>picqer/php-barcode-generator</code>.": "Composer autoloader cleanup and integration of <code>dompdf/dompdf</code> &amp; <code>picqer/php-barcode-generator</code> libraries.",
+        "Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi <code>.php</code>).": "Implementation of Clean Routing Front Controller (clean URLs without <code>.php</code> extension).",
+        "Pemisahan nomor urut tabel dan format kode referensi standar <code>TRX-YYYYMMDD-XXXX</code>.": "Separation of table row numbers and standard reference code format <code>TRX-YYYYMMDD-XXXX</code>."
     });
 
     /**
@@ -589,6 +793,24 @@
         // 1. Direct exact match
         if (typeof DICTIONARY[trimmed] !== 'undefined') {
             return DICTIONARY[trimmed];
+        }
+
+        // 1b. Whitespace & HTML entity normalization
+        const normalized = trimmed.replace(/\s+/g, ' ');
+        if (typeof DICTIONARY[normalized] !== 'undefined') {
+            return DICTIONARY[normalized];
+        }
+        if (normalized.includes('&amp;')) {
+            const unescaped = normalized.replace(/&amp;/g, '&');
+            if (typeof DICTIONARY[unescaped] !== 'undefined') {
+                return DICTIONARY[unescaped];
+            }
+        }
+        if (/<[a-z][\s\S]*>/i.test(normalized)) {
+            const stripped = normalized.replace(/<[^>]+>/g, '').trim();
+            if (typeof DICTIONARY[stripped] !== 'undefined') {
+                return DICTIONARY[stripped];
+            }
         }
 
         // 2. Case-insensitive exact match
@@ -753,14 +975,34 @@
             if (!el.getAttribute('data-i18n-orig-val')) {
                 el.setAttribute('data-i18n-orig-val', el.textContent.trim());
             }
-            const key = el.getAttribute('data-i18n');
+            const origVal = el.getAttribute('data-i18n-orig-val');
+            const attrVal = el.getAttribute('data-i18n');
+            const key = (attrVal && attrVal.trim() !== '') ? attrVal.trim() : origVal;
             if (isEnglish) {
                 const trans = findTranslation(key) || (DICTIONARY[key] ?? null);
                 if (trans) {
                     el.textContent = trans;
                 }
             } else {
-                el.textContent = el.getAttribute('data-i18n-orig-val');
+                el.textContent = origVal;
+            }
+        });
+
+        // 5. Update elemen khusus dengan data-i18n-html (mendukung innerHTML dengan tags seperti <code>, <strong>)
+        document.querySelectorAll('[data-i18n-html]').forEach(el => {
+            if (!el.getAttribute('data-i18n-orig-html')) {
+                el.setAttribute('data-i18n-orig-html', el.innerHTML.trim());
+            }
+            const origHtml = el.getAttribute('data-i18n-orig-html');
+            const attrVal = el.getAttribute('data-i18n-html');
+            const key = (attrVal && attrVal.trim() !== '') ? attrVal.trim() : origHtml;
+            if (isEnglish) {
+                const trans = findTranslation(key) || (DICTIONARY[key] ?? null);
+                if (trans) {
+                    el.innerHTML = trans;
+                }
+            } else {
+                el.innerHTML = origHtml;
             }
         });
     }

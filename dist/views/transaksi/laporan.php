@@ -113,7 +113,7 @@ $stmt_cat->close();
 
 // 2. Ambil Daftar Transaksi Rinci
 $query_trans = "
-    SELECT t.id_transaksi, t.id_user, t.tgl_pemesanan, t.total_harga, t.metode_pembayaran, t.status, 
+    SELECT t.id_transaksi, t.id_user, t.nama_pemesan, t.tgl_pemesanan, t.total_harga, t.metode_pembayaran, t.status, 
            u.nama as user_nama
     FROM transaksi t
     LEFT JOIN users u ON t.id_user = u.id_user
@@ -157,8 +157,8 @@ if ($user_level === 3) {
     $page_heading    = 'Laporan Penjualan Saya';
     $page_subheading = 'Rekapitulasi penjualan tiket loket atas nama ' . e($user_name) . '.';
 } else {
-    $page_title      = 'Laporan Transaksi & Retribusi Terpadu - Pemandian Patemon';
-    $page_heading    = 'Laporan Transaksi & Retribusi Terpadu';
+    $page_title      = 'Laporan Penjualan Tiket - Pemandian Patemon';
+    $page_heading    = 'Laporan Penjualan Tiket';
     $page_subheading = 'Pantau rekapitulasi pendapatan tiket dan retribusi secara harian, mingguan, bulanan, maupun tahunan.';
 }
 
@@ -283,7 +283,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                     <i class="fa-solid fa-sack-dollar"></i>
                 </div>
                 <div class="metric-content">
-                    <div class="metric-label">Total Omzet Lunas</div>
+                    <div class="metric-label" data-i18n>Total Omzet Pendapatan</div>
                     <div class="metric-value text-success" style="font-size: 1.35rem;"><?= format_rupiah($total_omzet) ?></div>
                 </div>
             </div>
@@ -438,7 +438,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                         foreach ($transaksi_list as $t): 
                             $kode = format_kode_transaksi($t['id_transaksi'], $t['tgl_pemesanan']);
                             $kasir_nama = $t['user_nama'] ?: 'Loket Petugas';
-                            $pemesan_nama = $t['user_nama'] ?: 'Pengunjung Loket';
+                            $pemesan_nama = !empty($t['nama_pemesan']) ? $t['nama_pemesan'] : ($t['user_nama'] ?: 'Pengunjung Loket');
                             $items_str = isset($trans_items[$t['id_transaksi']]) ? implode(', ', $trans_items[$t['id_transaksi']]) : 'Tiket Masuk';
                         ?>
                             <tr>

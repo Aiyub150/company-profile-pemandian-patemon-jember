@@ -10,7 +10,7 @@ $dateInput = isset($_GET['dateInput']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_
 $stmt = $conn->prepare("SELECT detail_transaksi.jenis_tiket, SUM(detail_transaksi.quantity) AS total_quantity, SUM(detail_transaksi.sub_total) AS total_sub, transaksi.tgl_pemesanan
     FROM detail_transaksi 
     INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi
-    WHERE transaksi.tgl_pemesanan = ? AND transaksi.status = 'done'
+    WHERE transaksi.tgl_pemesanan = ? AND transaksi.status = 'done' AND transaksi.deleted_at IS NULL
     GROUP BY detail_transaksi.jenis_tiket");
 $stmt->bind_param("s", $dateInput);
 $stmt->execute();
@@ -98,8 +98,7 @@ $rata_rata_tiket = $total_tiket_hari > 0 ? ($total_omzet_hari / $total_tiket_har
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
                     <div>
                         <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="badge badge-modern-primary text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Laporan Omzet Harian</span>
-                            <span class="text-success small fw-semibold"><i class="fa-solid fa-circle-check me-1"></i> Data Terverifikasi</span>
+                            <span class="badge badge-modern-primary text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;" data-i18n>Laporan Omzet Harian</span>
                         </div>
                         <h2 class="fw-bold text-dark mb-1" style="font-size: 1.65rem;">Laporan Penjualan Harian</h2>
                         <p class="text-muted small mb-0">

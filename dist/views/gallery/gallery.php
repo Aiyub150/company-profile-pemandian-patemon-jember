@@ -40,6 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error_msg = 'Judul galeri wajib diisi.';
         } elseif ($id_gallery < 1 || $id_gallery > 3) {
             $error_msg = 'ID galeri tidak valid.';
+        } elseif (has_toxic_words($judul) || has_toxic_words($deskripsi_card) || has_toxic_words($deskripsi_popup)) {
+            $toxicHits = array_merge(find_toxic_words($judul), find_toxic_words($deskripsi_card), find_toxic_words($deskripsi_popup));
+            $error_msg = 'Konten galeri memuat kata yang dilarang (' . e(implode(', ', array_unique($toxicHits))) . '). Harap gunakan bahasa yang pantas.';
         } else {
             $gambar_card  = trim($_POST['gambar_card_current'] ?? '');
             $gambar_popup = trim($_POST['gambar_popup_current'] ?? '');
@@ -97,6 +100,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt_u->bind_param('sssssi', $judul, $deskripsi_card, $deskripsi_popup, $gambar_card, $gambar_popup, $id_gallery);
                     if ($stmt_u->execute()) {
                         $success_msg = 'Konten galeri #' . $id_gallery . ' berhasil diperbarui.';
+                        if (function_exists('log_activity')) {
+                            log_activity('UPDATE', 'gallery', "Memperbarui konten galeri #{$id_gallery} ('{$judul}')");
+                        }
                     } else {
                         $error_msg = 'Gagal menyimpan: ' . $stmt_u->error;
                     }
@@ -106,6 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt_i->bind_param('isssssi', $id_gallery, $judul, $deskripsi_card, $deskripsi_popup, $gambar_card, $gambar_popup, $id_gallery);
                     if ($stmt_i->execute()) {
                         $success_msg = 'Konten galeri #' . $id_gallery . ' berhasil ditambahkan.';
+                        if (function_exists('log_activity')) {
+                            log_activity('TAMBAH', 'gallery', "Menambahkan konten galeri #{$id_gallery} ('{$judul}')");
+                        }
                     } else {
                         $error_msg = 'Gagal menyimpan: ' . $stmt_i->error;
                     }

@@ -29,6 +29,71 @@
         });
     }
 
+    // Mobile Sidebar Interactive Controller (Feedback-5 Poin 6)
+    function togglePatemonSidebar(forceState) {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        const isOpen = sidebar.classList.contains('active');
+        const shouldOpen = (typeof forceState === 'boolean') ? forceState : !isOpen;
+        if (shouldOpen) {
+            sidebar.classList.add('active');
+            if (window.innerWidth < 1200) {
+                document.body.style.overflow = 'hidden';
+            }
+        } else {
+            sidebar.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+    window.togglePatemonSidebar = togglePatemonSidebar;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar');
+        // Initial state: disable/hide sidebar on mobile (<1200px)
+        if (sidebar) {
+            if (window.innerWidth >= 1200) {
+                sidebar.classList.add('active');
+            } else {
+                sidebar.classList.remove('active');
+            }
+        }
+
+        // Attach to burger buttons
+        document.querySelectorAll('.burger-btn, #mobileBurgerBtn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                togglePatemonSidebar();
+            });
+        });
+
+        // Attach to close buttons inside sidebar
+        document.querySelectorAll('.sidebar-hide, .sidebar-toggler').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                togglePatemonSidebar(false);
+            });
+        });
+
+        // Attach to backdrop
+        document.querySelectorAll('.sidebar-backdrop').forEach(el => {
+            el.addEventListener('click', () => {
+                togglePatemonSidebar(false);
+            });
+        });
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            if (!sidebar) return;
+            if (window.innerWidth >= 1200) {
+                sidebar.classList.add('active');
+                document.body.style.overflow = '';
+            } else if (!sidebar.classList.contains('active')) {
+                document.body.style.overflow = '';
+            }
+        });
+    });
+
     // Live System Clock & Timezone handled automatically by dynamic-time.js
     if (typeof window.updatePatemonLiveClock === 'function') {
         window.updatePatemonLiveClock();
@@ -74,6 +139,7 @@
         applyPatemonTheme(currentTheme);
     });
     </script>
+    <script src="<?= public_url('js/searchable-select.js') ?>"></script>
     <?php if (isset($extra_js)) echo $extra_js; ?>
 </body>
 </html>

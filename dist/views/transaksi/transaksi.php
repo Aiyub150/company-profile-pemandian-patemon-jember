@@ -40,12 +40,13 @@ if (!empty($search)) {
         WHERE transaksi.deleted_at IS NULL 
           AND (transaksi.id_transaksi = ? 
            OR users.nama LIKE ? 
+           OR transaksi.nama_pemesan LIKE ?
            OR transaksi.metode_pembayaran LIKE ? 
            OR transaksi.status LIKE ?
            OR transaksi.tgl_pemesanan LIKE ?)
         ORDER BY tgl_pemesanan DESC, id_transaksi DESC
     ");
-    $stmt->bind_param("issss", $id_search, $search_like, $search_like, $search_like, $search_like);
+    $stmt->bind_param("isssss", $id_search, $search_like, $search_like, $search_like, $search_like, $search_like);
     $stmt->execute();
     $result = $stmt->get_result();
     $stmt->close();
@@ -177,7 +178,12 @@ require '../../app/layouts/admin_header.php';
                                 <strong class="text-primary font-monospace" style="font-size: 0.85rem;"><?= e($kode_trx) ?></strong>
                                 <small class="text-muted d-block">ID: #<?= (int)$row["id_transaksi"] ?></small>
                             </td>
-                            <td class="fw-semibold text-dark"><?= e($row["nama"]) ?></td>
+                            <td class="fw-semibold text-dark">
+                                <?= e(!empty($row["nama_pemesan"]) ? $row["nama_pemesan"] : $row["nama"]) ?>
+                                <?php if (!empty($row["nama_pemesan"])): ?>
+                                    <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.68rem; font-weight: normal;">Loket</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-muted small"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>
                             <td>
                                 <span class="badge badge-payment-method" style="font-weight: 600; font-size: 0.75rem;">

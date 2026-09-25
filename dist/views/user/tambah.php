@@ -1,7 +1,9 @@
 <?php
-require '../../app/config.php';
-check_auth([1]);
+require_once __DIR__ . '/../../app/config.php';
+// Hak Akses: Super Admin (1) & Admin (2) - Feedback-5 Poin 4
+check_auth([1, 2]);
 
+$curr_login_lvl = (int)($_SESSION['level'] ?? 0);
 $active_menu = 'user';
 $base_view = '..';
 
@@ -17,6 +19,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $email = trim($_POST["email"] ?? '');
         $no_telepon = trim($_POST["no_telepon"] ?? '');
         $level = (int)($_POST["level"] ?? 0);
+        if ($curr_login_lvl !== 1 && $level === 1) {
+            $level = 2; // Paksa admin level 2 tidak bisa membuat superadmin level 1
+        }
 
         if (empty($nama) || empty($username) || empty($password) || empty($email)) {
             $error_msg = "Nama, Username, Password, dan Email wajib diisi.";
@@ -138,7 +143,9 @@ require '../../app/layouts/admin_header.php';
                             <div class="col-12 col-md-6">
                                 <label for="level" class="form-label fw-semibold text-secondary small">Peran (Hak Akses) <span class="text-danger">*</span></label>
                                 <select id="level" name="level" class="form-select-modern">
+                                    <?php if ($curr_login_lvl === 1): ?>
                                     <option value="1">Super Admin (Level 1)</option>
+                                    <?php endif; ?>
                                     <option value="2">Admin (Level 2)</option>
                                     <option value="3">Staf Kasir Loket (Level 3)</option>
                                     <option value="0" selected>Pengunjung (Level 0)</option>

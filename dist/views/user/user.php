@@ -1,9 +1,10 @@
 <?php
 require '../../app/config.php';
 
-// Hak Akses Khusus: Hanya Administrator (Level 1)
-check_auth([1]);
+// Hak Akses: Super Admin (1) & Admin (2) - Feedback-5 Poin 4
+check_auth([1, 2]);
 
+$curr_login_lvl  = (int)($_SESSION['level'] ?? 0);
 $active_menu     = 'user';
 $page_title      = 'Manajemen Pengguna - Pemandian Patemon';
 $page_heading    = 'Manajemen Pengguna';
@@ -142,16 +143,25 @@ $msg = $_GET['msg'] ?? '';
                             </td>
                             <td class="text-center">
                                 <div class="d-inline-flex gap-1">
-                                    <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Edit Akun" href="<?= route_url('users_update', ['id' => $row['id_user']]) ?>">
-                                        <i class="fa-solid fa-user-pen"></i>
-                                    </a>
-                                    <?php if ($row["id_user"] != $_SESSION['id_user']): ?>
-                                        <button type="button" class="btn btn-sm btn-soft-danger btn-action-icon" title="Hapus Pengguna" onclick="confirmDelete(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['username'])) ?>')">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                    <?php 
+                                    $can_manage = ($curr_login_lvl === 1) || ($curr_login_lvl === 2 && $lvl > 1);
+                                    if ($can_manage): 
+                                    ?>
+                                        <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Edit Akun" href="<?= route_url('users_update', ['id' => $row['id_user']]) ?>">
+                                            <i class="fa-solid fa-user-pen"></i>
+                                        </a>
+                                        <?php if ($row["id_user"] != $_SESSION['id_user']): ?>
+                                            <button type="button" class="btn btn-sm btn-soft-danger btn-action-icon" title="Hapus Pengguna" onclick="confirmDelete(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['username'])) ?>')">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="button" class="btn btn-sm btn-light btn-action-icon" title="Akun Anda Saat Ini" disabled>
+                                                <i class="fa-solid fa-lock text-muted"></i>
+                                            </button>
+                                        <?php endif; ?>
                                     <?php else: ?>
-                                        <button type="button" class="btn btn-sm btn-light btn-action-icon" title="Akun Anda Saat Ini" disabled>
-                                            <i class="fa-solid fa-lock text-muted"></i>
+                                        <button type="button" class="btn btn-sm btn-light btn-action-icon" title="Hak Akses Super Admin Terproteksi" disabled>
+                                            <i class="fa-solid fa-shield-halved text-purple"></i>
                                         </button>
                                     <?php endif; ?>
                                 </div>

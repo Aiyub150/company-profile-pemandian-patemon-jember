@@ -48,9 +48,11 @@ if (!function_exists('public_url')) {
         // Set sidebar active only on desktop screen (width >= 1200px) on initial render (Feedback-5 Poin 6)
         if (window.innerWidth >= 1200) {
             document.getElementById('sidebar').classList.add('active');
+        } else {
+            document.getElementById('sidebar').classList.remove('active');
         }
     </script>
-    <div class="sidebar-wrapper active" style="box-shadow: 4px 0 20px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
+    <div class="sidebar-wrapper" style="box-shadow: 4px 0 20px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
         <!-- Brand Header -->
         <div class="sidebar-header position-relative" style="padding: 1.5rem 1.5rem 1rem;">
             <div class="d-flex justify-content-between align-items-center">
@@ -64,7 +66,7 @@ if (!function_exists('public_url')) {
                     </a>
                 </div>
                 <div class="sidebar-toggler x">
-                    <a href="javascript:void(0)" class="sidebar-hide d-xl-none d-block text-secondary" style="font-size: 1.5rem;">
+                    <a href="javascript:void(0)" class="sidebar-hide d-xl-none d-block text-secondary" style="font-size: 1.5rem;" onclick="if(typeof togglePatemonSidebar==='function'){togglePatemonSidebar(false);}else{document.getElementById('sidebar')?.classList.remove('active');document.body.style.overflow='';}">
                         <i class="fa-solid fa-xmark"></i>
                     </a>
                 </div>
@@ -166,7 +168,7 @@ if (!function_exists('public_url')) {
                         <i class="fa-solid fa-chevron-down submenu-chevron" style="font-size: 0.725rem; transition: transform 0.25s ease;"></i>
                     </a>
                     <ul class="submenu" style="list-style: none; padding-left: 1.5rem; margin-top: 0.35rem; display: <?= $is_admin_settings_active ? 'block' : 'none' ?>;">
-                        <?php if ($user_level === 1): ?>
+                        <?php if ($is_admin_or_super): ?>
                         <li class="submenu-item <?= ($current_page === 'user') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('users') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-users-gear" style="font-size: 0.8rem;"></i>
@@ -182,13 +184,16 @@ if (!function_exists('public_url')) {
                             </a>
                         </li>
 
-                        <?php if ($user_level === 1): ?>
+                        <?php if ($is_admin_or_super): ?>
                         <li class="submenu-item <?= ($current_page === 'settings_toxic') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('settings_toxic') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-shield-halved" style="font-size: 0.8rem; color: #ef4444;"></i>
                                 <span>Filter Kata Kasar</span>
                             </a>
                         </li>
+                        <?php endif; ?>
+
+                        <?php if ($user_level === 1): ?>
                         <li class="submenu-item <?= ($current_page === 'settings_server_log') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('settings_server_log') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-server" style="font-size: 0.8rem; color: #0284c7;"></i>

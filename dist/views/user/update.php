@@ -1,7 +1,9 @@
 <?php
-require '../../app/config.php';
-check_auth([1]);
+require_once __DIR__ . '/../../app/config.php';
+// Hak Akses: Super Admin (1) & Admin (2) - Feedback-5 Poin 4
+check_auth([1, 2]);
 
+$curr_login_lvl = (int)($_SESSION['level'] ?? 0);
 $active_menu = 'user';
 $base_view = '..';
 
@@ -19,6 +21,12 @@ $data = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$data) {
+    header("Location: " . route_url('users'));
+    exit();
+}
+
+// Proteksi: Admin (Level 2) tidak boleh mengedit akun Super Admin (Level 1)
+if ($curr_login_lvl === 2 && (int)$data['level'] === 1) {
     header("Location: " . route_url('users'));
     exit();
 }
@@ -169,13 +177,15 @@ require '../../app/layouts/admin_header.php';
                             <div class="col-12 col-md-6">
                                 <label for="level" class="form-label fw-semibold text-secondary small">Peran (Hak Akses) <span class="text-danger">*</span></label>
                                 <select id="level" name="level" class="form-select-modern" <?= ($id_user === (int)$_SESSION['id_user']) ? 'disabled' : '' ?>>
+                                    <?php if ($curr_login_lvl === 1 || (int)$data['level'] === 1): ?>
                                     <option value="1" <?= ($data['level'] == 1) ? 'selected' : '' ?>>Super Admin (Level 1)</option>
+                                    <?php endif; ?>
                                     <option value="2" <?= ($data['level'] == 2) ? 'selected' : '' ?>>Admin (Level 2)</option>
                                     <option value="3" <?= ($data['level'] == 3) ? 'selected' : '' ?>>Staf Kasir Loket (Level 3)</option>
                                     <option value="0" <?= ($data['level'] == 0) ? 'selected' : '' ?>>Pengunjung (Level 0)</option>
                                 </select>
                                 <?php if ($id_user === (int)$_SESSION['id_user']): ?>
-                                    <input type="hidden" name="level" value="1">
+                                    <input type="hidden" name="level" value="<?= (int)$data['level'] ?>">
                                     <small class="text-muted d-block mt-1">Anda tidak dapat mengubah level akun sendiri.</small>
                                 <?php endif; ?>
                             </div>

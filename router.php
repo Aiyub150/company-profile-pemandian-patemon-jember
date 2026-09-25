@@ -32,8 +32,9 @@ register_shutdown_function(function() use ($startTime, $uri) {
     } catch (\Throwable $e) {}
 });
 
-// 1. Block access to sensitive files
+// 1. Block access to sensitive files and directory traversal
 $blockedPatterns = [
+    '/\.\./',
     '/\.env/i',
     '/\.git/i',
     '/\.sql$/i',
@@ -129,6 +130,8 @@ $cleanRoutes = [
     '/kasir'                 => 'dist/views/transaksi/staf.php',
     '/kasir/loket'           => 'dist/views/transaksi/staf.php',
     '/kasir/pos'             => 'dist/views/transaksi/tambah.php',
+    '/kasir/delete'          => 'dist/views/transaksi/staf_delete.php',
+    '/staf_delete'           => 'dist/views/transaksi/staf_delete.php',
 
     '/admin/transaksi'       => 'dist/views/transaksi/transaksi.php',
     '/admin/transaksi/tambah'=> 'dist/views/transaksi/tambah.php',
@@ -172,6 +175,8 @@ $cleanRoutes = [
     '/profile'               => 'dist/views/profile/profile.php',
     '/guide'                 => 'dist/views/settings/guide.php',
     '/guide/preview-pdf'     => 'dist/views/settings/guide_preview_pdf.php',
+    '/admin/version'         => 'dist/views/settings/version.php',
+    '/admin/settings/version'=> 'dist/views/settings/version.php',
     '/settings/version'      => 'dist/views/settings/version.php',
     '/version'               => 'dist/views/settings/version.php',
 

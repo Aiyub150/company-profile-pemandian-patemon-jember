@@ -40,12 +40,13 @@ if (!empty($search)) {
         WHERE transaksi.deleted_at IS NULL 
           AND (transaksi.id_transaksi = ? 
            OR users.nama LIKE ? 
+           OR transaksi.nama_pemesan LIKE ?
            OR transaksi.metode_pembayaran LIKE ? 
            OR transaksi.status LIKE ?
            OR transaksi.tgl_pemesanan LIKE ?)
         ORDER BY tgl_pemesanan DESC, id_transaksi DESC
     ");
-    $stmt->bind_param("issss", $id_search, $search_like, $search_like, $search_like, $search_like);
+    $stmt->bind_param("isssss", $id_search, $search_like, $search_like, $search_like, $search_like, $search_like);
     $stmt->execute();
     $result = $stmt->get_result();
     $stmt->close();
@@ -168,7 +169,12 @@ require '../../app/layouts/admin_header.php';
                                 <strong class="text-primary font-monospace" style="font-size: 0.85rem;"><?= e($kode_trx) ?></strong>
                                 <small class="text-muted d-block">ID: #<?= (int)$row["id_transaksi"] ?></small>
                             </td>
-                            <td class="fw-semibold text-dark"><?= e($row["nama"]) ?></td>
+                            <td class="fw-semibold text-dark">
+                                <?= e(!empty($row["nama_pemesan"]) ? $row["nama_pemesan"] : $row["nama"]) ?>
+                                <?php if (!empty($row["nama_pemesan"])): ?>
+                                    <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.68rem; font-weight: normal;">Loket</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-muted small"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>
                             <td>
                                 <span class="badge badge-payment-method" style="font-weight: 600; font-size: 0.75rem;">
@@ -210,6 +216,9 @@ require '../../app/layouts/admin_header.php';
                                     <a class="btn btn-sm btn-soft-primary btn-action-icon" title="Update Transaksi" href="<?= route_url('transaksi_update', ['id' => $row['id_transaksi']]) ?>">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </a>
+                                    <button type="button" class="btn btn-sm btn-soft-danger btn-action-icon" title="Hapus Transaksi" onclick="confirmDelete(<?= (int)$row['id_transaksi'] ?>, '<?= e($kode_trx) ?>')">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -231,6 +240,37 @@ require '../../app/layouts/admin_header.php';
 <?php
 $extra_js = '
 <script>
+function confirmDelete(id, kode) {
+    Swal.fire({
+        title: "Pindahkan Transaksi " + kode + " ke Tempat Sampah?",
+        text: "Data akan disembunyikan dan diarsipkan ke riwayat audit (Soft Delete).",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "' . route_url('staf_delete') . '";
+            const idInput = document.createElement("input");
+            idInput.type = "hidden";
+            idInput.name = "id";
+            idInput.value = id;
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = "' . csrf_token() . '";
+            form.appendChild(idInput);
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
 function printTable(tableId, title) {
     const table = document.getElementById(tableId);
     const win = window.open("", "_blank");

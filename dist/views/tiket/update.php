@@ -51,11 +51,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error_msg = "Nama tiket hanya boleh berisi huruf, angka, spasi, tanda kurung, atau strip (-).";
         } elseif ($harga > 5000000) {
             $error_msg = "Tarif tiket maksimal Rp 5.000.000.";
+        } elseif (has_toxic_words($nama_tiket)) {
+            $toxicHits = find_toxic_words($nama_tiket);
+            $error_msg = "Nama tiket memuat kata yang dilarang (" . e(implode(', ', array_unique($toxicHits))) . "). Harap gunakan bahasa yang pantas.";
         } else {
             $stmt_up = $conn->prepare("UPDATE tiket SET nama_tiket = ?, harga = ?, ikon = ? WHERE id_tiket = ?");
             $stmt_up->bind_param("sisi", $nama_tiket, $harga, $ikon, $id_tiket);
 
             if ($stmt_up->execute()) {
+                if (function_exists('log_activity')) {
+                    log_activity('UPDATE', 'tiket', "Memperbarui tiket ID #{$id_tiket} menjadi '{$nama_tiket}' dengan harga Rp " . number_format($harga, 0, ',', '.'));
+                }
                 header("Location: " . route_url('admin_tiket'));
                 exit();
             } else {

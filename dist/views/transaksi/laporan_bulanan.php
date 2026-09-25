@@ -10,7 +10,7 @@ $dateInput = isset($_GET['dateInput']) && preg_match('/^\d{4}-\d{2}$/', $_GET['d
 $stmt = $conn->prepare("SELECT detail_transaksi.jenis_tiket, SUM(detail_transaksi.quantity) AS total_quantity, SUM(detail_transaksi.sub_total) AS total_sub, DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') AS month_year
     FROM detail_transaksi 
     INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi
-    WHERE DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') = ? AND transaksi.status = 'done'
+    WHERE DATE_FORMAT(transaksi.tgl_pemesanan, '%Y-%m') = ? AND transaksi.status = 'done' AND transaksi.deleted_at IS NULL
     GROUP BY detail_transaksi.jenis_tiket, month_year");
 $stmt->bind_param("s", $dateInput);
 $stmt->execute();
@@ -99,8 +99,7 @@ $rata_rata_tiket = $total_tiket_bulan > 0 ? ($total_omzet_bulan / $total_tiket_b
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
                     <div>
                         <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="badge badge-modern-primary text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Laporan Omzet Bulanan</span>
-                            <span class="text-success small fw-semibold"><i class="fa-solid fa-circle-check me-1"></i> Data Terverifikasi</span>
+                            <span class="badge badge-modern-primary text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;" data-i18n>Laporan Omzet Bulanan</span>
                         </div>
                         <h2 class="fw-bold text-dark mb-1" style="font-size: 1.65rem;">Laporan Penjualan Bulanan</h2>
                         <p class="text-muted small mb-0">

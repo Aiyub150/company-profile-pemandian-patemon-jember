@@ -348,8 +348,8 @@ require '../../app/layouts/admin_header.php';
                 <a href="<?= route_url('laporan') ?>" class="text-decoration-none">
                     <div class="modern-card p-3 text-center h-100 border hover-shadow" style="transition: all 0.2s;">
                         <i class="fa-solid fa-file-invoice-dollar text-success fs-2 mb-2"></i>
-                        <div class="fw-bold text-dark small">Laporan Terpadu</div>
-                        <div class="text-muted" style="font-size: 0.725rem;">Harian, Mingguan, Bulanan</div>
+                        <div class="fw-bold text-dark small" data-i18n>Laporan Penjualan</div>
+                        <div class="text-muted" style="font-size: 0.725rem;" data-i18n>Harian, Mingguan, Bulanan</div>
                     </div>
                 </a>
             </div>

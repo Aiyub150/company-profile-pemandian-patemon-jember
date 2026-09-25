@@ -269,6 +269,8 @@ if (!function_exists('route_url')) {
             'kasir'                  => 'kasir',
             'staf'                   => 'kasir',
             'kasir_pos'              => 'admin/transaksi/tambah',
+            'staf_delete'            => 'kasir/delete',
+            'kasir_delete'           => 'kasir/delete',
 
             // Transaksi Admin
             'transaksi'              => 'admin/transaksi',

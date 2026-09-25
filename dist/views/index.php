@@ -443,8 +443,8 @@ if (empty($gallery_items_pub)) {
                     <?php if (isset($_SESSION['id_user'])): ?>
                         <?php if (isset($_SESSION['level']) && in_array((int)$_SESSION['level'], [1, 2, 3])): ?>
                             <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                                <a class="btn btn-panel-nav text-white" href="<?= ((int)$_SESSION['level'] === 3) ? route_url('kasir') : route_url('dashboard') ?>">
-                                    <i class="fa-solid fa-gauge me-1"></i> Panel Kasir
+                                <a class="btn btn-panel-nav text-white" href="<?= route_url('dashboard') ?>">
+                                    <i class="fa-solid fa-gauge me-1"></i> Dashboard
                                 </a>
                             </li>
                         <?php endif; ?>

@@ -1,11 +1,10 @@
 <?php
 /**
  * Modul Filter Kata Kasar / Toxic Words Management
- * Role: Khusus Super Admin (Level 1)
- * Pemandian Patemon
+ * Role: Super Admin (Level 1) & Admin (Level 2)
  */
 require_once __DIR__ . '/../../app/config.php';
-check_auth([1]);
+check_auth([1, 2]);
 
 // Lightweight test API response if queried via ajax
 if (isset($_GET['action']) && $_GET['action'] === 'test') {
@@ -61,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
             
             if ($added > 0) {
-                log_activity('toxic_words', 'tambah', "Menambahkan {$added} kata terlarang baru.");
+                log_activity('TAMBAH', 'toxic_words', "Menambahkan {$added} kata terlarang baru.");
                 $msg_success = "Berhasil menambahkan {$added} kata terlarang." . ($duplicates > 0 ? " ({$duplicates} kata sudah ada sebelumnya)." : "");
             } else {
                 $msg_error = "Tidak ada kata baru yang ditambahkan (kata sudah terdaftar atau terlalu pendek).";
@@ -81,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("DELETE FROM toxic_words WHERE id = ?");
             $stmt->bind_param("i", $id);
             if ($stmt->execute()) {
-                log_activity('toxic_words', 'hapus', "Menghapus kata terlarang: {$target_word}");
+                log_activity('DELETE', 'toxic_words', "Menghapus kata terlarang: {$target_word}");
                 $msg_success = "Kata '{$target_word}' berhasil dihapus dari filter sensor.";
             } else {
                 $msg_error = "Gagal menghapus kata terlarang.";

@@ -32,17 +32,17 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
             <div class="mb-3">
                 <img src="<?= public_url('img/icon.png') ?>" alt="Logo Patemon" style="height: 72px; width: auto; object-fit: contain;">
             </div>
-            <h3 class="fw-bold mb-1">Sistem Kasir & Portofolio Wisata Pemandian Patemon</h3>
-            <p class="text-muted mb-3" style="max-width: 650px; margin: auto;">
+            <h3 class="fw-bold mb-1" data-i18n>Sistem Kasir & Portofolio Wisata Pemandian Patemon</h3>
+            <p class="text-muted mb-3" style="max-width: 650px; margin: auto;" data-i18n>
                 Aplikasi manajemen retribusi loket tiket terpadu, pemesanan tiket online, pelaporan akuntabilitas keuangan daerah, dan portofolio wisata alam Tanggul, Jember.
             </p>
             <div class="d-flex justify-content-center gap-2 flex-wrap">
                 <span class="badge badge-modern-primary fs-6 px-3 py-2"><i class="fa-solid fa-code-commit me-1"></i> Versi <?= APP_VERSION ?></span>
                 <span class="badge badge-modern-purple fs-6 px-3 py-2"><i class="fa-solid fa-building me-1"></i> Pemkab Jember - Disparbud</span>
-                <span class="badge bg-white text-dark border fs-6 px-3 py-2 shadow-sm d-inline-flex align-items-center"><i class="fa-solid fa-user-check text-primary me-2"></i> Dibuat oleh: <strong class="ms-1">Aiyub Heriyanto</strong></span>
+                <span class="badge bg-white text-dark border fs-6 px-3 py-2 shadow-sm d-inline-flex align-items-center"><i class="fa-solid fa-user-check text-primary me-2"></i> <span data-i18n>Dibuat oleh:</span> <strong class="ms-1">Aiyub Heriyanto</strong></span>
                 <a href="https://github.com/Aiyub150/company-profile-pemandian-patemon-jember" target="_blank" rel="noopener noreferrer" class="btn-github py-2 px-3 fs-6" style="background: #0f172a !important; color: #ffffff !important; border-radius: 8px !important; border: 1px solid #1e293b !important; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25) !important;">
                     <i class="fa-brands fa-github me-1" style="color: #ffffff !important; font-size: 1.15rem !important;"></i>
-                    <span style="color: #ffffff !important;">Repositori GitHub</span>
+                    <span style="color: #ffffff !important;" data-i18n>Repositori GitHub</span>
                     <i class="fa-solid fa-arrow-up-right-from-square small ms-1" style="color: #94a3b8 !important; font-size: 0.75rem !important;"></i>
                 </a>
             </div>
@@ -58,15 +58,15 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                         <i class="fa-solid fa-laptop-code"></i>
                     </div>
                     <div>
-                        <div class="text-muted small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Informasi Pengembang</div>
-                        <h5 class="fw-bold mb-1">Dibuat oleh Aiyub Heriyanto</h5>
-                        <p class="text-muted small mb-0">Kode sumber resmi dan pemeliharaan aplikasi Sistem Kasir & Portofolio Wisata Pemandian Patemon Jember.</p>
+                        <div class="text-muted small fw-bold text-uppercase" style="letter-spacing: 0.5px;" data-i18n>Informasi Pengembang</div>
+                        <h5 class="fw-bold mb-1" data-i18n>Dibuat oleh Aiyub Heriyanto</h5>
+                        <p class="text-muted small mb-0" data-i18n>Kode sumber resmi dan pemeliharaan aplikasi Sistem Kasir & Portofolio Wisata Pemandian Patemon Jember.</p>
                     </div>
                 </div>
                 <div>
                     <a href="https://github.com/Aiyub150/company-profile-pemandian-patemon-jember" target="_blank" rel="noopener noreferrer" class="btn-github px-4 py-2.5 fw-bold d-inline-flex align-items-center gap-2 shadow" style="background: #0f172a !important; color: #ffffff !important; border: 1.5px solid #1e293b !important; border-radius: 12px !important;">
                         <i class="fa-brands fa-github fs-4" style="color: #ffffff !important; line-height: 1 !important;"></i>
-                        <span style="color: #ffffff !important; font-weight: 700 !important; font-size: 0.95rem !important;">Kunjungi Repositori GitHub</span>
+                        <span style="color: #ffffff !important; font-weight: 700 !important; font-size: 0.95rem !important;" data-i18n>Kunjungi Repositori GitHub</span>
                         <i class="fa-solid fa-arrow-up-right-from-square small" style="color: #94a3b8 !important; font-size: 0.75rem !important;"></i>
                     </a>
                 </div>
@@ -167,38 +167,38 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12">
         <div class="modern-card">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Riwayat Pembaruan Sistem (Changelog)</span>
+                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> <span data-i18n>Riwayat Pembaruan Sistem (Changelog)</span></span>
             </div>
             <div class="p-4">
                 <div class="border-start border-3 border-primary ps-3 mb-4">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <span class="badge badge-modern-primary fw-bold">v2.0.0</span>
-                        <span class="text-muted small">September 2026</span>
+                        <span class="text-muted small" data-i18n>September 2026</span>
                     </div>
-                    <h5 class="fw-bold text-dark mb-2">Pembaruan Besar Standar Tata Kelola Pemda Jember</h5>
+                    <h5 class="fw-bold text-dark mb-2" data-i18n>Pembaruan Besar Standar Tata Kelola Pemda Jember</h5>
                     <ul class="text-muted small mb-0" style="line-height: 1.7;">
-                        <li>Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code>.</li>
-                        <li>Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi <code>.php</code>).</li>
-                        <li>Arsitektur Master Layout terpadu untuk efisiensi kode dan konsistensi UI.</li>
-                        <li>Pemisahan metode pembayaran Scan QRIS manual statis dan Transfer Bank dengan nomor rekening resmi.</li>
-                        <li>Penyediaan arsitektur modular Dynamic QRIS / Payment Gateway (siap integrasi Midtrans/Xendit).</li>
-                        <li>Active tag navbar dinamis dengan IntersectionObserver.</li>
-                        <li>Penambahan kolom ikon dinamis pada kategori tiket (Lansia, Dewasa, Anak, VIP, dll.).</li>
-                        <li>Standarisasi Laporan Kedinasan format resmi Pemerintah Kabupaten Jember (Dinas Pariwisata dan Kebudayaan) dengan Halaman Pratinjau PDF sebelum cetak.</li>
-                        <li>Validasi form kritik dan saran serta penyediaan pop-up modal detail ulasan bagi admin.</li>
-                        <li>Multi-field search bar (Nama, ID/Kode, Tanggal, Metode, Status) di seluruh panel kasir & admin.</li>
-                        <li>Pemisahan nomor urut tabel dan format kode referensi standar <code>TRX-YYYYMMDD-XXXX</code>.</li>
-                        <li>Adopsi standar SIM-ASET: Dashboard widget Libur Nasional (Kemendesa API), Profil Pengguna, Buku Panduan Pengguna, dan Informasi Versi.</li>
+                        <li data-i18n-html>Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code>.</li>
+                        <li data-i18n-html>Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi <code>.php</code>).</li>
+                        <li data-i18n-html>Arsitektur Master Layout terpadu untuk efisiensi kode dan konsistensi UI.</li>
+                        <li data-i18n-html>Pemisahan metode pembayaran Scan QRIS manual statis dan Transfer Bank dengan nomor rekening resmi.</li>
+                        <li data-i18n-html>Penyediaan arsitektur modular Dynamic QRIS / Payment Gateway (siap integrasi Midtrans/Xendit).</li>
+                        <li data-i18n-html>Active tag navbar dinamis dengan IntersectionObserver.</li>
+                        <li data-i18n-html>Penambahan kolom ikon dinamis pada kategori tiket (Lansia, Dewasa, Anak, VIP, dll.).</li>
+                        <li data-i18n-html>Standarisasi Laporan Kedinasan format resmi Pemerintah Kabupaten Jember (Dinas Pariwisata dan Kebudayaan) dengan Halaman Pratinjau PDF sebelum cetak.</li>
+                        <li data-i18n-html>Validasi form kritik dan saran serta penyediaan pop-up modal detail ulasan bagi admin.</li>
+                        <li data-i18n-html>Multi-field search bar (Nama, ID/Kode, Tanggal, Metode, Status) di seluruh panel kasir & admin.</li>
+                        <li data-i18n-html>Pemisahan nomor urut tabel dan format kode referensi standar <code>TRX-YYYYMMDD-XXXX</code>.</li>
+                        <li data-i18n-html>Adopsi standar SIM-ASET: Dashboard widget Libur Nasional (Kemendesa API), Profil Pengguna, Buku Panduan Pengguna, dan Informasi Versi.</li>
                     </ul>
                 </div>
 
                 <div class="border-start border-3 border-secondary ps-3 opacity-75">
                     <div class="d-flex align-items-center gap-2 mb-1">
                         <span class="badge bg-secondary text-white fw-bold">v1.0.0</span>
-                        <span class="text-muted small">Mei 2023</span>
+                        <span class="text-muted small" data-i18n>Mei 2023</span>
                     </div>
-                    <h5 class="fw-bold text-dark mb-1">Rilis Awal Kasir & Portofolio</h5>
-                    <p class="text-muted small mb-0">Implementasi fungsionalitas dasar landing page, kasir loket, dan pencatatan transaksi tiket.</p>
+                    <h5 class="fw-bold text-dark mb-1" data-i18n>Rilis Awal Kasir & Portofolio</h5>
+                    <p class="text-muted small mb-0" data-i18n>Implementasi fungsionalitas dasar landing page, kasir loket, dan pencatatan transaksi tiket.</p>
                 </div>
             </div>
         </div>
