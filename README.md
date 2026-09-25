@@ -1,270 +1,317 @@
-# Sistem Informasi Kasir & Reservasi Wisata Pemandian Patemon
+# 🌊 Sistem Informasi Kasir & Reservasi Wisata Pemandian Patemon
 ### UPTD Pariwisata & Kebudayaan Kabupaten Jember
 
 [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D%208.1-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![Database](https://img.shields.io/badge/MySQL-8.0%20%7C%20MariaDB-005C84?style=for-the-badge&logo=mysql&logoColor=white)](https://mysql.com)
-[![Standard](https://img.shields.io/badge/Government%20Standard-SIM--ASET-059669?style=for-the-badge&logo=governor&logoColor=white)](https://github.com/Aiyub150/SIM-ASET)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20Routing%20%2B%20Master%20Layout-0284c7?style=for-the-badge)](https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon)
+[![Architecture](https://img.shields.io/badge/Architecture-Front%20Controller%20%7C%20Modular%20MVC-0284c7?style=for-the-badge)](https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon)
+[![Government Standard](https://img.shields.io/badge/Standard-SIM--ASET-059669?style=for-the-badge)](https://github.com/Aiyub150/SIM-ASET)
+[![Security Standard](https://img.shields.io/badge/Security-Defense--in--Depth%20Audited-10b981?style=for-the-badge)](https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon)
 
 ---
 
-## 🏛️ Ringkasan Eksekutif
+## 🏛️ 1. Tentang Sistem
 
-**Sistem Informasi & Kasir Loket Pemandian Patemon** adalah platform tata kelola terpadu untuk destinasi wisata mata air alami Pemandian Patemon, Kecamatan Tanggul, Kabupaten Jember. Sistem ini menggabungkan landing page profil publik, sistem reservasi tiket online pengunjung, *Point of Sale* (POS) loket kasir, validasi barcode tiket masuk, laporan pendapatan terstandarisasi Pemerintah Kabupaten (Pemkab) Jember, serta kalender prediksi wisatawan berbasis API Hari Libur Nasional.
+**Sistem Informasi & Kasir Loket Pemandian Patemon** adalah platform tata kelola pariwisata terpadu yang dirancang untuk objek wisata mata air alam Patemon di bawah naungan UPTD Pariwisata dan Kebudayaan Pemerintah Kabupaten Jember. 
 
-Arsitektur aplikasi ini dibangun dan disempurnakan dengan mengadopsi standar tata kelola instansi pemerintah lokal berbasis **[Aiyub150/SIM-ASET](https://github.com/Aiyub150/SIM-ASET)** (Sistem Manajemen Aset Daerah Pemda Jember), menghasilkan tata kelola kasir yang akuntabel, transparan, dan siap audit.
+Platform ini menjembatani dua kebutuhan vital pariwisata modern:
+1. **Layanan Publik Digital:** Memperkenalkan daya tarik wisata, fasilitas, dan kemudahan reservasi tiket masuk secara mandiri bagi wisatawan domestik maupun mancanegara.
+2. **Tata Kelola Operasional Kasir (POS):** Menyediakan sistem pencatatan transaksi loket fisik yang cepat, akurat, terhindar dari kebocoran retribusi, serta menghasilkan laporan penerimaan kas daerah yang memenuhi standar audit kedinasan.
 
 ---
 
-## 📐 Arsitektur Sistem & Prinsip Desain
+## ✨ 2. Fitur-Fitur Utama Sistem
 
+* **Portal Publik & Portofolio Wisata:** Showcase wahana kolam alami, galeri dokumentasi kegiatan, informasi tarif resmi, formulir ulasan dengan sensor kata terlarang otomatis, serta antarmuka dwibahasa (Indonesia & Inggris).
+* **Reservasi & Tiket Digital (E-Ticketing):** Pemesanan mandiri oleh pengunjung dengan opsi pembayaran tunai loket, QRIS dinamis, atau transfer bank, dilengkapi barcode unik Code 128 untuk validasi tiket.
+* **Point of Sale (POS) Kasir Loket Cepat:** Formulir kasir cerdas yang mendukung pengunjung langsung (*walk-in guest*) tanpa akun, pemuatan katalog tiket dinamis dari database, live stepper kuantitas, kalkulator uang kembalian instan, dan pencetakan nota transaksi.
+* **Pemindaian & Verifikasi Tiket:** Scanner barcode terintegrasi menggunakan kamera perangkat (smartphone/laptop) untuk validasi tiket masuk secara *real-time*.
+* **Pelaporan Standar Kedinasan (SIM-ASET Standard):** Laporan penerimaan harian, mingguan, bulanan, dan tahunan yang dilengkapi kop surat resmi dinas Pemkab Jember, konversi angka ke kalimat terbilang rupiah baku, serta lembar pengesahan tanda tangan ganda bertingkat.
+* **Dasbor Manajerial & Kalender Wisata:** Statistik omzet, tren volume pengunjung, serta kalender terintegrasi API Hari Libur Nasional (SKB 3 Menteri) untuk proyeksi lonjakan wisatawan saat *high season*.
+* **Keamanan Berlapis (Defense-in-Depth):** Proteksi CSRF kriptografis, sanitasi output XSS, query terparameter bebas SQL Injection, proteksi path traversal, pembatasan percobaan login (anti-brute force), audit trail aktivitas, serta log request server real-time.
+
+---
+
+## 📐 3. Pola Arsitektur Sistem
+
+Aplikasi ini dibangun menggunakan arsitektur perangkat lunak berbasis **Front Controller Pattern**, dipadukan dengan konsep **Modular MVC (Model-View-Controller)** yang ramping dan terstruktur:
+
+```mermaid
+flowchart TD
+    Client([Browser / Mobile Device]) --> Gateway{Web Gateway}
+
+    subgraph Front_Controller_Layer [Routing & Security Shield Layer]
+        Gateway --> Router[Front Controller: router.php / .htaccess]
+        Router --> Shield[Security Shield: Whitelist & Blocklist]
+        Shield -->|Deteksi Akses Ilegal| Deny[403 Forbidden Response]
+        Shield -->|Rute Valid| Dispatcher[Route Dispatcher]
+    end
+
+    subgraph Business_Logic_Layer [Core Logic & Model Layer]
+        Dispatcher --> CoreConfig[dist/app/config.php]
+        CoreConfig --> AuthGuard[RBAC Access Guardian: check_auth]
+        CoreConfig --> CSRFGuard[Cryptographic CSRF Validator]
+        CoreConfig --> DataAccess[Data Access Layer: MySQLi Prepared Engine]
+        CoreConfig --> BusinessEngines[Business Services: Toxic, Audit, Logs]
+    end
+
+    subgraph Presentation_Layer [View & Component Layer]
+        Dispatcher --> MasterLayout[Master Layout Architecture]
+        MasterLayout --> AdminHeader[Universal Topbar & Session Header]
+        MasterLayout --> ViewTemplates[Modular View Components]
+        MasterLayout --> AdminFooter[Universal Footer & Script Bundles]
+        ViewTemplates --> ReactiveUI[Searchable Select, Theme Switcher, POS Realtime]
+    end
+
+    DataAccess --> Database[(MySQL / MariaDB)]
 ```
-[ Klien / Browser ]
-         │
-         ▼
-[ .htaccess (Apache) / router.php (PHP CLI) ] ── (Clean URL Rewriting & Path Shielding)
-         │
-         ▼
-[ dist/app/config.php ] ── (DB Connection, CSRF, RBAC Auth, Security Headers, Helpers)
-         │
-         ├───► [ Landing Page & Pemesanan ] ──► (index.php, pesan.php, nota.php)
-         │
-         └───► [ Admin & Kasir POS Panel ]
-                    │
-                    ├── dist/app/layouts/admin_header.php (Universal Topbar & Sidebar)
-                    ├── dist/views/{dashboard, transaksi, tiket, user, ulasan, profile, settings}/
-                    └── dist/app/layouts/admin_footer.php (Search, Scripts, Analytics)
-```
 
-### 1. Pola Master Layout (`DRY` Principle)
-Sebelumnya, kode sidebar, header, topbar, dan footer diduplikasi pada lebih dari 20 berkas view. Seluruh modul administrasi kini menggunakan arsitektur **Master Layout**:
-- `dist/app/layouts/admin_header.php`: Menyediakan dokumen HTML standar, session checks, topbar dinamis, dan role badge.
-- `dist/app/layouts/admin_footer.php`: Menyediakan modal scripts, filter table search universal, dan chart bundle.
-
-### 2. Clean URL Routing Engine
-Pengguna dan petugas tidak lagi melihat path internal seperti `/dist/views/transaksi/transaksi.php`. Seluruh rute dipetakan secara bersih:
-- **Lingkungan Apache / XAMPP**: Dikelola melalui `.htaccess` dengan modul `mod_rewrite` aktif.
-- **Lingkungan Built-in Server**: Dikelola melalui `router.php` dan `serve.php` dengan penanganan `chdir(dirname($targetFile))` untuk menjamin kompatibilitas require relatif.
+### Karakteristik Arsitektur:
+1. **Front Controller & Clean URL Engine:** Seluruh lalu lintas HTTP diarahkan melalui gerbang tunggal yang memetakan rute ramah pengguna (*clean routes*) ke controller terkait, memblokir berkas sensitif, dan mengisolasi akses berkas bukti transaksi.
+2. **Modular View-Controller:** Setiap modul administratif beroperasi secara independen di dalam namespace direktorinya masing-masing dengan tetap mewarisi standar *Master Layout* untuk menjaga konsistensi antarmuka.
+3. **Role-Based Access Control (RBAC):** Sistem secara ketat membedakan 4 tingkat wewenang pengguna (*Super Admin*, *Administrator*, *Staf Kasir*, dan *Pengunjung*) pada tingkat gateway dan logika controller.
+4. **Data Access Layer Terproteksi:** Seluruh komunikasi ke database diwajibkan melewati mekanisme *parameterized prepared statements* untuk menjamin kekebalan dari manipulasi query SQL.
+5. **Universal Component Ecosystem:** Dilengkapi komponen frontend modular tanpa dependensi berat, seperti modul pencarian dropdown interaktif (*Searchable Select*) dan mesin dwibahasa (*i18n engine*).
 
 ---
 
-## 🗺️ Peta Rute URL Bersih (Clean Routes Table)
+## 🗄️ 4. Model Data & Relasi Entitas
 
-| Clean URL | Target File | Metode | Hak Akses | Deskripsi Fungsi |
-| :--- | :--- | :--- | :--- | :--- |
-| `/` | `dist/views/index.php` | `GET, POST` | Publik | Landing page, tarif, fasilitas, dan form ulasan |
-| `/login` | `dist/views/login.php` | `GET, POST` | Tamu | Autentikasi akun staf, admin, dan pengunjung |
-| `/register` | `dist/views/register.php` | `GET, POST` | Tamu | Pendaftaran akun pengunjung baru |
-| `/logout` | `dist/views/logout.php` | `GET` | Autentikasi | Terminasi sesi aman & redirect |
-| `/tiket/pesan` | `dist/views/tiket/pesan.php` | `GET, POST` | Pengunjung/Staf | Reservasi tiket online, QRIS, & Transfer |
-| `/tiket/nota` | `dist/views/tiket/nota.php` | `GET` | Pemilik/Petugas | Struk barcode tiket & cetak voucher |
-| `/dashboard` | `dist/views/dashboard/dashboard.php` | `GET` | Admin (Lvl 1) | Omzet, grafik, kalender Kemendesa, & quick cards |
-| `/admin/transaksi` | `dist/views/transaksi/transaksi.php` | `GET` | Admin/Staf | Kelola transaksi kasir, search multi-field, & filter |
-| `/admin/tiket` | `dist/views/tiket/tiket.php` | `GET` | Admin (Lvl 1) | Manajemen kategori tiket & tarif harga masuk |
-| `/admin/users` | `dist/views/user/user.php` | `GET` | Admin (Lvl 1) | Manajemen akun administrator, kasir, & pengunjung |
-| `/admin/ulasan` | `dist/views/ulasan/ulasan.php` | `GET` | Admin (Lvl 1) | Moderasi kritik, saran, & popup baca lengkap |
-| `/kasir` | `dist/views/transaksi/staf.php` | `GET` | Admin/Staf | POS loket, scan barcode kamera, & rekap kas harian |
-| `/laporan/harian` | `dist/views/transaksi/laporan_harian.php` | `GET` | Admin/Staf | Rekap penerimaan tiket per hari |
-| `/laporan/bulanan` | `dist/views/transaksi/laporan_bulanan.php` | `GET` | Admin/Staf | Rekap penerimaan tiket per bulan |
-| `/laporan/tahunan` | `dist/views/transaksi/laporan_tahunan.php` | `GET` | Admin/Staf | Rekap evaluasi omzet tahun berjalan |
-| `/laporan/preview` | `dist/views/transaksi/laporan_preview.php` | `GET` | Admin/Staf | Format Resmi Pemkab Jember (Kop, Terbilang, TTD) |
-| `/profile` | `dist/views/profile/profile.php` | `GET, POST` | Autentikasi | Profil akun, nomor HP, & ganti password |
-| `/settings/version` | `dist/views/settings/version.php` | `GET` | Autentikasi | Info rilis, spesifikasi server, & status keamanan |
-| `/guide` | `dist/views/settings/guide.php` | `GET` | Autentikasi | Panduan operasional sistem & SOP kasir |
-| `/guide/preview-pdf` | `dist/views/settings/guide_preview_pdf.php` | `GET` | Autentikasi | Pratinjau interaktif buku panduan cetak PDF |
-
----
-
-## 🗄️ Spesifikasi Skema Database (MySQL / MariaDB)
-
-Basis data `pemandian` terdiri dari 5 entitas utama yang saling berelasi:
+Secara konseptual, struktur data aplikasi terbagi menjadi tiga domain utama:
 
 ```mermaid
 erDiagram
-    users ||--o{ transaksi : "membuat"
-    transaksi ||--|{ detail_transaksi : "memiliki"
-    tiket ||--o{ detail_transaksi : "direferensikan"
-    ulasan }|..|| users : "dikirim_oleh"
-
-    users {
+    USERS ||--o{ TRANSAKSI : "melayani / membuat"
+    TRANSAKSI ||--|{ DETAIL_TRANSAKSI : "memiliki"
+    TIKET ||--o{ DETAIL_TRANSAKSI : "dikategorikan"
+    USERS ||--o{ ACTIVITY_LOGS : "mencatat_audit"
+    
+    USERS {
         int id_user PK
         string nama
         string username UK
         string email
-        string password
-        string telepon
-        string avatar
-        int level "1: Admin, 2: Staf, 3: Pengunjung"
+        string password_hash
+        int level "Super Admin, Admin, Staf, Pengunjung"
     }
 
-    tiket {
+    TIKET {
         int id_tiket PK
         string nama_tiket
         int harga
-        string ikon "FontAwesome class"
+        string ikon
     }
 
-    transaksi {
+    TRANSAKSI {
         int id_transaksi PK
         int id_user FK
+        string nama_pemesan "Tamu loket manual"
         date tgl_pemesanan
         int total_harga
         string metode_pembayaran
-        string bukti_pembayaran
-        string status "notyet, done"
-        timestamp created_at
+        string status "pending, done, cancel"
+        datetime deleted_at "Soft delete"
     }
 
-    detail_transaksi {
+    DETAIL_TRANSAKSI {
         int id_detail PK
         int id_transaksi FK
-        string jenis_tiket
-        int quantity
-        int sub_total
-    }
-
-    ulasan {
-        int id_ulasan PK
-        string username
-        string email
-        string no_telepon
-        text ulasan "Max 500 chars"
-        date tgl_ulasan
+        int id_tiket FK
+        int jumlah
+        int subtotal
     }
 ```
 
-### Kamus Data Entitas
-1. **`tiket`**: Menyimpan kategori tiket masuk (`Dewasa`, `Anak-Anak`, `Lansia`, dsb.), harga, serta kelas ikon FontAwesome dinamis (misal: `fa-person`, `fa-child`, `fa-person-cane`).
-2. **`transaksi`**: Header transaksi penjualan tiket kasir/online. Nomor referensi standar diformat secara terprogram menjadi `TRX-YYYYMMDD-XXXX`.
-3. **`detail_transaksi`**: Menyimpan rincian tiket yang dipesan (kuantitas dan subtotal), mencegah hardcoding jenis tiket.
-4. **`users`**: Tabel pengguna dengan Role-Based Access Control (RBAC): Level 1 (Administrator), Level 2 (Staf Kasir Loket), Level 3 (Pengunjung).
-5. **`ulasan`**: Menampung kritik dan saran pengunjung dengan batas 500 karakter dan sanitasi XSS.
+* **Domain Pengguna & Otorisasi:** Menyimpan data akun pengguna, level wewenang, kredensial terenkripsi aman (*Argon2id/Bcrypt*), log percobaan login, dan riwayat audit trail.
+* **Domain Katalog & Transaksi:** Mengelola kategori tiket dinamis, header transaksi penjualan tiket, serta rincian item tiket per transaksi. Mendukung pencatatan tamu loket langsung (*walk-in*) dan penandaan *soft-delete* demi kepatuhan audit kas keuangan.
+* **Domain Pemantauan & Moderasi:** Menampung kamus kata terlarang (*toxic words*) untuk sensor otomatis, tabel ulasan publik, serta log performa respon HTTP server.
 
 ---
 
-## 🛡️ Standar Keamanan & Perlindungan Data
+## 💻 5. Panduan Instalasi & Pengaturan Lingkungan (Setup Guide)
 
-Aplikasi ini mengimplementasikan prinsip *defense-in-depth* untuk melindungi data instansi:
-
-1. **Prepared Statements (SQL Injection Defense)**:
-   Seluruh query interaktif yang melibatkan input pengguna (GET/POST) menggunakan PDO/MySQLi Prepared Statements dengan *parameter binding* eksplisit.
-2. **CSRF (Cross-Site Request Forgery) Tokens**:
-   Setiap formulir POST (pemesanan tiket, ulasan, update profil, manajemen user, dsb.) diverifikasi menggunakan token kriptografis berbasis sesi `validate_csrf()`.
-3. **Session Hijacking & Fixation Defense**:
-   - `session_regenerate_id(true)` dipanggil setiap kali terjadi autentikasi login atau peningkatan hak akses.
-   - Sesi memeriksa `User-Agent` dan menerapkan timeout otomatis.
-4. **Anti-Tampering Pricing**:
-   Kalkulasi total tagihan tiket selalu dihitung ulang di sisi server (`server-side authoritative pricing`) berdasarkan tarif resmi di database, bukan mempercayai nilai yang dikirim dari klien.
-5. **Validasi File Upload Bukti Transfer**:
-   Pemeriksaan ketat terhadap berkas bukti pembayaran mencakup: ekstensi (`jpg, jpeg, png, webp`), MIME type riil via PHP `finfo`, batas ukuran maksimal 2 MB, dan penamaan ulang dengan token acak aman.
-6. **Path Traversal & Direct File Access Blocking**:
-   Konfigurasi `.htaccess` secara otomatis menolak akses publik ke berkas sensitif (`.env`, `.git`, `.sql`, `composer.json`, `composer.lock`, `.md`).
+### Prasyarat Sistem
+* **PHP:** Versi 8.1 ke atas (dengan ekstensi `mysqli`, `curl`, `mbstring`, `fileinfo`, `gd`, `openssl`).
+* **Basis Data:** MySQL 8.0+ atau MariaDB 10.4+.
+* **Web Server:** Apache dengan modul `mod_rewrite` aktif, Nginx, atau PHP Built-in Server untuk lingkungan pengembangan.
+* **Composer:** Opsional (digunakan apabila ingin mengunduh atau memperbarui pustaka vendor).
 
 ---
 
-## 💳 Strategi Pembayaran & Dynamic Gateway
+### Langkah-Langkah Pemasangan Lokal
 
-Sistem menyediakan 3 opsi pembayaran terpisah yang transparan:
-1. **Bayar di Loket (Tunai)**: Pengunjung memesan tiket secara online lalu melakukan pembayaran tunai langsung di kasir loket saat tiba di lokasi.
-2. **Scan QRIS**: Menampilkan kartu QRIS statis berstandar nasional dengan nama merchant resmi "UPTD Pemandian Patemon - Pemkab Jember", NMID, petunjuk scan m-Banking/e-Wallet, dan dropzone upload bukti pembayaran.
-3. **Transfer Bank Resmi**: Menampilkan informasi rekening resmi Kas Daerah/UPTD (Bank Jatim / Mandiri / BCA), nomor rekening, nama pemilik rekening, tombol salin nomor rekening interaktif, dan upload bukti transfer.
-
-### Aktivasi Dynamic Payment Gateway (Modular)
-Arsitektur pembayaran telah dirancang modular. Pengembang dapat mengintegrasikan *Payment Gateway* otomatis (Midtrans Snap, Xendit, atau Duitku) tanpa merombak basis kode:
-1. Buka berkas `dist/app/config.php`.
-2. Aktifkan konstanta:
-   ```php
-   define('FEATURE_PAYMENT_GATEWAY', true);
-   ```
-3. Konfigurasi kredensial gateway pada environment/config, dan implementasikan handler Snap Token yang telah disediakan di `dist/views/tiket/pesan.php`.
-
----
-
-## 🏛️ Kepatuhan Standar Pemkab Jember (SIM-ASET Standard)
-
-Merujuk pada implementasi tata kelola aset daerah di **[Aiyub150/SIM-ASET](https://github.com/Aiyub150/SIM-ASET)**:
-- **Kop Surat Kedinasan Ganda**: Menampilkan lambang resmi Pemerintah Kabupaten Jember, Dinas Pariwisata dan Kebudayaan, serta UPTD Pengelola Objek Wisata Patemon.
-- **Konversi Terbilang Otomatis**: Angka penerimaan kas dikonversi menjadi kalimat terbilang rupiah baku (misal: *"Dua Ratus Lima Puluh Ribu Rupiah"*).
-- **Legalisasi & Tanda Tangan Ganda**: Lembar laporan memuat tanda tangan mengetahui Kepala UPTD Pemandian Patemon (dengan NIP) dan Bendahara Penerimaan / Kasir Loket.
-- **Pratinjau Interaktif Sebelum Cetak**: Tombol cetak mengarahkan admin/staf ke halaman pratinjau dokumen resmi (`/laporan/preview`) sebelum dialog cetak browser atau ekspor PDF dijalankan.
-- **Kalender Libur Nasional (Kemendesa API)**: Dashboard admin menampilkan data hari libur nasional riil berbasis SKB 3 Menteri RI secara otomatis dengan *24-hour file cache* untuk membantu perencanaan staf loket saat *high season* dan *long weekend*.
-
----
-
-## 🚀 Panduan Instalasi & Menjalankan Aplikasi
-
-### Kebutuhan Sistem (Prerequisites)
-- PHP versi **8.1** atau yang lebih baru (ekstensi `mysqli`, `fileinfo`, `gd`, `mbstring`, `curl` aktif)
-- MySQL **8.0+** atau MariaDB **10.4+**
-- Composer package manager (opsional untuk dependensi vendor)
-
-### Langkah-Langkah Pemasangan
-
-#### 1. Kloning Repositori
-```bash
-git clone https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon.git
-cd aplikasi-kasir-dan-portofolio-pemandian-patemon
-```
-
-#### 2. Instalasi Dependensi Composer
-```bash
-composer install --no-dev --optimize-autoloader
-```
-*Dependensi terinstal meliputi `dompdf/dompdf` untuk generasi PDF dan `picqer/php-barcode-generator` untuk barcode nota.*
-
-#### 3. Setup Basis Data MySQL
-1. Buat database baru bernama `pemandian` di MySQL / phpMyAdmin.
-2. Impor berkas skema yang telah diperbarui:
+1. **Unduh atau Kloning Repositori:**
    ```bash
-   mysql -u root -p pemandian < database/pemandian.sql
-   ```
-3. Sesuaikan koneksi di `dist/app/config.php` jika menggunakan host, port, atau kata sandi berbeda:
-   ```php
-   $host = "127.0.0.1";
-   $user = "root";
-   $pass = "";
-   $db   = "pemandian";
-   $port = 3306;
+   git clone https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon.git
+   cd aplikasi-kasir-dan-portofolio-pemandian-patemon
    ```
 
-#### 4. Menjalankan Server Lokal
+2. **Inisialisasi Basis Data:**
+   * Buat basis data baru bernama `pemandian` melalui phpMyAdmin, DBeaver, atau terminal MySQL.
+   * Impor skema resmi yang tersedia pada direktori `database/pemandian.sql`:
+     ```bash
+     mysql -u root -p pemandian < database/pemandian.sql
+     ```
 
-**Opsi A: Menggunakan PHP Built-in Server (Sangat Direkomendasikan)**
+3. **Konfigurasi Koneksi Database:**
+   * Buka berkas `dist/app/config.php`.
+   * Sesuaikan kredensial server database lokal Anda:
+     ```php
+     $host = "127.0.0.1";
+     $user = "root";
+     $pass = "";
+     $db   = "pemandian";
+     $port = 3306;
+     ```
+
+4. **Menjalankan Server Pengembangan Lokal:**
+   Gunakan skrip server yang telah dioptimasi dengan routing engine bawaan:
+   ```bash
+   php serve.php
+   ```
+   Aplikasi siap diakses melalui peramban web pada alamat: **`http://127.0.0.1:8000`**
+
+---
+
+### Akun Pengujian Bawaan Sistem
+
+| Peran Pengguna | Tingkat Akses | Username | Kata Sandi | Deskripsi Wewenang |
+| :--- | :---: | :--- | :--- | :--- |
+| **Super Admin** | Level 1 | `super_admin` | `admin123` | Akses penuh, server logs, history audit, kelola seluruh akun. |
+| **Administrator** | Level 2 | `admin` | `admin123` | Kelola transaksi, tarif tiket, filter kata kasar, laporan, moderasi. |
+| **Staf Kasir** | Level 3 | `staff` | `staff123` | Operasional kasir loket (POS), verifikasi barcode, laporan shift mandiri. |
+| **Pengunjung** | Level 0 | `tes` | `admin123` | Reservasi tiket mandiri, unduh struk voucher & barcode QR. |
+
+---
+
+## 🛠️ 6. Panduan Pengembangan & Kustomisasi (Development Workflow)
+
+Bagian ini memandu pengembang dalam memodifikasi, menyesuaikan, atau menambahkan modul baru:
+
+### 1. Kustomisasi Branding & Profil Wisata
+* **Identitas & Kontak Objek Wisata:** Informasi nama instansi, alamat, email dinas, dan nomor telepon pengelola diatur secara terpusat pada konstanta konfigurasi di `dist/app/config.php`.
+* **Aset Logo & Lambang Kedinasan:** Lambang Pemkab Jember dan logo resmi objek wisata tersimpan pada direktori `public/img/`.
+* **Galeri & Banner Utama:** Konten gambar fasilitas dan kolam renang dapat diperbarui melalui modul manajemen galeri di panel admin atau langsung disesuaikan pada file view beranda `dist/views/index.php`.
+
+### 2. Kustomisasi Model Bisnis & Kategori Tiket
+* Sistem tidak membatasi jenis tiket. Anda dapat menambahkan tiket musiman, tiket pelajar/mahasiswa, maupun paket rombongan langsung melalui menu **Kategori Tiket** di panel admin.
+* Seluruh tiket baru yang ditambahkan otomatis tersedia di antarmuka pemesanan online pengunjung dan modul POS kasir tanpa perlu menulis kode baru.
+
+### 3. Standar Penambahan Halaman / Modul Baru
+Saat membuat modul baru di dalam direktori `dist/views/`:
+1. **Otorisasi di Baris Pertama:** Selalu panggil fungsi verifikasi hak akses di awal file untuk menentukan siapa yang berhak membuka modul (misal: `check_auth([1, 2]);`).
+2. **Gunakan Master Layout:** Bungkus konten halaman menggunakan `admin_header.php` di bagian atas dan `admin_footer.php` di bagian bawah untuk mempertahankan keseragaman tema, bilah navigasi, dan skrip pembantu.
+3. **Pendaftaran Rute Bersih:** Daftarkan rute URL bersih baru ke dalam pemetaan router di `router.php` dan buat alias rute pada fungsi helper `route_url()` di `dist/app/config.php`.
+4. **Pencegahan CSRF:** Pastikan setiap formulir mutasi data menggunakan metode `POST`, menyertakan token keamanan, dan memvalidasinya sebelum memproses data.
+
+---
+
+## 🚀 7. Panduan Publikasi & Deployment ke Server Produksi (Publishing Guide)
+
+Berikut adalah panduan teknis langkah demi langkah untuk menerbitkan aplikasi ke lingkungan produksi (*Production Web Server*):
+
+### Opsi A: Deployment ke Shared Hosting (cPanel)
+1. **Unggah Berkas Proyek:**
+   * Kompres seluruh isi folder proyek menjadi arsip `.zip`.
+   * Unggah dan ekstrak arsip tersebut ke dalam direktori `public_html` atau subdomain pilihan Anda di cPanel File Manager.
+2. **Impor Basis Data:**
+   * Buka menu **MySQL Databases** di cPanel, buat basis data baru beserta pengguna database dengan hak akses penuh (*ALL PRIVILEGES*).
+   * Buka **phpMyAdmin**, pilih basis data yang baru dibuat, lalu impor berkas `database/pemandian.sql`.
+3. **Sesuaikan Konfigurasi Koneksi:**
+   * Buka berkas `dist/app/config.php` via editor cPanel, perbarui nama basis data, nama pengguna, dan kata sandi sesuai dengan yang dibuat di langkah sebelumnya.
+4. **Verifikasi Web Server Rewrite:**
+   * Pastikan berkas `.htaccess` di root direktori telah terunggah dengan benar untuk memastikan pemetaan rute bersih berfungsi sempurna pada Apache/LiteSpeed.
+
+---
+
+### Opsi B: Deployment ke Virtual Private Server (VPS / Cloud Server)
+Rekomendasi konfigurasi server produksi menggunakan Ubuntu Server dengan Nginx/Apache:
+
+#### 1. Pengaturan Direktori & Hak Akses Berkas (File Permissions)
+Terapkan izin kepemilikan web server (`www-data`) dengan prinsip hak akses terkecil (*least privilege*):
 ```bash
-php serve.php
+# Atur kepemilikan ke user web server
+sudo chown -R www-data:www-data /var/www/pemandian-patemon
+
+# Direktori standar: 755, Berkas standar: 644
+sudo find /var/www/pemandian-patemon/ -type d -exec chmod 755 {} \;
+sudo find /var/www/pemandian-patemon/ -type f -exec chmod 644 {} \;
+
+# Berikan izin tulis khusus hanya pada direktori upload bukti pembayaran & avatar
+sudo chmod -R 775 /var/www/pemandian-patemon/dist/app/payment
+sudo chmod -R 775 /var/www/pemandian-patemon/public/img/avatars
 ```
-*Aplikasi akan berjalan di `http://127.0.0.1:8000` dengan dukungan Clean Routing.*
 
-**Opsi B: Menggunakan Apache (XAMPP / Laragon)**
-1. Letakkan folder proyek di `C:\xampp\htdocs\pemandian-patemon`.
-2. Pastikan ekstensi `mod_rewrite` aktif pada konfigurasi Apache `httpd.conf`.
-3. Buka browser pada alamat `http://localhost/pemandian-patemon`.
+#### 2. Konfigurasi Nginx (Virtual Host)
+Jika menggunakan Nginx sebagai reverse proxy / web server, gunakan konfigurasi blok server berikut:
+```nginx
+server {
+    listen 80;
+    server_name tiket.patemon.jemberkab.go.id;
+    root /var/www/pemandian-patemon;
+    index dist/views/index.php;
+
+    # Blokir akses publik ke berkas sensitif dan repositori git
+    location ~* /\.(env|git|sql|md)$ {
+        deny all;
+        return 403;
+    }
+
+    # Proteksi berkas dependensi dan database dump
+    location ~* /(composer\.(json|lock)|database/) {
+        deny all;
+        return 403;
+    }
+
+    # Routing engine fallback
+    location / {
+        try_files $uri $uri/ /dist/views/index.php?$query_string;
+    }
+
+    # Pemrosesan PHP FastCGI
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # Optimasi Cache untuk Aset Statis
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+}
+```
+
+#### 3. Penerapan Sertifikat Keamanan SSL/TLS (HTTPS)
+Wajib mengaktifkan enkripsi data lalu lintas untuk menjaga kerahasiaan kata sandi dan transaksi:
+```bash
+sudo certbot --nginx -d tiket.patemon.jemberkab.go.id
+```
+
+#### 4. Pengerasan Lingkungan Produksi (Production Hardening Checklist)
+* Nonaktifkan penampilan pesan error di layar publik pada lingkungan produksi: pastikan konfigurasi `display_errors = Off` dan `log_errors = On` di `php.ini`.
+* Pastikan flag cookie sesi (`session.cookie_secure = 1` dan `session.cookie_httponly = 1`) aktif.
+* Jadwalkan backup basis data otomatis secara berkala menggunakan cron job:
+  ```bash
+  0 2 * * * mysqldump -u db_user -p'db_pass' pemandian | gzip > /var/backups/patemon/db_$(date +\%F).sql.gz
+  ```
 
 ---
 
-## 🔑 Kredensial Pengujian Bawaan
+## 📈 8. Rencana Pengembangan Masa Depan (Roadmap)
 
-| Role | Username | Password | Hak Akses |
-| :--- | :--- | :--- | :--- |
-| **Administrator** | `admin` | `password` / `admin` | Seluruh Modul, Master User, Tarif, & Laporan |
-| **Staf Kasir Loket** | `kasir` | `password` / `kasir` | POS Kasir Loket, Validasi Nota, Scan Barcode |
-| **Pengunjung** | `pengunjung` | `password` | Pemesanan Tiket Online & Riwayat Nota |
+Sistem dirancang modular untuk mengakomodasi peningkatan skala di masa mendatang:
 
----
-
-## 📦 Pustaka & Komponen Pihak Ketiga
-
-- **UI & CSS**: Bootstrap 5.2.3, FontAwesome 6.4.0, CSS Variables Modern Design System
-- **Rendering PDF**: [dompdf/dompdf](https://github.com/dompdf/dompdf) v3.0
-- **Barcode Engine**: [picqer/php-barcode-generator](https://github.com/picqer/php-barcode-generator) v2.4 (Code 128)
-- **Kamera Scanner**: [html5-qrcode](https://github.com/mebjas/html5-qrcode) (Client-side QR & Barcode reader)
-- **Grafik & Visualisasi**: Chart.js v4.4.0
-- **Kalender Hari Libur**: API Terbuka Hari Libur Nasional (Kemendesa / Kemenko PMK SKB 3 Menteri)
+1. **Integrasi Payment Gateway Otomatis:** Menghubungkan modul pembayaran dengan gateway nasional (seperti Midtrans Snap, Xendit, atau Duitku) untuk otomatisasi verifikasi status lunas tanpa perlu tinjauan bukti transfer manual.
+2. **Kios Tiket Mandiri (Self-Service Kiosk):** Antarmuka kasir dapat diintegrasikan dengan layar sentuh (*touchscreen*) loket dan printer termal dispenser tiket di pintu gerbang utama wisata.
+3. **Turnstile Gate Integration (Smart Gate IoT):** Menyambungkan scanner barcode dengan mikrokontroler palang pintu otomatis (*turnstile barrier gate*) untuk validasi akses masuk tanpa kontak fisik.
+4. **Aplikasi Mobile Petugas:** Pengembangan aplikasi mobile berbasis Android/iOS untuk petugas keamanan dan penjaga kolam guna memantau kapasitas daya tampung pengunjung secara dinamis.
 
 ---
 
-## 👨‍💻 Maintainer & Lisensi
+## 👨‍💻 9. Kontribusi & Lisensi
 
-- **Lead Developer**: [Aiyub150](https://github.com/Aiyub150)
-- **Instansi Pengampu**: UPTD Pemandian Patemon, Dinas Pariwisata dan Kebudayaan Kabupaten Jember
-- **Lisensi**: Proyek ini dikembangkan di bawah lisensi institusional untuk pemanfaatan pelayanan publik pariwisata daerah.
+* **Pengembang Utama:** [Aiyub150](https://github.com/Aiyub150)
+* **Instansi Terkait:** UPTD Pariwisata Pemandian Patemon, Dinas Pariwisata dan Kebudayaan Pemerintah Kabupaten Jember.
+* **Lisensi Penggunaan:** Proyek ini masih dibuat open-source dan gratis sehingga instansi manapun bisa menyesuaikan sesuai kebutuhan.
