@@ -4,10 +4,9 @@ require_once __DIR__ . '/../app/config.php';
 // Jika sudah login, redirect sesuai peran
 if (isset($_SESSION['id_user'])) {
     $lvl = (int)($_SESSION['level'] ?? 0);
-    if ($lvl === 1 || $lvl === 2) {
+    if ($lvl === 1 || $lvl === 2 || $lvl === 3) {
+        // Feedback-5 Poin 1: Staf (level 3), admin, & super admin diarahkan ke dashboard
         header("Location: " . route_url('dashboard'));
-    } elseif ($lvl === 3) {
-        header("Location: " . route_url('kasir'));
     } else {
         header("Location: " . route_url('home'));
     }
@@ -23,8 +22,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
-        if (empty($username) || empty($password)) {
+        // SEC-05: Bersihkan log percobaan lebih dari 15 menit
+        $timeWindow = time() - 900;
+        $conn->query("DELETE FROM login_attempts WHERE attempt_time < {$timeWindow}");
+
+        // Cek jumlah percobaan gagal dalam 15 menit
+        $stmtChk = $conn->prepare("SELECT COUNT(*) FROM login_attempts WHERE (ip_address = ? OR username = ?) AND attempt_time > ?");
+        $stmtChk->bind_param("ssi", $ip, $username, $timeWindow);
+        $stmtChk->execute();
+        $attempts = (int)($stmtChk->get_result()->fetch_row()[0] ?? 0);
+        $stmtChk->close();
+
+        if ($attempts >= 5) {
+            $error = "Akses login dikunci sementara karena terdeteksi 5 kali percobaan gagal berturut-turut. Silakan tunggu 15 menit sebelum mencoba kembali.";
+            if (function_exists('log_activity')) {
+                log_activity('LOGIN_BLOCKED', 'auth', "Percobaan login diblokir oleh rate limiting (IP: {$ip}, Username: {$username})");
+            }
+        } elseif (empty($username) || empty($password)) {
             $error = "Username dan password wajib diisi.";
         } else {
             // Gunakan Prepared Statement
@@ -53,20 +69,57 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['level']    = (int)$user['level'];
 
+                    // Bersihkan rekam kegagalan login untuk IP & akun ini
+                    $stmtDel = $conn->prepare("DELETE FROM login_attempts WHERE ip_address = ? OR username = ?");
+                    $stmtDel->bind_param("ss", $ip, $username);
+                    $stmtDel->execute();
+                    $stmtDel->close();
+
+                    if (function_exists('log_activity')) {
+                        log_activity('LOGIN_SUCCESS', 'auth', "Login berhasil: {$user['username']} (Level: {$user['level']})", $user['id_user']);
+                    }
+
                     $lvl = (int)$_SESSION['level'];
-                    if ($lvl === 1 || $lvl === 2) {
+                    // Feedback-5 Poin 1: Staf (level 3), Admin (2), dan Super Admin (1) diarahkan ke Dashboard
+                    if ($lvl === 1 || $lvl === 2 || $lvl === 3) {
                         header("Location: " . route_url('dashboard'));
-                    } elseif ($lvl === 3) {
-                        header("Location: " . route_url('kasir'));
                     } else {
                         header("Location: " . route_url('home'));
                     }
                     exit();
                 } else {
-                    $error = "Username atau password yang Anda masukkan salah.";
+                    // Catat kegagalan password
+                    $now = time();
+                    $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
+                    $stmtRec->bind_param("ssi", $ip, $username, $now);
+                    $stmtRec->execute();
+                    $stmtRec->close();
+
+                    $remaining = max(0, 5 - ($attempts + 1));
+                    $error = ($remaining > 0) 
+                        ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
+                        : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
+
+                    if (function_exists('log_activity')) {
+                        log_activity('LOGIN_FAILED', 'auth', "Login gagal untuk username: {$username} (Password salah)");
+                    }
                 }
             } else {
-                $error = "Username atau password yang Anda masukkan salah.";
+                // Catat kegagalan username tidak ditemukan
+                $now = time();
+                $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
+                $stmtRec->bind_param("ssi", $ip, $username, $now);
+                $stmtRec->execute();
+                $stmtRec->close();
+
+                $remaining = max(0, 5 - ($attempts + 1));
+                $error = ($remaining > 0)
+                    ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
+                    : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
+
+                if (function_exists('log_activity')) {
+                    log_activity('LOGIN_FAILED', 'auth', "Login gagal: username '{$username}' tidak terdaftar");
+                }
             }
             $stmt->close();
         }
@@ -82,6 +135,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="icon" type="image/x-icon" href="../../public/img/icon.png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../../public/css/modern-theme.css">
+    <script src="../../public/js/patemon-i18n.js"></script>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
     <style>
         body {
             min-height: 100vh;
@@ -259,8 +325,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
     </style>
-</head>
 <body>
+    <script>
+        if (localStorage.getItem('patemon_theme') === 'dark') {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
+
+<div style="position: fixed; top: 1.25rem; right: 1.25rem; z-index: 9999; display: flex; align-items: center; gap: 0.5rem;">
+    <button type="button" class="btn-lang-switcher" onclick="togglePatemonLanguage()" title="Beralih Bahasa / Switch Language">
+        <svg class="flag-icon-svg" viewBox="0 0 640 480" width="18" height="13" style="border-radius:2px; vertical-align:middle; display:inline-block; box-shadow:0 0 1px rgba(0,0,0,0.5); margin-right:4px;"><g fill-rule="evenodd" stroke-width="1pt"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg><strong>ID</strong>
+    </button>
+    <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+        <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+        <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+        <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+    </button>
+</div>
 
 <div class="auth-container">
     <!-- Left Visual Showcase -->
@@ -296,11 +377,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Right Login Form -->
     <div class="auth-form-section">
         <div class="auth-header">
-            <a href="<?= route_url('home') ?>">
-                <img src="../../public/img/logo_pemandian_transparant.png" alt="Logo Pemandian Patemon">
+            <a href="<?= route_url('home') ?>" class="d-inline-block">
+                <img src="../../public/img/logo_pemandian_transparant.png" alt="Logo Pemandian Patemon" class="logo-light">
+                <img src="../../public/img/logo_pemandian_white.svg" alt="Logo Pemandian Patemon" class="logo-dark">
             </a>
-            <h1>Selamat Datang</h1>
-            <p>Masukkan akun Anda untuk masuk ke sistem loket kasir.</p>
+            <h1 data-i18n="welcome">Selamat Datang</h1>
+            <p data-i18n="login_desc">Masukkan akun Anda untuk masuk ke sistem loket kasir.</p>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -314,7 +396,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 
             <div class="form-group-item">
-                <label class="form-label-modern" for="username">Username / Email</label>
+                <label class="form-label-modern" for="username" data-i18n="username_label">Username / Email</label>
                 <div class="input-icon-group">
                     <i class="fa-solid fa-user input-icon"></i>
                     <input 
@@ -323,6 +405,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         id="username" 
                         name="username" 
                         placeholder="Masukkan username atau email" 
+                        data-i18n-placeholder="username_placeholder"
                         required 
                         autocomplete="username"
                         value="<?= e($_POST['username'] ?? '') ?>"
@@ -332,8 +415,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div class="form-group-item">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <label class="form-label-modern" for="password" style="margin-bottom: 0;">Password</label>
-                    <a href="<?= route_url('forgot_password') ?>" style="font-size: 0.825rem; color: #0284c7; text-decoration: none; font-weight: 600;">Lupa Password?</a>
+                    <label class="form-label-modern" for="password" style="margin-bottom: 0;" data-i18n="password_label">Password</label>
+                    <a href="<?= route_url('forgot_password') ?>" style="font-size: 0.825rem; color: #0284c7; text-decoration: none; font-weight: 600;" data-i18n="forgot_password">Lupa Password?</a>
                 </div>
                 <div class="input-icon-group">
                     <i class="fa-solid fa-lock input-icon"></i>
@@ -343,6 +426,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         id="password" 
                         name="password" 
                         placeholder="Masukkan password Anda" 
+                        data-i18n-placeholder="password_placeholder"
                         required 
                         autocomplete="current-password"
                     >
@@ -353,15 +437,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <button type="submit" class="btn-brand" style="width: 100%; padding: 0.85rem; font-size: 1rem; margin-top: 0.5rem;">
-                <i class="fa-solid fa-right-to-bracket"></i> Masuk Sekarang
+                <i class="fa-solid fa-right-to-bracket"></i> <span data-i18n="btn_login">Masuk Sekarang</span>
             </button>
         </form>
 
         <div class="auth-footer">
-            Belum punya akun? <a href="<?= route_url('register') ?>">Daftar Akun Baru</a>
+            <span data-i18n="no_account">Belum punya akun?</span> <a href="<?= route_url('register') ?>" data-i18n="register_now">Daftar Akun Baru</a>
             <div style="margin-top: 0.75rem;">
                 <a href="<?= route_url('home') ?>" style="color: #64748b; font-weight: 500; font-size: 0.85rem;">
-                    <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
+                    <i class="fa-solid fa-arrow-left me-1"></i> <span data-i18n="back_to_home">Kembali ke Beranda</span>
                 </a>
             </div>
         </div>
@@ -378,6 +462,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
         eyeIcon.classList.toggle('fa-eye', !isPassword);
         eyeIcon.classList.toggle('fa-eye-slash', isPassword);
+    });
+
+    function togglePatemonTheme() {
+        const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyPatemonTheme(newTheme);
+        localStorage.setItem('patemon_theme', newTheme);
+    }
+    function applyPatemonTheme(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const label = document.getElementById('themeLabelText');
+        if (theme === 'dark') {
+            document.body.classList.add('theme-dark');
+            document.documentElement.classList.add('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            if (btn) btn.classList.add('active-dark');
+            if (label) label.textContent = 'Gelap';
+        } else {
+            document.body.classList.remove('theme-dark');
+            document.documentElement.classList.remove('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            if (btn) btn.classList.remove('active-dark');
+            if (label) label.textContent = 'Terang';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
     });
 </script>
 </body>

@@ -22,7 +22,7 @@ require '../../app/layouts/admin_header.php';
 <div class="page-content">
     <div class="modern-card">
         <div class="modern-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="fw-bold fs-6" style="color: #0f172a;">
+            <span class="fw-bold fs-6 text-dark">
                 <i class="fa-solid fa-tags text-primary me-2"></i> Daftar Kategori Tiket Masuk
             </span>
             <div class="d-flex align-items-center gap-2">
@@ -61,7 +61,7 @@ require '../../app/layouts/admin_header.php';
                                         <i class="fa-solid <?= e($iconClass) ?>"></i>
                                     </div>
                                     <div>
-                                        <span class="fw-bold d-block" style="color: #0f172a; font-size: 0.95rem;"><?= e($row["nama_tiket"]) ?></span>
+                                        <span class="fw-bold d-block text-dark" style="font-size: 0.95rem;"><?= e($row["nama_tiket"]) ?></span>
                                         <small class="text-muted"><i class="fa-solid <?= e($iconClass) ?> me-1"></i> Ikon: <code><?= e($iconClass) ?></code></small>
                                     </div>
                                 </div>
@@ -109,7 +109,21 @@ function confirmDelete(id, name) {
         cancelButtonText: "Batal"
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = "' . route_url('tiket_delete') . '?id=" + id + "&csrf=' . csrf_token() . '";
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "' . route_url('tiket_delete') . '";
+            const idInput = document.createElement("input");
+            idInput.type = "hidden";
+            idInput.name = "id";
+            idInput.value = id;
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = "' . csrf_token() . '";
+            form.appendChild(idInput);
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
         }
     });
 }

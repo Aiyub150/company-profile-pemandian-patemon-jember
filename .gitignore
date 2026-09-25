@@ -21,3 +21,6 @@ Feedback/
 # Logs & temp
 *.log
 scratch/
+
+# Vulnerabilities (internal use)
+Vulnerabilities/

@@ -156,7 +156,7 @@ require '../../app/layouts/admin_header.php';
     <div class="modern-card">
         <div class="modern-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
-                <span class="fw-bold fs-6" style="color: #0f172a;">
+                <span class="fw-bold fs-6 text-dark">
                     <i class="fa-solid fa-comments text-primary me-2"></i> Daftar Kritik & Saran Masuk
                 </span>
                 <span class="badge bg-soft-primary text-primary px-2.5 py-1 fw-bold rounded-pill">
@@ -256,7 +256,7 @@ require '../../app/layouts/admin_header.php';
 <div class="modal fade" id="modalDetailUlasan" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
         <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
-            <div class="modal-header border-bottom py-3 px-4" style="background: #f8fafc;">
+            <div class="modal-header border-bottom py-3 px-4">
                 <h5 class="modal-title fw-bold text-dark fs-6 d-flex align-items-center gap-2 mb-0">
                     <i class="fa-solid fa-comment-dots text-primary"></i> Isi Kritik & Saran Pengunjung
                 </h5>
@@ -277,7 +277,7 @@ require '../../app/layouts/admin_header.php';
                     <label class="form-label text-muted small fw-semibold mb-0">Teks Pesan / Masukan Lengkap:</label>
                     <span class="badge bg-light text-secondary border small" id="modalCharBadge">-</span>
                 </div>
-                <div class="p-3 rounded-3" style="background: #f1f5f9; border-left: 4px solid #0284c7; font-size: 0.95rem; color: #0f172a; line-height: 1.65; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto;" id="modalText">
+                <div class="p-3 rounded-3 ulasan-quote-box" id="modalText">
                 </div>
             </div>
             <div class="modal-footer border-top py-2.5 px-4 bg-light d-flex justify-content-between align-items-center">
@@ -323,7 +323,21 @@ function confirmDelete(id) {
         cancelButtonText: "Batal"
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = "' . route_url('ulasan_delete') . '?id=" + id + "&csrf=' . csrf_token() . '";
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "' . route_url('ulasan_delete') . '";
+            const idInput = document.createElement("input");
+            idInput.type = "hidden";
+            idInput.name = "id";
+            idInput.value = id;
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = "' . csrf_token() . '";
+            form.appendChild(idInput);
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
         }
     });
 }

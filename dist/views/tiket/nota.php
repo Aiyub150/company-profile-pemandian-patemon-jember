@@ -80,9 +80,22 @@ if (file_exists($logo_file)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
     <style>
         body {
-            background-color: #f1f5f9;
+            background-color: var(--bg-body, #f1f5f9);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -237,6 +250,7 @@ if (file_exists($logo_file)) {
             height: 20px;
             background-color: #f1f5f9;
             border-radius: 50%;
+            transition: background-color 0.2s ease;
         }
 
         .perforated-divider::before {
@@ -247,18 +261,97 @@ if (file_exists($logo_file)) {
             right: -10px;
         }
 
+        body.theme-dark .perforated-divider::before,
+        body.theme-dark .perforated-divider::after,
+        html.theme-dark .perforated-divider::before,
+        html.theme-dark .perforated-divider::after {
+            background-color: #0b1120 !important;
+        }
+
         .item-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.75rem;
             font-size: 0.925rem;
+            color: #0f172a !important;
         }
 
-        /* Typography & Utility Fallbacks */
-        .text-muted { color: #64748b !important; }
-        .text-dark { color: #0f172a !important; }
-        .text-primary { color: #0284c7 !important; }
+        .item-row span {
+            color: #1e293b !important;
+        }
+
+        .item-row span.text-muted {
+            color: #475569 !important;
+        }
+
+        .item-row strong {
+            color: #0f172a !important;
+        }
+
+        /* Strict High-Contrast Light Surface Overrides for Ticket */
+        .ticket-voucher,
+        body.theme-dark .ticket-voucher,
+        html.theme-dark .ticket-voucher {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+
+        .ticket-voucher .voucher-body,
+        body.theme-dark .ticket-voucher .voucher-body,
+        html.theme-dark .ticket-voucher .voucher-body {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+        }
+
+        .ticket-voucher div,
+        .ticket-voucher span,
+        .ticket-voucher p,
+        .ticket-voucher strong,
+        .ticket-voucher b,
+        body.theme-dark .ticket-voucher div,
+        body.theme-dark .ticket-voucher span,
+        body.theme-dark .ticket-voucher p,
+        body.theme-dark .ticket-voucher strong,
+        body.theme-dark .ticket-voucher b,
+        html.theme-dark .ticket-voucher div,
+        html.theme-dark .ticket-voucher span,
+        html.theme-dark .ticket-voucher p,
+        html.theme-dark .ticket-voucher strong,
+        html.theme-dark .ticket-voucher b {
+            color: #0f172a;
+        }
+
+        .ticket-voucher .text-muted,
+        body.theme-dark .ticket-voucher .text-muted,
+        html.theme-dark .ticket-voucher .text-muted {
+            color: #475569 !important;
+        }
+
+        .ticket-voucher .text-dark,
+        body.theme-dark .ticket-voucher .text-dark,
+        html.theme-dark .ticket-voucher .text-dark,
+        .ticket-voucher strong,
+        body.theme-dark .ticket-voucher strong,
+        html.theme-dark .ticket-voucher strong {
+            color: #0f172a !important;
+        }
+
+        .ticket-voucher .text-primary,
+        body.theme-dark .ticket-voucher .text-primary,
+        html.theme-dark .ticket-voucher .text-primary {
+            color: #0284c7 !important;
+        }
+
+        .ticket-voucher .section-title,
+        body.theme-dark .ticket-voucher .section-title,
+        html.theme-dark .ticket-voucher .section-title {
+            color: #475569 !important;
+        }
+
         .fw-bold { font-weight: 700 !important; }
         .fs-4 { font-size: 1.35rem !important; }
         .fs-5 { font-size: 1.15rem !important; }
@@ -277,9 +370,9 @@ if (file_exists($logo_file)) {
             padding: 0.35rem 0.65rem;
             font-size: 0.75rem;
             font-weight: 700;
-            background: #f8fafc;
-            color: #1e293b;
-            border: 1px solid #cbd5e1;
+            background: #f1f5f9 !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
             border-radius: 6px;
             letter-spacing: 0.02em;
         }
@@ -297,15 +390,15 @@ if (file_exists($logo_file)) {
         }
 
         .badge-modern-success {
-            background-color: #dcfce7;
-            color: #15803d;
-            border: 1px solid #bbf7d0;
+            background-color: #dcfce7 !important;
+            color: #15803d !important;
+            border: 1px solid #86efac !important;
         }
 
         .badge-modern-warning {
-            background-color: #fef3c7;
-            color: #b45309;
-            border: 1px solid #fde68a;
+            background-color: #fef3c7 !important;
+            color: #b45309 !important;
+            border: 1px solid #fde68a !important;
         }
 
         /* Action Buttons: Desain Selaras & Modern */
@@ -322,6 +415,15 @@ if (file_exists($logo_file)) {
             display: flex;
             gap: 0.75rem;
             width: 100%;
+        }
+
+        .action-controls-row {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            margin-bottom: 0.15rem;
         }
 
         .btn-nota-action {
@@ -394,27 +496,69 @@ if (file_exists($logo_file)) {
             box-shadow: 0 8px 22px rgba(71, 85, 105, 0.38);
         }
 
+        body.theme-dark .btn-nota-back,
+        html.theme-dark .btn-nota-back {
+            background: linear-gradient(135deg, #334155, #475569) !important;
+            color: #ffffff !important;
+        }
+
         @media print {
-            body {
+            body, body.theme-dark, html.theme-dark body {
                 background: #ffffff !important;
+                background-color: #ffffff !important;
+                color: #000000 !important;
                 padding: 0 !important;
                 margin: 0 !important;
             }
             .action-bar, .no-print {
                 display: none !important;
             }
-            .ticket-voucher {
+            .ticket-voucher,
+            body.theme-dark .ticket-voucher,
+            html.theme-dark .ticket-voucher {
                 box-shadow: none !important;
-                border: 1px solid #ccc !important;
+                border: 1px solid #cbd5e1 !important;
                 max-width: 100% !important;
                 width: 100% !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                color: #000000 !important;
             }
-            .voucher-header {
+            .ticket-voucher div,
+            .ticket-voucher span,
+            .ticket-voucher p,
+            .ticket-voucher strong,
+            .ticket-voucher b,
+            .ticket-voucher td,
+            .ticket-voucher th,
+            .ticket-voucher * {
+                color: #000000 !important;
+            }
+            .ticket-voucher .text-muted,
+            .ticket-voucher .barcode-label,
+            .ticket-voucher .barcode-note,
+            .ticket-voucher .section-title {
+                color: #334155 !important;
+            }
+            .ticket-voucher .text-primary {
+                color: #0284c7 !important;
+            }
+            .voucher-header,
+            body.theme-dark .voucher-header,
+            html.theme-dark .voucher-header {
                 background: #0284c7 !important;
+                color: #ffffff !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+            .voucher-header h1, .voucher-header p {
+                color: #ffffff !important;
+            }
+            .ticket-voucher .perforated-divider::before, 
+            .ticket-voucher .perforated-divider::after {
+                background-color: #ffffff !important;
             }
         }
     </style>
@@ -463,7 +607,7 @@ if (file_exists($logo_file)) {
         <div class="perforated-divider"></div>
 
         <!-- Rincian Tiket Dinamis -->
-        <div style="font-size: 0.775rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">
+        <div class="section-title" style="font-size: 0.775rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">
             RINCIAN TIKET MASUK (TOTAL <?= $total_tiket ?> TIKET)
         </div>
 
@@ -513,6 +657,17 @@ if (file_exists($logo_file)) {
 
 <!-- Floating Action Buttons -->
 <div class="action-bar no-print">
+    <!-- Utility Controls: Language & Theme -->
+    <div class="action-controls-row">
+        <button type="button" class="btn-lang-switcher" onclick="togglePatemonLanguage()" title="Beralih Bahasa / Switch Language">
+            <svg class="flag-icon-svg" viewBox="0 0 640 480" width="18" height="13" style="border-radius:2px; vertical-align:middle; display:inline-block; box-shadow:0 0 1px rgba(0,0,0,0.5); margin-right:4px;"><g fill-rule="evenodd" stroke-width="1pt"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg><strong>ID</strong>
+        </button>
+        <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+            <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+            <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+            <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+        </button>
+    </div>
     <button type="button" id="btnDownloadNota" onclick="downloadNotaImage()" class="btn-nota-action btn-nota-download" title="Unduh nota dalam format gambar PNG">
         <i class="fa-solid fa-download"></i> Download Gambar Nota
     </button>
@@ -630,8 +785,43 @@ function fallbackDownload(canvas, fileName, btn, originalText) {
         btn.innerHTML = originalText;
     }
 }
+// Theme Controller
+function togglePatemonTheme() {
+    const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+    const newTheme = isDark ? 'light' : 'dark';
+    applyPatemonTheme(newTheme);
+    localStorage.setItem('patemon_theme', newTheme);
+}
+
+function applyPatemonTheme(theme) {
+    const btn = document.getElementById('themeToggleBtn');
+    const label = document.getElementById('themeLabelText');
+    if (theme === 'dark') {
+        document.body.classList.add('theme-dark');
+        document.documentElement.classList.add('theme-dark');
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        if (btn) {
+            btn.classList.add('active-dark');
+            btn.setAttribute('title', 'Beralih ke Mode Terang');
+        }
+        if (label) label.textContent = 'Gelap';
+    } else {
+        document.body.classList.remove('theme-dark');
+        document.documentElement.classList.remove('theme-dark');
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+        if (btn) {
+            btn.classList.remove('active-dark');
+            btn.setAttribute('title', 'Beralih ke Mode Gelap');
+        }
+        if (label) label.textContent = 'Terang';
+    }
+}
+
 // Render QR Code untuk scan cepat di kamera loket / smartphone
 document.addEventListener("DOMContentLoaded", function() {
+    const currentTheme = localStorage.getItem('patemon_theme') || 'light';
+    applyPatemonTheme(currentTheme);
+
     const qrEl = document.getElementById("qrcode");
     if (qrEl && typeof QRCode !== "undefined") {
         new QRCode(qrEl, {

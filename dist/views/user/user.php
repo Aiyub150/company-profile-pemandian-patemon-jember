@@ -38,12 +38,38 @@ if (!empty($search)) {
 }
 
 require '../../app/layouts/admin_header.php';
+
+$err = $_GET['err'] ?? '';
+$msg = $_GET['msg'] ?? '';
 ?>
 
 <div class="page-content">
+    <?php if ($err === 'has_transactions'): ?>
+        <div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+            <i class="fa-solid fa-triangle-exclamation fs-5 text-warning"></i>
+            <div>
+                <strong>Penghapusan Dibatalkan:</strong> Pengguna ini memiliki riwayat transaksi penjualan/pemesanan tiket. Menghapus akun ini dilarang guna menjaga integritas rekonsiliasi laporan kas dan retribusi daerah.
+            </div>
+        </div>
+    <?php elseif ($err === 'self_delete'): ?>
+        <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
+            <i class="fa-solid fa-circle-exclamation fs-5 text-danger"></i>
+            <div>
+                <strong>Aksi Ditolak:</strong> Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif digunakan dalam sesi ini.
+            </div>
+        </div>
+    <?php elseif ($msg === 'deleted'): ?>
+        <div class="alert alert-success d-flex align-items-center gap-2 mb-4">
+            <i class="fa-solid fa-circle-check fs-5 text-success"></i>
+            <div>
+                Pengguna berhasil dihapus dari sistem.
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="modern-card">
         <div class="modern-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="fw-bold fs-6" style="color: #0f172a;">
+            <span class="fw-bold fs-6 text-dark">
                 <i class="fa-solid fa-users-gear text-primary me-2"></i> Daftar Akun Pengguna
             </span>
             <div class="d-flex align-items-center gap-2">
@@ -93,14 +119,14 @@ require '../../app/layouts/admin_header.php';
                                         </div>
                                     <?php endif; ?>
                                     <div>
-                                        <div class="fw-bold" style="color: #0f172a;"><?= e($row["nama"] ?: '-') ?></div>
+                                        <div class="fw-bold text-dark"><?= e($row["nama"] ?: '-') ?></div>
                                         <small class="text-muted font-monospace">#USR-<?= sprintf('%03d', (int)$row["id_user"]) ?></small>
                                     </div>
                                 </div>
                             </td>
-                            <td><code style="background: #f0f9ff; color: #0284c7; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 600;"><?= e($row["username"]) ?></code></td>
-                            <td style="color: #334155;"><?= e($row["email"] ?: '-') ?></td>
-                            <td style="color: #334155;"><?= e($row["no_telepon"] ?: '-') ?></td>
+                            <td><code><?= e($row["username"]) ?></code></td>
+                            <td><?= e($row["email"] ?: '-') ?></td>
+                            <td><?= e($row["no_telepon"] ?: '-') ?></td>
                             <td>
                                 <?php 
                                 if ($lvl === 1) {
@@ -152,7 +178,7 @@ $extra_js = '
 function confirmDelete(id, username) {
     Swal.fire({
         title: "Hapus Pengguna @" + username + "?",
-        text: "Akun ini akan dinonaktifkan dan dihapus dari sistem.",
+        text: "Akun ini akan dinonaktifkan dan dihapus dari sistem secara permanen.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#ef4444",
@@ -161,7 +187,21 @@ function confirmDelete(id, username) {
         cancelButtonText: "Batal"
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = "' . route_url('users_delete') . '?id=" + id + "&csrf=' . csrf_token() . '";
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "' . route_url('users_delete') . '";
+            const idInput = document.createElement("input");
+            idInput.type = "hidden";
+            idInput.name = "id";
+            idInput.value = id;
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = "' . csrf_token() . '";
+            form.appendChild(idInput);
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
         }
     });
 }

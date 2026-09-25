@@ -37,7 +37,7 @@ $nama_bulan_arr = [
 ];
 
 // Susun Query Berdasarkan Filter
-$where = ["t.status = 'done'"];
+$where = ["t.status = 'done'", "t.deleted_at IS NULL"];
 $params = [];
 $types = "";
 

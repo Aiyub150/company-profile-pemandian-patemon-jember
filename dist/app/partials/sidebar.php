@@ -43,7 +43,13 @@ if (!function_exists('public_url')) {
     }
 }
 ?>
-<div id="sidebar" class="active">
+<div id="sidebar">
+    <script>
+        // Set sidebar active only on desktop screen (width >= 1200px) on initial render (Feedback-5 Poin 6)
+        if (window.innerWidth >= 1200) {
+            document.getElementById('sidebar').classList.add('active');
+        }
+    </script>
     <div class="sidebar-wrapper active" style="box-shadow: 4px 0 20px rgba(0,0,0,0.03); display: flex; flex-direction: column;">
         <!-- Brand Header -->
         <div class="sidebar-header position-relative" style="padding: 1.5rem 1.5rem 1rem;">
@@ -146,23 +152,57 @@ if (!function_exists('public_url')) {
                     Pengaturan & Standar
                 </li>
 
-                <?php if ($user_level === 1): ?>
-                <!-- Manajemen User Khusus Super Admin (Level 1) -->
-                <li class="sidebar-item <?= ($current_page === 'user') ? 'active' : '' ?>">
-                    <a href="<?= route_url('users') ?>" class="sidebar-link" style="border-radius: 10px;">
-                        <i class="fa-solid fa-users-gear"></i>
-                        <span>Manajemen User</span>
-                    </a>
-                </li>
-                <?php endif; ?>
-
                 <?php if ($is_admin_or_super): ?>
-                <!-- Kelola Galeri: Admin & Super Admin -->
-                <li class="sidebar-item <?= ($current_page === 'gallery') ? 'active' : '' ?>">
-                    <a href="<?= route_url('gallery') ?>" class="sidebar-link" style="border-radius: 10px;">
-                        <i class="fa-solid fa-images"></i>
-                        <span>Kelola Galeri</span>
+                <!-- Administrator Settings Dropdown (Feedback-5 Poin 4) -->
+                <?php 
+                $is_admin_settings_active = in_array($current_page, ['user', 'gallery', 'settings_toxic', 'settings_server_log', 'settings_history_log'], true);
+                ?>
+                <li class="sidebar-item has-sub <?= $is_admin_settings_active ? 'active open' : '' ?>">
+                    <a href="javascript:void(0)" class="sidebar-link sidebar-dropdown-toggle" style="border-radius: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-sliders"></i>
+                            <span>Administrator Settings</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down submenu-chevron" style="font-size: 0.725rem; transition: transform 0.25s ease;"></i>
                     </a>
+                    <ul class="submenu" style="list-style: none; padding-left: 1.5rem; margin-top: 0.35rem; display: <?= $is_admin_settings_active ? 'block' : 'none' ?>;">
+                        <?php if ($user_level === 1): ?>
+                        <li class="submenu-item <?= ($current_page === 'user') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('users') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-users-gear" style="font-size: 0.8rem;"></i>
+                                <span>Manajemen User</span>
+                            </a>
+                        </li>
+                        <?php endif; ?>
+
+                        <li class="submenu-item <?= ($current_page === 'gallery') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('gallery') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-images" style="font-size: 0.8rem;"></i>
+                                <span>Kelola Galeri</span>
+                            </a>
+                        </li>
+
+                        <?php if ($user_level === 1): ?>
+                        <li class="submenu-item <?= ($current_page === 'settings_toxic') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('settings_toxic') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-shield-halved" style="font-size: 0.8rem; color: #ef4444;"></i>
+                                <span>Filter Kata Kasar</span>
+                            </a>
+                        </li>
+                        <li class="submenu-item <?= ($current_page === 'settings_server_log') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('settings_server_log') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-server" style="font-size: 0.8rem; color: #0284c7;"></i>
+                                <span>Log Server</span>
+                            </a>
+                        </li>
+                        <li class="submenu-item <?= ($current_page === 'settings_history_log') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('settings_history_log') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-clock-rotate-left" style="font-size: 0.8rem; color: #8b5cf6;"></i>
+                                <span>Log History & Sampah</span>
+                            </a>
+                        </li>
+                        <?php endif; ?>
+                    </ul>
                 </li>
                 <?php endif; ?>
 
@@ -204,13 +244,7 @@ if (!function_exists('public_url')) {
                         <div class="sidebar-user-name" style="font-weight: 700; font-size: 0.875rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 120px;" title="<?= e($user_name) ?>">
                             <?= e($user_name) ?>
                         </div>
-                        <?php
-                        $badge_bg = '#f1f5f9; color: #475569;';
-                        if ($user_level === 1) $badge_bg = '#ede9fe; color: #6d28d9;';
-                        elseif ($user_level === 2) $badge_bg = '#e0f2fe; color: #0284c7;';
-                        elseif ($user_level === 3) $badge_bg = '#dcfce7; color: #15803d;';
-                        ?>
-                        <span class="badge" style="font-size: 0.675rem; font-weight: 600; padding: 0.2rem 0.5rem; background: <?= $badge_bg ?>">
+                        <span class="sidebar-role-badge role-lvl-<?= $user_level ?>">
                             <?= e($role_name) ?>
                         </span>
                     </div>
@@ -227,11 +261,15 @@ if (!function_exists('public_url')) {
 <script>
 (function() {
     function initSidebar() {
+        if (window.__sidebarInitialized) return;
+        window.__sidebarInitialized = true;
+
         // 1. Dropdown Accordion Toggle
         const dropdownToggles = document.querySelectorAll('.sidebar-dropdown-toggle');
         dropdownToggles.forEach(toggle => {
             toggle.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 const parent = this.closest('.sidebar-item.has-sub');
                 if (!parent) return;
                 
@@ -266,36 +304,28 @@ if (!function_exists('public_url')) {
         function toggleSidebar() {
             if (!sidebar) return;
             sidebar.classList.toggle('active');
-            let backdrop = document.querySelector('.sidebar-backdrop');
-            if (sidebar.classList.contains('active') && window.innerWidth < 1200) {
-                if (!backdrop) {
-                    backdrop = document.createElement('div');
-                    backdrop.className = 'sidebar-backdrop';
-                    backdrop.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.45);backdrop-filter:blur(2px);z-index:998;';
-                    backdrop.addEventListener('click', closeSidebar);
-                    document.body.appendChild(backdrop);
-                }
-            } else {
-                if (backdrop) backdrop.remove();
-            }
         }
 
         function closeSidebar() {
             if (!sidebar) return;
             sidebar.classList.remove('active');
-            const backdrop = document.querySelector('.sidebar-backdrop');
-            if (backdrop) backdrop.remove();
         }
 
-        burgerBtns.forEach(btn => btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            toggleSidebar();
-        }));
+        burgerBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            });
+        });
 
-        hideBtns.forEach(btn => btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            closeSidebar();
-        }));
+        hideBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSidebar();
+            });
+        });
     }
 
     if (document.readyState === 'loading') {

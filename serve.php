@@ -104,7 +104,7 @@ if (is_array($hostIps)) {
 // 5. Display Banner
 echo "\n";
 echo "====================================================================\n";
-echo "    SISTEM KASIR & PORTOFOLIO PEMANDIAN PATEMON                    \n";
+echo "    COMPANY PROFILE & APLIKASI KASIR PEMANDIAN PATEMON              \n";
 echo "====================================================================\n";
 echo " [Database] : " . $dbStatus . "\n";
 echo "--------------------------------------------------------------------\n";
@@ -117,11 +117,7 @@ if ($host === '0.0.0.0' && !empty($lanIps)) {
 } elseif ($host !== '127.0.0.1' && $host !== '0.0.0.0') {
     echo " - Network  : http://{$host}:{$port}/\n";
 }
-echo "--------------------------------------------------------------------\n";
-echo " [Info Akun Demo]:\n";
-echo " - Admin Loket : username = admin  | password = admin123\n";
-echo " - Staf Kasir  : username = staff  | password = staff123\n";
-echo "--------------------------------------------------------------------\n";
+echo " [Keamanan] : Kredensial akun dilindungi (SEC-02). Gunakan akun terdaftar untuk masuk.\n";
 echo " Tekan Ctrl + C di terminal ini untuk mematikan server.\n";
 echo "====================================================================\n\n";
 

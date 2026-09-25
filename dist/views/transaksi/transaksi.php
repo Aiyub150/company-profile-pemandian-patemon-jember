@@ -37,11 +37,12 @@ if (!empty($search)) {
         SELECT transaksi.*, users.nama 
         FROM transaksi 
         INNER JOIN users ON transaksi.id_user = users.id_user 
-        WHERE transaksi.id_transaksi = ? 
+        WHERE transaksi.deleted_at IS NULL 
+          AND (transaksi.id_transaksi = ? 
            OR users.nama LIKE ? 
            OR transaksi.metode_pembayaran LIKE ? 
            OR transaksi.status LIKE ?
-           OR transaksi.tgl_pemesanan LIKE ?
+           OR transaksi.tgl_pemesanan LIKE ?)
         ORDER BY tgl_pemesanan DESC, id_transaksi DESC
     ");
     $stmt->bind_param("issss", $id_search, $search_like, $search_like, $search_like, $search_like);
@@ -49,7 +50,7 @@ if (!empty($search)) {
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    $sql = "SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
+    $sql = "SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user WHERE transaksi.deleted_at IS NULL ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
     $result = $conn->query($sql);
 }
 
@@ -57,7 +58,7 @@ if (!empty($search)) {
 $total_count = 0;
 $total_omzet = 0;
 $total_done  = 0;
-$recap_res = $conn->query("SELECT COUNT(*) as cnt, SUM(total_harga) as omzet, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_cnt FROM transaksi");
+$recap_res = $conn->query("SELECT COUNT(*) as cnt, SUM(total_harga) as omzet, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_cnt FROM transaksi WHERE deleted_at IS NULL");
 if ($recap_res && $recap = $recap_res->fetch_assoc()) {
     $total_count = (int)$recap['cnt'];
     $total_omzet = (float)($recap['omzet'] ?? 0);
@@ -179,7 +180,7 @@ require '../../app/layouts/admin_header.php';
                             <td class="fw-semibold text-dark"><?= e($row["nama"]) ?></td>
                             <td class="text-muted small"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>
                             <td>
-                                <span class="badge" style="background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.75rem;">
+                                <span class="badge badge-payment-method" style="font-weight: 600; font-size: 0.75rem;">
                                     <?= strtoupper(e($row["metode_pembayaran"] ?? 'TUNAI')) ?>
                                 </span>
                             </td>
@@ -244,8 +245,8 @@ $extra_js = '
 <script>
 function confirmDelete(id, kode) {
     Swal.fire({
-        title: "Hapus Transaksi " + kode + "?",
-        text: "Data penjualan tiket ini akan dihapus secara permanen.",
+        title: "Pindahkan Transaksi " + kode + " ke Tempat Sampah?",
+        text: "Data akan disembunyikan dan diarsipkan ke riwayat audit (Soft Delete).",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#ef4444",
@@ -254,7 +255,21 @@ function confirmDelete(id, kode) {
         cancelButtonText: "Batal"
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = "' . route_url('transaksi_delete') . '?id=" + id + "&csrf=' . csrf_token() . '";
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "' . route_url('transaksi_delete') . '";
+            const idInput = document.createElement("input");
+            idInput.type = "hidden";
+            idInput.name = "id";
+            idInput.value = id;
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = "' . csrf_token() . '";
+            form.appendChild(idInput);
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
         }
     });
 }

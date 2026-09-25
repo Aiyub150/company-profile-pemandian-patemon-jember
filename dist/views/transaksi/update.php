@@ -1,14 +1,14 @@
 <?php
 require '../../app/config.php';
-check_auth([1, 2]);
+check_auth([1, 2, 3]);
 
-$active_menu = ($_SESSION['level'] === 2) ? 'staf' : 'transaksi';
+$active_menu = in_array((int)$_SESSION['level'], [2, 3], true) ? 'kasir' : 'transaksi';
 $base_view = '..';
 
 $id_transaksi = (int)($_GET["id"] ?? $_POST['id_transaksi'] ?? 0);
 
 if ($id_transaksi <= 0) {
-    header("Location: " . (($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi')));
+    header("Location: " . (in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi')));
     exit();
 }
 
@@ -65,7 +65,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $ins_d->close();
 
             $conn->commit();
-            $redirect = ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi');
+            $redirect = in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi');
             header("Location: " . $redirect);
             exit();
         } catch (Exception $e) {
@@ -83,7 +83,7 @@ $data = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$data) {
-    header("Location: " . (($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi')));
+    header("Location: " . (in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi')));
     exit();
 }
 
@@ -115,21 +115,44 @@ $stmt_a->close();
     <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
-    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>?v=<?= file_exists(__DIR__ . '/../../../public/css/modern-theme.css') ? filemtime(__DIR__ . '/../../../public/css/modern-theme.css') : time() ?>">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
 </head>
 
 <body>
+    <script>
+        if (localStorage.getItem('patemon_theme') === 'dark') {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
     <div id="app">
         <?php include '../../app/partials/sidebar.php'; ?>
 
         <div id="main">
             <!-- Header Topbar -->
-            <header class="mb-4 d-flex justify-content-between align-items-center">
-                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+            <header class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom">
+                <a href="#" class="burger-btn d-block d-xl-none">
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <a href="<?= ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
+                    <!-- Tombol Switcher Tema -->
+                    <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+                        <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+                        <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+                        <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+                    </button>
+                    <a href="<?= in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
                         <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Riwayat
                     </a>
                 </div>
@@ -269,7 +292,7 @@ $stmt_a->close();
                                 <strong id="sumSubAnak" class="text-dark">Rp 0</strong>
                             </div>
 
-                            <div class="p-3 rounded-3 mb-4" style="background: #f8fafc; border: 1.5px dashed #cbd5e1;">
+                            <div class="pos-total-box p-3 rounded-3 mb-4">
                                 <div class="text-muted small fw-bold text-uppercase mb-1">Total Tagihan:</div>
                                 <div class="fw-extrabold text-primary" id="totalHargaTxt" style="font-size: 1.85rem; line-height: 1;">Rp 0</div>
                             </div>
@@ -334,7 +357,41 @@ $stmt_a->close();
 
     document.addEventListener("DOMContentLoaded", function() {
         recalculate();
+        const currentTheme = localStorage.getItem('patemon_theme') || 'light';
+        applyPatemonTheme(currentTheme);
     });
+
+    // Theme Switcher Controller
+    function togglePatemonTheme() {
+        const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyPatemonTheme(newTheme);
+        localStorage.setItem('patemon_theme', newTheme);
+    }
+
+    function applyPatemonTheme(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const label = document.getElementById('themeLabelText');
+        if (theme === 'dark') {
+            document.body.classList.add('theme-dark');
+            document.documentElement.classList.add('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            if (btn) {
+                btn.classList.add('active-dark');
+                btn.setAttribute('title', 'Beralih ke Mode Terang');
+            }
+            if (label) label.textContent = 'Gelap';
+        } else {
+            document.body.classList.remove('theme-dark');
+            document.documentElement.classList.remove('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            if (btn) {
+                btn.classList.remove('active-dark');
+                btn.setAttribute('title', 'Beralih ke Mode Gelap');
+            }
+            if (label) label.textContent = 'Terang';
+        }
+    }
     </script>
 </body>
 </html>

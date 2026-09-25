@@ -45,7 +45,6 @@ $notif_label = $unread_ulasan_count > 99 ? '99+' : (string)$unread_ulasan_count;
     <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
-    <link rel="stylesheet" href="<?= public_url('assets/css/main/app-dark.css') ?>">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>?v=<?= file_exists(__DIR__ . '/../../../public/css/modern-theme.css') ? filemtime(__DIR__ . '/../../../public/css/modern-theme.css') : time() ?>">
     <script>
         // Inisialisasi tema sebelum DOM selesai dimuat untuk menghindari flickering (FOUC)
@@ -61,6 +60,8 @@ $notif_label = $unread_ulasan_count > 99 ? '99+' : (string)$unread_ulasan_count;
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="<?= public_url('js/dynamic-time.js') ?>"></script>
+    <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
     <?php if (isset($extra_css)) echo $extra_css; ?>
 </head>
 <body>
@@ -72,15 +73,21 @@ $notif_label = $unread_ulasan_count > 99 ? '99+' : (string)$unread_ulasan_count;
     </script>
     <div id="app">
         <?php include __DIR__ . '/../partials/sidebar.php'; ?>
+        <div class="sidebar-backdrop" onclick="document.getElementById('sidebar')?.classList.remove('active')"></div>
 
         <div id="main">
             <!-- Universal Topbar -->
             <header class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom">
-                <a href="#" class="burger-btn d-block d-xl-none p-2">
+                <button type="button" class="burger-btn d-inline-flex d-xl-none p-2 border-0 bg-transparent text-secondary align-items-center justify-content-center" id="mobileBurgerBtn" title="Menu Sidebar" aria-label="Buka Menu" style="cursor: pointer; z-index: 1001;">
                     <i class="fa-solid fa-bars fs-3"></i>
-                </a>
+                </button>
 
-                <div class="d-flex align-items-center gap-2 ms-auto">
+                <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                    <!-- Tombol Switcher Bahasa (ID / EN) -->
+                    <button type="button" class="btn-lang-switcher" onclick="togglePatemonLanguage()" title="Beralih Bahasa / Switch Language">
+                        <svg class="flag-icon-svg" viewBox="0 0 640 480" width="18" height="13" style="border-radius:2px; vertical-align:middle; display:inline-block; box-shadow:0 0 1px rgba(0,0,0,0.5); margin-right:4px;"><g fill-rule="evenodd" stroke-width="1pt"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg><strong>ID</strong>
+                    </button>
+
                     <!-- Tombol Switcher Mode Gelap / Terang -->
                     <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
                         <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>

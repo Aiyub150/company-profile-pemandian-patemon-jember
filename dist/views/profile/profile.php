@@ -197,7 +197,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                 <?php endif; ?>
             </div>
             
-            <h4 class="fw-bold mb-1" style="color: #0f172a;"><?= e($curr_user['nama'] ?: $curr_user['username']) ?></h4>
+            <h4 class="fw-bold mb-1 text-dark"><?= e($curr_user['nama'] ?: $curr_user['username']) ?></h4>
             <div class="mb-3">
                 <?php
                 $badge_class = 'badge-modern-primary';
@@ -252,7 +252,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
         <!-- Kartu 1: Edit Informasi Profil & Foto -->
         <div class="modern-card mb-4">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-user-pen text-primary me-2"></i> Perbarui Data Pribadi & Foto Profil</span>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-user-pen text-primary me-2"></i> Perbarui Data Pribadi & Foto Profil</span>
             </div>
             <div class="p-4">
                 <form method="POST" action="" enctype="multipart/form-data">
@@ -338,7 +338,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
         <!-- Kartu 2: Keamanan Sandi Akun -->
         <div class="modern-card">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-key text-warning me-2"></i> Perbarui Kata Sandi</span>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-key text-warning me-2"></i> Perbarui Kata Sandi</span>
             </div>
             <div class="p-4">
                 <form method="POST" action="">

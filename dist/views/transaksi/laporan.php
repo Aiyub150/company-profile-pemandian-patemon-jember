@@ -46,7 +46,7 @@ if ($user_level !== 3) {
 }
 
 // Susun Kondisi SQL Berdasarkan Filter Periode
-$where_clauses = ["t.status = 'done'"];
+$where_clauses = ["t.status = 'done'", "t.deleted_at IS NULL"];
 $params = [];
 $types = "";
 
@@ -170,10 +170,6 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="modern-card p-4 mb-4">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
             <div>
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <span class="badge badge-modern-primary text-uppercase" style="font-size: 0.725rem; letter-spacing: 0.05em;">Modul Laporan Terpadu</span>
-                    <span class="badge bg-success-subtle text-success small"><i class="fa-solid fa-circle-check me-1"></i> Data Terverifikasi Lunas</span>
-                </div>
                 <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.02em;"><?= e($page_heading) ?></h3>
                 <p class="text-muted small mb-0">
                     <i class="fa-regular fa-calendar-check text-primary me-1"></i> Periode Aktif: <strong class="text-dark"><?= e($periode_label) ?></strong>
@@ -333,7 +329,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     <!-- Rekapitulasi Per Kategori Tiket -->
     <div class="modern-card mb-4">
         <div class="modern-card-header d-flex justify-content-between align-items-center">
-            <span class="fw-bold" style="color: #0f172a;">
+            <span class="fw-bold text-dark">
                 <i class="fa-solid fa-layer-group text-primary me-2"></i> Rekapitulasi Penjualan Per Kategori Tiket
             </span>
             <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.75rem;">
@@ -369,7 +365,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                                 <td class="text-center text-muted fw-semibold"><?= $no++ ?></td>
                                 <td>
                                     <div class="d-flex align-items-center gap-2">
-                                        <div style="width: 34px; height: 34px; border-radius: 8px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">
+                                        <div class="category-icon-box" style="width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">
                                             <i class="fa-solid <?= e($cat_icon) ?>"></i>
                                         </div>
                                         <div class="fw-bold text-dark"><?= e($rk['jenis_tiket']) ?></div>
@@ -390,7 +386,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                        <tr class="table-light fw-bold" style="border-top: 2px solid #cbd5e1;">
+                        <tr class="table-light fw-bold" style="border-top: 2px solid var(--border-color, #cbd5e1);">
                             <td colspan="2" class="text-center text-uppercase">Total Penerimaan</td>
                             <td class="text-center text-primary fs-6"><?= number_format($total_lembar_tiket, 0, ',', '.') ?> lembar</td>
                             <td class="text-end text-success fs-5"><?= format_rupiah($total_omzet) ?></td>
@@ -405,7 +401,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     <!-- Log Riwayat Transaksi Rinci -->
     <div class="modern-card">
         <div class="modern-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="fw-bold" style="color: #0f172a;">
+            <span class="fw-bold text-dark">
                 <i class="fa-solid fa-list-check text-primary me-2"></i> Log Transaksi Lengkap
             </span>
             <div class="input-icon-group" style="width: 250px;">
@@ -453,14 +449,14 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                                 </td>
                                 <td class="text-muted small"><?= date('d M Y', strtotime($t['tgl_pemesanan'])) ?></td>
                                 <td class="fw-semibold">
-                                    <span class="badge" style="background: #f1f5f9; color: #334155;">
+                                    <span class="badge badge-payment-method">
                                         <i class="fa-solid fa-user-tag me-1 text-primary"></i> <?= e($kasir_nama) ?>
                                     </span>
                                 </td>
                                 <td class="fw-medium text-dark"><?= e($pemesan_nama) ?></td>
                                 <td class="small text-muted" style="max-width: 220px;"><?= e($items_str) ?></td>
                                 <td>
-                                    <span class="badge" style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; font-weight: 600;">
+                                    <span class="badge badge-payment-method" style="font-weight: 600;">
                                         <?= strtoupper(e($t['metode_pembayaran'] ?? 'TUNAI')) ?>
                                     </span>
                                 </td>

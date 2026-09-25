@@ -15,23 +15,46 @@ mysqli_report(MYSQLI_REPORT_OFF);
 $conn = @mysqli_connect($host, $username, $password, $database);
 
 if (!$conn) {
-    // Jika koneksi gagal, jangan tampilkan kredensial ke publik
+    // SEC-07: Log internal error tanpa membocorkan kredensial atau host ke frontend
     error_log("Database connection failed: " . mysqli_connect_error());
-    die("<div style='font-family: sans-serif; padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; max-width: 600px; margin: 50px auto;'>
-        <h3>Layanan Database Belum Tersedia</h3>
-        <p>Gagal terhubung ke database <strong>{$database}</strong> pada host <strong>{$host}</strong>.</p>
-        <p>Pastikan layanan MySQL/MariaDB (XAMPP) sudah berjalan.</p>
+    http_response_code(500);
+    die("<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; padding: 35px 25px; background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 16px; max-width: 520px; margin: 60px auto; box-shadow: 0 10px 25px rgba(0,0,0,0.06); text-align: center;'>
+        <div style='font-size: 42px; margin-bottom: 12px;'>⚠️</div>
+        <h3 style='margin: 0 0 10px; color: #0f172a; font-size: 1.25rem;'>Layanan Database Belum Tersedia</h3>
+        <p style='color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 20px;'>Sistem mengalami kendala saat menghubungkan ke database server. Pastikan layanan database telah aktif atau hubungi administrator sistem.</p>
+        <a href='javascript:location.reload()' style='display:inline-block; padding: 10px 22px; background: #0284c7; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 13px;'>Muat Ulang Halaman</a>
     </div>");
 }
 
 mysqli_set_charset($conn, "utf8mb4");
 
-// Start session secara aman jika belum aktif
+// Start session secara aman jika belum aktif (SEC-06)
 if (session_status() === PHP_SESSION_NONE) {
-    // Pengerasan cookie session
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
+    $isSecure = (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) || 
+                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'domain'   => '',
+            'secure'   => $isSecure,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    } else {
+        session_set_cookie_params(0, '/; samesite=Lax', '', $isSecure, true);
+    }
     session_start();
+}
+
+// Security headers dasar
+if (!headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
 /**
@@ -59,6 +82,18 @@ if (!function_exists('validate_csrf')) {
     function validate_csrf($token = null) {
         $token = $token ?: ($_POST['csrf_token'] ?? $_GET['csrf_token'] ?? '');
         return !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], (string)$token);
+    }
+}
+
+if (!function_exists('get_csrf_token')) {
+    function get_csrf_token() {
+        return csrf_token();
+    }
+}
+
+if (!function_exists('verify_csrf_token')) {
+    function verify_csrf_token($token = null) {
+        return validate_csrf($token);
     }
 }
 
@@ -276,6 +311,12 @@ if (!function_exists('route_url')) {
             'gallery'                => 'admin/gallery',
             'admin_gallery'          => 'admin/gallery',
 
+            // Settings & Super Admin Modules (Feedback-5)
+            'settings_toxic'         => 'admin/settings/toxic',
+            'settings_server_log'    => 'admin/settings/server-log',
+            'settings_history_log'   => 'admin/settings/history-log',
+            'transaksi_restore'      => 'admin/transaksi/restore',
+
             // Profil, Panduan, Versi
             'profile'                => 'profile',
             'profil'                 => 'profile',
@@ -422,6 +463,106 @@ if (!function_exists('get_month_holidays')) {
             }
         }
         return $result;
+    }
+}
+
+/**
+ * Helper Audit Trail / Activity Logging (Feedback-5 Poin 4 & 7)
+ */
+if (!function_exists('log_activity')) {
+    function log_activity($action, $module, $description, $id_user = null) {
+        global $conn;
+        if (!$conn) return false;
+        
+        $userId = $id_user ?: ($_SESSION['id_user'] ?? null);
+        $username = $_SESSION['username'] ?? ($userId ? 'User #' . $userId : 'Guest/System');
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+        
+        $stmt = $conn->prepare("INSERT INTO activity_logs (id_user, username, action, module, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        if ($stmt) {
+            $stmt->bind_param("issssss", $userId, $username, $action, $module, $description, $ip, $ua);
+            return $stmt->execute();
+        }
+        return false;
+    }
+}
+
+/**
+ * Helper Filter Kata-Kata Kasar / Toxic Words (Feedback-5 Poin 3)
+ */
+if (!function_exists('get_toxic_words_list')) {
+    function get_toxic_words_list() {
+        global $conn;
+        static $cachedWords = null;
+        if ($cachedWords !== null) return $cachedWords;
+        
+        $words = [];
+        if ($conn) {
+            $res = $conn->query("SELECT word FROM toxic_words ORDER BY word ASC");
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $w = strtolower(trim($row['word']));
+                    if ($w !== '') $words[] = $w;
+                }
+            }
+        }
+        
+        if (empty($words)) {
+            $words = ['anjing', 'babi', 'monyet', 'bangsat', 'bajingan', 'kontol', 'memek', 'jembut', 'pantek', 'asu', 'perek', 'lonte', 'kampret', 'tai', 'tolol', 'goblok', 'idiot', 'fuck', 'shit', 'bitch'];
+        }
+        $cachedWords = $words;
+        return $words;
+    }
+}
+
+if (!function_exists('find_toxic_words')) {
+    function find_toxic_words($text) {
+        if (empty($text)) return [];
+        $toxicWords = get_toxic_words_list();
+        $textLower = strtolower((string)$text);
+        // Normalisasi teks sederhana untuk mendeteksi variasi karakter
+        $cleanText = preg_replace('/[^a-z0-9\s]/', '', $textLower);
+        
+        $found = [];
+        foreach ($toxicWords as $tw) {
+            if ($tw === '') continue;
+            $pattern = '/\b' . preg_quote($tw, '/') . '\b/i';
+            if (preg_match($pattern, $textLower) || preg_match($pattern, $cleanText) || (strlen($tw) >= 4 && str_contains($cleanText, $tw))) {
+                $found[] = $tw;
+            }
+        }
+        return array_values(array_unique($found));
+    }
+}
+
+if (!function_exists('has_toxic_words')) {
+    function has_toxic_words($text) {
+        $found = find_toxic_words($text);
+        return !empty($found);
+    }
+}
+
+/**
+ * Helper Server Log Traffic & Respon (Feedback-5 Poin 4)
+ */
+if (!function_exists('record_server_log')) {
+    function record_server_log($method, $path, $status_code = 200, $response_time_ms = 0, $id_user = null) {
+        global $conn;
+        if (!$conn) return false;
+        
+        $userId = $id_user ?: ($_SESSION['id_user'] ?? null);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+        $cleanPath = substr((string)$path, 0, 255);
+        $method = strtoupper(substr((string)$method, 0, 10));
+        
+        $stmt = $conn->prepare("INSERT INTO server_logs (method, path, status_code, ip_address, user_agent, response_time_ms, id_user) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        if ($stmt) {
+            $stmt->bind_param("ssissdi", $method, $cleanPath, $status_code, $ip, $ua, $response_time_ms, $userId);
+            return $stmt->execute();
+        }
+        return false;
     }
 }
 ?>

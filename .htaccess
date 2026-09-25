@@ -1,3 +1,14 @@
+# Nonaktifkan directory listing (SEC-08)
+Options -Indexes
+
+# Header Keamanan Standar OWASP (SEC-08)
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
@@ -34,12 +45,14 @@
     RewriteRule ^admin/transaksi/tambah$ dist/views/transaksi/tambah.php [L,QSA]
     RewriteRule ^admin/transaksi/update$ dist/views/transaksi/update.php [L,QSA]
     RewriteRule ^admin/transaksi/delete$ dist/views/transaksi/delete.php [L,QSA]
+    RewriteRule ^admin/transaksi/detail$ dist/views/detail_transaksi/detail_transaksi.php [L,QSA]
 
     RewriteRule ^admin/tiket$ dist/views/tiket/tiket.php [L,QSA]
     RewriteRule ^admin/tiket/tambah$ dist/views/tiket/tambah.php [L,QSA]
     RewriteRule ^admin/tiket/update$ dist/views/tiket/update.php [L,QSA]
     RewriteRule ^admin/tiket/delete$ dist/views/tiket/delete.php [L,QSA]
 
+    RewriteRule ^admin/laporan$ dist/views/transaksi/laporan.php [L,QSA]
     RewriteRule ^admin/laporan/harian$ dist/views/transaksi/laporan_harian.php [L,QSA]
     RewriteRule ^admin/laporan/bulanan$ dist/views/transaksi/laporan_bulanan.php [L,QSA]
     RewriteRule ^admin/laporan/tahunan$ dist/views/transaksi/laporan_tahunan.php [L,QSA]
@@ -53,8 +66,15 @@
     RewriteRule ^admin/users/update$ dist/views/user/update.php [L,QSA]
     RewriteRule ^admin/users/delete$ dist/views/user/delete.php [L,QSA]
 
+    RewriteRule ^admin/gallery$ dist/views/gallery/gallery.php [L,QSA]
+    RewriteRule ^admin/settings/toxic$ dist/views/settings/toxic_filter.php [L,QSA]
+    RewriteRule ^admin/settings/server-log$ dist/views/settings/server_log.php [L,QSA]
+    RewriteRule ^admin/settings/history-log$ dist/views/settings/log_history.php [L,QSA]
+    RewriteRule ^admin/transaksi/restore$ dist/views/transaksi/restore.php [L,QSA]
+
     RewriteRule ^profile$ dist/views/profile/profile.php [L,QSA]
     RewriteRule ^guide$ dist/views/settings/guide.php [L,QSA]
     RewriteRule ^guide/preview-pdf$ dist/views/settings/guide_preview_pdf.php [L,QSA]
     RewriteRule ^settings/version$ dist/views/settings/version.php [L,QSA]
 </IfModule>
+

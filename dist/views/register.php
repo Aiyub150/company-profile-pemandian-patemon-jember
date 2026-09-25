@@ -33,8 +33,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit).";
         } elseif (strlen($password) < 6) {
             $error = "Password minimal terdiri dari 6 karakter.";
-        } elseif ($password !== $password_confirm) {
-            $error = "Konfirmasi password tidak cocok dengan password yang dimasukkan.";
+        } elseif (has_toxic_words($nama) || has_toxic_words($username)) {
+            $toxicHits = array_merge(find_toxic_words($nama), find_toxic_words($username));
+            $error = "Pendaftaran ditolak: Nama atau username memuat kata yang dilarang (" . e(implode(', ', array_unique($toxicHits))) . "). Harap gunakan bahasa yang sopan.";
+            if (function_exists('log_activity')) {
+                log_activity('TOXIC_BLOCKED', 'register', "Pendaftaran ditolak karena kata terlarang: " . implode(', ', array_unique($toxicHits)));
+            }
         } else {
             // Pengecekan apakah username atau email sudah digunakan
             $check_stmt = $conn->prepare("SELECT id_user FROM users WHERE username = ? OR email = ? LIMIT 1");
@@ -53,10 +57,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bind_param("sssssi", $nama, $username, $hashed_password, $email, $no_telepon, $level_user);
 
                 if ($stmt->execute()) {
+                    $newId = $stmt->insert_id;
+                    if (function_exists('log_activity')) {
+                        log_activity('REGISTER', 'user', "Pendaftaran akun publik baru: {$username} ({$nama})", $newId);
+                    }
                     header("Location: " . route_url('login', ['registered' => 1]));
                     exit();
                 } else {
-                    $error = "Terjadi kesalahan sistem saat mendaftar: " . e($stmt->error);
+                    error_log("Database Registration Error: " . $stmt->error);
+                    $error = "Terjadi kendala pada sistem saat mendaftar. Silakan coba beberapa saat lagi.";
                 }
                 $stmt->close();
             }
@@ -74,6 +83,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
     <style>
         body {
             min-height: 100vh;
@@ -239,8 +261,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
     </style>
-</head>
 <body>
+    <script>
+        if (localStorage.getItem('patemon_theme') === 'dark') {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
+
+<div style="position: fixed; top: 1.25rem; right: 1.25rem; z-index: 9999; display: flex; align-items: center; gap: 0.5rem;">
+    <button type="button" class="btn-lang-switcher" onclick="togglePatemonLanguage()" title="Beralih Bahasa / Switch Language">
+        <svg class="flag-icon-svg" viewBox="0 0 640 480" width="18" height="13" style="border-radius:2px; vertical-align:middle; display:inline-block; box-shadow:0 0 1px rgba(0,0,0,0.5); margin-right:4px;"><g fill-rule="evenodd" stroke-width="1pt"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg><strong>ID</strong>
+    </button>
+    <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+        <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+        <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+        <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+    </button>
+</div>
 
 <div class="auth-container">
     <!-- Left Banner -->
@@ -261,11 +298,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Right Form -->
     <div class="auth-form-section">
         <div class="auth-header">
-            <a href="<?= route_url('home') ?>">
-                <img src="<?= public_url('img/logo_pemandian_transparant.png') ?>" alt="Logo Pemandian Patemon">
+            <a href="<?= route_url('home') ?>" class="d-inline-block">
+                <img src="<?= public_url('img/logo_pemandian_transparant.png') ?>" alt="Logo Pemandian Patemon" class="logo-light">
+                <img src="<?= public_url('img/logo_pemandian_white.svg') ?>" alt="Logo Pemandian Patemon" class="logo-dark">
             </a>
-            <h1>Buat Akun Baru</h1>
-            <p>Lengkapi formulir di bawah ini untuk mendaftar akun.</p>
+            <h1 data-i18n="register_title">Buat Akun Baru</h1>
+            <p data-i18n="register_desc">Lengkapi formulir di bawah ini untuk mendaftar akun.</p>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -280,7 +318,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div class="form-row-2">
                 <div class="form-group-item">
-                    <label class="form-label-modern" for="nama">Nama Lengkap <span style="color: #ef4444;">*</span></label>
+                    <label class="form-label-modern" for="nama"><span data-i18n="fullname_label">Nama Lengkap</span> <span style="color: #ef4444;">*</span></label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-id-card input-icon"></i>
                         <input 
@@ -289,6 +327,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="nama" 
                             name="nama" 
                             placeholder="Nama Lengkap (maks. 50 karakter)" 
+                            data-i18n-placeholder="fullname_placeholder"
                             required 
                             maxlength="50"
                             pattern="^[a-zA-Z\s\.\']+$"
@@ -299,7 +338,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
 
                 <div class="form-group-item">
-                    <label class="form-label-modern" for="username">Username <span style="color: #ef4444;">*</span></label>
+                    <label class="form-label-modern" for="username"><span data-i18n="username_label">Username</span> <span style="color: #ef4444;">*</span></label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-user input-icon"></i>
                         <input 
@@ -308,6 +347,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="username" 
                             name="username" 
                             placeholder="Username (maks. 30 karakter)" 
+                            data-i18n-placeholder="username_placeholder"
                             required 
                             maxlength="30"
                             pattern="^[a-zA-Z0-9_\.]+$"
@@ -320,7 +360,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div class="form-row-2">
                 <div class="form-group-item">
-                    <label class="form-label-modern" for="email">Alamat Email <span style="color: #ef4444;">*</span></label>
+                    <label class="form-label-modern" for="email"><span data-i18n="email_label">Alamat Email</span> <span style="color: #ef4444;">*</span></label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-envelope input-icon"></i>
                         <input 
@@ -329,6 +369,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="email" 
                             name="email" 
                             placeholder="nama@email.com" 
+                            data-i18n-placeholder="email_placeholder"
                             required 
                             maxlength="60"
                             value="<?= e($_POST['email'] ?? '') ?>"
@@ -337,7 +378,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
 
                 <div class="form-group-item">
-                    <label class="form-label-modern" for="no_telepon">Nomor WhatsApp / HP</label>
+                    <label class="form-label-modern" for="no_telepon" data-i18n="phone_label">Nomor WhatsApp / HP</label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-phone input-icon"></i>
                         <input 
@@ -346,6 +387,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="no_telepon" 
                             name="no_telepon" 
                             placeholder="08xxxxxxxxxx" 
+                            data-i18n-placeholder="phone_placeholder"
                             pattern="^0[0-9]{8,14}$"
                             inputmode="numeric"
                             maxlength="15"
@@ -359,7 +401,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div class="form-row-2">
                 <div class="form-group-item">
-                    <label class="form-label-modern" for="password">Password <span style="color: #ef4444;">*</span></label>
+                    <label class="form-label-modern" for="password"><span data-i18n="password_label">Password</span> <span style="color: #ef4444;">*</span></label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-lock input-icon"></i>
                         <input 
@@ -368,6 +410,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="password" 
                             name="password" 
                             placeholder="Min. 6 karakter" 
+                            data-i18n-placeholder="password_placeholder"
                             required 
                             minlength="6"
                         >
@@ -375,7 +418,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
 
                 <div class="form-group-item">
-                    <label class="form-label-modern" for="password_confirm">Konfirmasi Password <span style="color: #ef4444;">*</span></label>
+                    <label class="form-label-modern" for="password_confirm"><span data-i18n="confirm_password_label">Konfirmasi Password</span> <span style="color: #ef4444;">*</span></label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-shield-halved input-icon"></i>
                         <input 
@@ -384,6 +427,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             id="password_confirm" 
                             name="password_confirm" 
                             placeholder="Ulangi password" 
+                            data-i18n-placeholder="confirm_password_placeholder"
                             required 
                             minlength="6"
                         >
@@ -392,20 +436,48 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <button type="submit" class="btn-brand" style="width: 100%; padding: 0.85rem; font-size: 1rem; margin-top: 0.5rem;">
-                <i class="fa-solid fa-user-plus"></i> Buat Akun Baru
+                <i class="fa-solid fa-user-plus"></i> <span data-i18n="btn_register">Buat Akun Baru</span>
             </button>
         </form>
 
         <div class="auth-footer">
-            Sudah memiliki akun? <a href="<?= route_url('login') ?>">Masuk di sini</a>
+            <span data-i18n="have_account">Sudah memiliki akun?</span> <a href="<?= route_url('login') ?>" data-i18n="login_here">Masuk di sini</a>
             <div style="margin-top: 0.5rem;">
                 <a href="<?= route_url('home') ?>" style="color: #64748b; font-size: 0.85rem;">
-                    <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Beranda
+                    <i class="fa-solid fa-arrow-left me-1"></i> <span data-i18n="back_to_home">Kembali ke Beranda</span>
                 </a>
             </div>
         </div>
     </div>
 </div>
 
+<script>
+    function togglePatemonTheme() {
+        const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyPatemonTheme(newTheme);
+        localStorage.setItem('patemon_theme', newTheme);
+    }
+    function applyPatemonTheme(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const label = document.getElementById('themeLabelText');
+        if (theme === 'dark') {
+            document.body.classList.add('theme-dark');
+            document.documentElement.classList.add('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            if (btn) btn.classList.add('active-dark');
+            if (label) label.textContent = 'Gelap';
+        } else {
+            document.body.classList.remove('theme-dark');
+            document.documentElement.classList.remove('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            if (btn) btn.classList.remove('active-dark');
+            if (label) label.textContent = 'Terang';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
+    });
+</script>
 </body>
 </html>

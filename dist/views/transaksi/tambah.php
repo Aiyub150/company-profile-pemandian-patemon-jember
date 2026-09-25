@@ -1,8 +1,8 @@
 <?php
 require '../../app/config.php';
-check_auth([1, 2]);
+check_auth([1, 2, 3]);
 
-$active_menu = ($_SESSION['level'] === 2) ? 'staf' : 'transaksi';
+$active_menu = in_array((int)$_SESSION['level'], [2, 3], true) ? 'kasir' : 'transaksi';
 $base_view = '..';
 
 // Ambil tarif tiket dari DB
@@ -84,30 +84,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
-    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>?v=<?= file_exists(__DIR__ . '/../../../public/css/modern-theme.css') ? filemtime(__DIR__ . '/../../../public/css/modern-theme.css') : time() ?>">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
     <style>
         .pos-ticket-card {
-            border: 2px solid #e2e8f0;
+            border: 2px solid var(--border-color, #e2e8f0);
             border-radius: 16px;
             padding: 1.25rem;
             transition: all 0.2s ease;
-            background: #ffffff;
+            background: var(--bg-card, #ffffff);
+            color: var(--text-main, #0f172a);
         }
         .pos-ticket-card.active {
             border-color: #0284c7;
-            background: #f0f9ff;
+            background: rgba(2, 132, 199, 0.08);
         }
         .summary-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: var(--bg-card, #ffffff);
+            border: 1px solid var(--border-color, #e2e8f0);
             border-radius: 20px;
             padding: 1.75rem;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.06);
             position: sticky;
             top: 2rem;
+            color: var(--text-main, #0f172a);
         }
         .payment-method-selector label {
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid var(--border-color, #e2e8f0);
             border-radius: 12px;
             padding: 0.75rem 1rem;
             cursor: pointer;
@@ -117,29 +131,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-weight: 600;
             font-size: 0.9rem;
             transition: all 0.15s ease;
-            color: #334155;
-            background: #fff;
+            color: var(--text-main, #334155);
+            background: var(--bg-card, #fff);
         }
         .payment-method-selector input[type="radio"]:checked + label {
             border-color: #0284c7;
-            background: #e0f2fe;
-            color: #0369a1;
+            background: rgba(2, 132, 199, 0.15);
+            color: #38bdf8;
         }
     </style>
 </head>
 
 <body>
+    <script>
+        if (localStorage.getItem('patemon_theme') === 'dark') {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
     <div id="app">
         <?php include '../../app/partials/sidebar.php'; ?>
 
         <div id="main">
             <!-- Header Topbar -->
-            <header class="mb-4 d-flex justify-content-between align-items-center">
-                <a href="#" class="burger-btn d-block d-xl-none text-dark">
+            <header class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 border-bottom">
+                <a href="#" class="burger-btn d-block d-xl-none">
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <a href="<?= ($_SESSION['level'] == 2) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
+                    <!-- Tombol Switcher Tema -->
+                    <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+                        <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+                        <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+                        <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+                    </button>
+                    <a href="<?= in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
                         <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Riwayat
                     </a>
                 </div>
@@ -168,7 +193,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <!-- Customer Info Card -->
                         <div class="modern-card mb-4">
                             <div class="modern-card-header">
-                                <span class="fw-bold" style="color: #0f172a;">
+                                <span class="fw-bold text-dark">
                                     <i class="fa-solid fa-user me-2 text-primary"></i> Data Pelanggan / Pengunjung
                                 </span>
                             </div>
@@ -192,7 +217,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <!-- Ticket Selection Card -->
                         <div class="modern-card mb-4">
                             <div class="modern-card-header">
-                                <span class="fw-bold" style="color: #0f172a;">
+                                <span class="fw-bold text-dark">
                                     <i class="fa-solid fa-ticket me-2 text-primary"></i> Pilih Kategori & Jumlah Tiket
                                 </span>
                             </div>
@@ -252,7 +277,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <!-- Payment Method Card -->
                         <div class="modern-card">
                             <div class="modern-card-header">
-                                <span class="fw-bold" style="color: #0f172a;">
+                                <span class="fw-bold text-dark">
                                     <i class="fa-solid fa-credit-card me-2 text-primary"></i> Metode Pembayaran
                                 </span>
                             </div>
@@ -300,14 +325,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <strong id="sumSubAnak" class="text-dark">Rp 0</strong>
                             </div>
 
-                            <div class="p-3 rounded-3 mb-4" style="background: #f8fafc; border: 1.5px dashed #cbd5e1;">
+                            <div class="pos-total-box p-3 rounded-3 mb-4">
                                 <div class="text-muted small fw-bold text-uppercase mb-1">Total Tagihan Loket:</div>
                                 <div class="fw-extrabold text-primary" id="totalHargaTxt" style="font-size: 1.85rem; line-height: 1;">Rp 0</div>
                             </div>
 
                             <!-- Kalkulator Kembalian Uang Tunai -->
                             <div class="mb-3">
-                                <label class="form-label fw-semibold text-dark small">Nominal Uang Diterima (Rp):</label>
+                                <label class="form-label fw-semibold text-secondary small">Nominal Uang Diterima (Rp):</label>
                                 <div class="input-icon-group">
                                     <i class="fa-solid fa-money-bill input-icon"></i>
                                     <input 
@@ -321,7 +346,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 </div>
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center p-3 rounded-3 mb-4" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+                            <div class="pos-kembalian-box d-flex justify-content-between align-items-center p-3 rounded-3 mb-4">
                                 <span class="text-success fw-bold small">Uang Kembalian:</span>
                                 <strong class="fs-5 text-success" id="uangKembalianTxt">Rp 0</strong>
                             </div>
@@ -400,6 +425,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         document.getElementById('uangKembalianTxt').innerText = formatRupiah(kembalian);
     }
+
+    // Theme Switcher Controller
+    function togglePatemonTheme() {
+        const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyPatemonTheme(newTheme);
+        localStorage.setItem('patemon_theme', newTheme);
+    }
+
+    function applyPatemonTheme(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const label = document.getElementById('themeLabelText');
+        if (theme === 'dark') {
+            document.body.classList.add('theme-dark');
+            document.documentElement.classList.add('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            if (btn) {
+                btn.classList.add('active-dark');
+                btn.setAttribute('title', 'Beralih ke Mode Terang');
+            }
+            if (label) label.textContent = 'Gelap';
+        } else {
+            document.body.classList.remove('theme-dark');
+            document.documentElement.classList.remove('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            if (btn) {
+                btn.classList.remove('active-dark');
+                btn.setAttribute('title', 'Beralih ke Mode Gelap');
+            }
+            if (label) label.textContent = 'Terang';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const currentTheme = localStorage.getItem('patemon_theme') || 'light';
+        applyPatemonTheme(currentTheme);
+    });
     </script>
 </body>
 </html>

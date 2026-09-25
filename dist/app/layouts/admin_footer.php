@@ -29,20 +29,10 @@
         });
     }
 
-    // Live System Clock Ticker
-    (function() {
-        const clockEl = document.getElementById('topbar-clock');
-        if (clockEl) {
-            function tick() {
-                const now = new Date();
-                const h = String(now.getHours()).padStart(2, '0');
-                const m = String(now.getMinutes()).padStart(2, '0');
-                const s = String(now.getSeconds()).padStart(2, '0');
-                clockEl.textContent = `${h}:${m}:${s} WIB`;
-            }
-            setInterval(tick, 1000);
-        }
-    })();
+    // Live System Clock & Timezone handled automatically by dynamic-time.js
+    if (typeof window.updatePatemonLiveClock === 'function') {
+        window.updatePatemonLiveClock();
+    }
 
     // Dark / Light Theme Controller
     function togglePatemonTheme() {

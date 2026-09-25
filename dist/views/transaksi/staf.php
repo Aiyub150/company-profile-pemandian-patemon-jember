@@ -37,11 +37,12 @@ if (!empty($search)) {
         SELECT transaksi.*, users.nama 
         FROM transaksi 
         INNER JOIN users ON transaksi.id_user = users.id_user 
-        WHERE transaksi.id_transaksi = ? 
+        WHERE transaksi.deleted_at IS NULL 
+          AND (transaksi.id_transaksi = ? 
            OR users.nama LIKE ? 
            OR transaksi.metode_pembayaran LIKE ? 
            OR transaksi.status LIKE ?
-           OR transaksi.tgl_pemesanan LIKE ?
+           OR transaksi.tgl_pemesanan LIKE ?)
         ORDER BY tgl_pemesanan DESC, id_transaksi DESC
     ");
     $stmt->bind_param("issss", $id_search, $search_like, $search_like, $search_like, $search_like);
@@ -49,10 +50,11 @@ if (!empty($search)) {
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    // Tampilkan transaksi terbaru loket & online agar staf kasir dapat melihat pemesanan masuk
+    // Tampilkan transaksi terbaru loket & online agar staf kasir dapat melihat pemesanan masuk (hanya data aktif)
     $sql = "SELECT transaksi.*, users.nama 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
+            WHERE transaksi.deleted_at IS NULL 
             ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
     $result = $conn->query($sql);
 }
@@ -60,7 +62,7 @@ if (!empty($search)) {
 // Rekap Omzet Hari Ini
 $today_omzet = 0;
 $today_tickets = 0;
-$recap = $conn->query("SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done'");
+$recap = $conn->query("SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL");
 if ($recap && $rc = $recap->fetch_assoc()) {
     $today_omzet = (float)($rc['omzet'] ?? 0);
     $today_tickets = (int)$rc['cnt'];
@@ -169,7 +171,7 @@ require '../../app/layouts/admin_header.php';
                             <td class="fw-semibold text-dark"><?= e($row["nama"]) ?></td>
                             <td class="text-muted small"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>
                             <td>
-                                <span class="badge" style="background: #f1f5f9; color: #334155; font-weight: 600; font-size: 0.75rem;">
+                                <span class="badge badge-payment-method" style="font-weight: 600; font-size: 0.75rem;">
                                     <?= strtoupper(e($row["metode_pembayaran"] ?? 'TUNAI')) ?>
                                 </span>
                             </td>

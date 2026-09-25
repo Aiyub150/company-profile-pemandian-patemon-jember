@@ -36,7 +36,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12 col-lg-6">
         <div class="modern-card h-100">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-globe text-primary me-2"></i> 1. Alur Pemesanan Tiket Online (Pengunjung)</span>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-globe text-primary me-2"></i> 1. Alur Pemesanan Tiket Online (Pengunjung)</span>
             </div>
             <div class="p-4">
                 <ol class="ps-3 mb-0" style="line-height: 1.8; color: #334155; font-size: 0.915rem;">
@@ -60,7 +60,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12 col-lg-6">
         <div class="modern-card h-100">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-cash-register text-success me-2"></i> 2. SOP Staf Kasir Loket (Input POS)</span>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-cash-register text-success me-2"></i> 2. SOP Staf Kasir Loket (Input POS)</span>
             </div>
             <div class="p-4">
                 <ol class="ps-3 mb-0" style="line-height: 1.8; color: #334155; font-size: 0.915rem;">
@@ -79,7 +79,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12 col-lg-6">
         <div class="modern-card h-100">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-qrcode text-warning me-2"></i> 3. Prosedur Validasi Barcode di Pintu Masuk</span>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-qrcode text-warning me-2"></i> 3. Prosedur Validasi Barcode di Pintu Masuk</span>
             </div>
             <div class="p-4">
                 <ol class="ps-3 mb-0" style="line-height: 1.8; color: #334155; font-size: 0.915rem;">
@@ -97,7 +97,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     <div class="col-12 col-lg-6">
         <div class="modern-card h-100">
             <div class="modern-card-header">
-                <span class="fw-bold" style="color: #0f172a;"><i class="fa-solid fa-file-invoice-dollar text-purple me-2"></i> 4. Laporan Retribusi Standar Pemkab Jember</span>
+                <span class="fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-purple me-2"></i> 4. Laporan Retribusi Standar Pemkab Jember</span>
             </div>
             <div class="p-4">
                 <ol class="ps-3 mb-0" style="line-height: 1.8; color: #334155; font-size: 0.915rem;">

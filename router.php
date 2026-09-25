@@ -1,11 +1,36 @@
 <?php
 /**
  * Router script for PHP Built-in Web Server
- * Handles static assets, clean routing, and blocks sensitive file access.
+ * Handles static assets, clean routing, blocks sensitive file access, and logs server activity.
  */
+
+$startTime = microtime(true);
 
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 $fullPath = __DIR__ . $uri;
+
+// Security Headers (SEC-08)
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
+// Daftarkan server logging pada saat request selesai
+register_shutdown_function(function() use ($startTime, $uri) {
+    $statusCode = http_response_code() ?: 200;
+    $duration = round((microtime(true) - $startTime) * 1000, 2);
+    // Abaikan aset statis agar log fokus pada aktivitas rute aplikasi
+    $ext = pathinfo($uri, PATHINFO_EXTENSION);
+    if (in_array(strtolower($ext), ['css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'woff', 'woff2', 'ttf', 'ico'])) {
+        return;
+    }
+    try {
+        @include_once __DIR__ . '/dist/app/config.php';
+        if (function_exists('record_server_log')) {
+            record_server_log($_SERVER['REQUEST_METHOD'] ?? 'GET', $uri, $statusCode, $duration);
+        }
+    } catch (\Throwable $e) {}
+});
 
 // 1. Block access to sensitive files
 $blockedPatterns = [
@@ -25,15 +50,59 @@ foreach ($blockedPatterns as $pattern) {
     }
 }
 
-// 1.5 Handle Payment Proof Uploads (supports both /app/payment/ and /dist/app/payment/)
+// 1.5 Handle Payment Proof Uploads (SEC-01 & SEC-04 Hardened)
 if (str_starts_with($uri, '/app/payment/') || str_starts_with($uri, '/dist/app/payment/')) {
-    $relPath = preg_replace('#^/(?:dist/)?app/payment/#', '', $uri);
-    $paymentFile = __DIR__ . '/dist/app/payment/' . $relPath;
-    if (file_exists($paymentFile) && !is_dir($paymentFile)) {
-        $mime = mime_content_type($paymentFile) ?: 'image/jpeg';
+    // SEC-01: Gunakan basename() dan verifikasi realpath() untuk memblokir Path Traversal
+    $filename = basename($uri);
+    $allowedDir = realpath(__DIR__ . '/dist/app/payment');
+    $paymentFile = $allowedDir . DIRECTORY_SEPARATOR . $filename;
+    $realPaymentFile = realpath($paymentFile);
+
+    if ($allowedDir && $realPaymentFile && file_exists($realPaymentFile) && is_file($realPaymentFile) && str_starts_with($realPaymentFile, $allowedDir)) {
+        // Cek ekstensi file yang diizinkan (gambar/pdf)
+        $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExt, true)) {
+            http_response_code(403);
+            echo "403 Forbidden: Format berkas tidak diizinkan.";
+            exit;
+        }
+
+        // SEC-04: Autentikasi sesi & otorisasi hak akses bukti pembayaran
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if (empty($_SESSION['id_user'])) {
+            http_response_code(403);
+            echo "403 Forbidden: Anda harus login untuk mengakses berkas bukti pembayaran.";
+            exit;
+        }
+
+        $userLevel = (int)($_SESSION['level'] ?? 0);
+        $userId = (int)($_SESSION['id_user'] ?? 0);
+        
+        // Admin (1, 2) dan Staf (3) diizinkan melihat semua bukti pembayaran
+        // Pengunjung (0) hanya diizinkan melihat file miliknya sendiri
+        if ($userLevel === 0) {
+            require_once __DIR__ . '/dist/app/config.php';
+            $stmt = $conn->prepare("SELECT id_transaksi FROM transaksi WHERE bukti_pembayaran = ? AND id_user = ? LIMIT 1");
+            $stmt->bind_param("si", $filename, $userId);
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows === 0) {
+                http_response_code(403);
+                echo "403 Forbidden: Anda tidak memiliki hak akses terhadap bukti pembayaran ini.";
+                exit;
+            }
+        }
+
+        $mime = mime_content_type($realPaymentFile) ?: 'image/jpeg';
         header('Content-Type: ' . $mime);
-        header('Cache-Control: public, max-age=86400');
-        readfile($paymentFile);
+        header('Cache-Control: private, no-cache, must-revalidate');
+        readfile($realPaymentFile);
+        exit;
+    } else {
+        http_response_code(404);
+        echo "404 Not Found: Berkas bukti pembayaran tidak ditemukan.";
         exit;
     }
 }
@@ -47,8 +116,10 @@ $cleanRoutes = [
     '/register'              => 'dist/views/register.php',
     '/logout'                => 'dist/views/logout.php',
     '/forgot-password'       => 'dist/views/forgot_password.php',
+    '/forgot_password'       => 'dist/views/forgot_password.php',
     '/tiket'                 => 'dist/views/tiket/pesan.php',
     '/tiket/pesan'           => 'dist/views/tiket/pesan.php',
+    '/pesan'                 => 'dist/views/tiket/pesan.php',
     '/tiket/nota'            => 'dist/views/tiket/nota.php',
     '/nota'                  => 'dist/views/tiket/nota.php',
 
@@ -92,10 +163,17 @@ $cleanRoutes = [
 
     '/admin/gallery'         => 'dist/views/gallery/gallery.php',
     '/gallery'               => 'dist/views/gallery/gallery.php',
+
+    '/admin/settings/toxic'      => 'dist/views/settings/toxic_filter.php',
+    '/admin/settings/server-log' => 'dist/views/settings/server_log.php',
+    '/admin/settings/history-log'=> 'dist/views/settings/log_history.php',
+    '/admin/transaksi/restore'   => 'dist/views/transaksi/restore.php',
+
     '/profile'               => 'dist/views/profile/profile.php',
     '/guide'                 => 'dist/views/settings/guide.php',
     '/guide/preview-pdf'     => 'dist/views/settings/guide_preview_pdf.php',
     '/settings/version'      => 'dist/views/settings/version.php',
+    '/version'               => 'dist/views/settings/version.php',
 
     // Fallback .php direct access
     '/index.php'             => 'dist/views/index.php',

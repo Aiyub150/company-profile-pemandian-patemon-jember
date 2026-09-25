@@ -1,6 +1,6 @@
 <?php
 require '../../app/config.php';
-check_auth([1]);
+check_auth([1, 2, 3]);
 
 $active_menu = 'laporan_tahunan';
 $base_view = '..';
@@ -66,9 +66,26 @@ $rata_rata_tiket = $total_tiket_tahun > 0 ? ($total_omzet_tahun / $total_tiket_t
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
 </head>
 
 <body>
+    <script>
+        if (localStorage.getItem('patemon_theme') === 'dark') {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
     <div id="app">
         <?php include '../../app/partials/sidebar.php'; ?>
 
@@ -79,6 +96,11 @@ $rata_rata_tiket = $total_tiket_tahun > 0 ? ($total_omzet_tahun / $total_tiket_t
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
+                    <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+                        <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+                        <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+                        <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+                    </button>
                     <span class="badge badge-modern-primary">Laporan Tahunan</span>
                 </div>
             </header>
@@ -352,5 +374,33 @@ $rata_rata_tiket = $total_tiket_tahun > 0 ? ($total_omzet_tahun / $total_tiket_t
     }
     </script>
     <?php endif; ?>
+    <script>
+    function togglePatemonTheme() {
+        const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        applyPatemonTheme(newTheme);
+        localStorage.setItem('patemon_theme', newTheme);
+    }
+    function applyPatemonTheme(theme) {
+        const btn = document.getElementById('themeToggleBtn');
+        const label = document.getElementById('themeLabelText');
+        if (theme === 'dark') {
+            document.body.classList.add('theme-dark');
+            document.documentElement.classList.add('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+            if (btn) btn.classList.add('active-dark');
+            if (label) label.textContent = 'Gelap';
+        } else {
+            document.body.classList.remove('theme-dark');
+            document.documentElement.classList.remove('theme-dark');
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            if (btn) btn.classList.remove('active-dark');
+            if (label) label.textContent = 'Terang';
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
+    });
+    </script>
 </body>
 </html>

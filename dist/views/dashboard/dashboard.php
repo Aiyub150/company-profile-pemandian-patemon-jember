@@ -49,20 +49,20 @@ $header_actions = '';
 
 // 1. Total Omzet Penjualan (Khusus Staf = Omzet Transaksi Diri Sendiri)
 if ($user_level === 3) {
-    $stmt_omzet = $conn->prepare("SELECT SUM(total_harga) as total_omzet FROM transaksi WHERE status = 'done' AND id_user = ?");
+    $stmt_omzet = $conn->prepare("SELECT SUM(total_harga) as total_omzet FROM transaksi WHERE status = 'done' AND id_user = ? AND deleted_at IS NULL");
     $stmt_omzet->bind_param("i", $user_id);
     $stmt_omzet->execute();
     $row_total = $stmt_omzet->get_result()->fetch_assoc();
     $stmt_omzet->close();
 } else {
-    $res_total = $conn->query("SELECT SUM(total_harga) as total_omzet FROM transaksi WHERE status = 'done'");
+    $res_total = $conn->query("SELECT SUM(total_harga) as total_omzet FROM transaksi WHERE status = 'done' AND deleted_at IS NULL");
     $row_total = $res_total ? $res_total->fetch_assoc() : null;
 }
 $total_omzet = (float)($row_total['total_omzet'] ?? 0);
 
 // 2. Total Pengguna Terdaftar (Untuk Staf: Total Transaksi Pribadi yang Dilayani)
 if ($user_level === 3) {
-    $stmt_u = $conn->prepare("SELECT COUNT(*) as total_users FROM transaksi WHERE id_user = ?");
+    $stmt_u = $conn->prepare("SELECT COUNT(*) as total_users FROM transaksi WHERE id_user = ? AND deleted_at IS NULL");
     $stmt_u->bind_param("i", $user_id);
     $stmt_u->execute();
     $row_user = $stmt_u->get_result()->fetch_assoc();
@@ -78,12 +78,12 @@ $labels_bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 
 $transaksi_per_bulan = array_fill(0, 12, 0);
 
 if ($user_level === 3) {
-    $stmt_m = $conn->prepare("SELECT MONTH(tgl_pemesanan) as bln, COUNT(*) as jml FROM transaksi WHERE YEAR(tgl_pemesanan) = YEAR(CURDATE()) AND id_user = ? GROUP BY MONTH(tgl_pemesanan)");
+    $stmt_m = $conn->prepare("SELECT MONTH(tgl_pemesanan) as bln, COUNT(*) as jml FROM transaksi WHERE YEAR(tgl_pemesanan) = YEAR(CURDATE()) AND id_user = ? AND deleted_at IS NULL GROUP BY MONTH(tgl_pemesanan)");
     $stmt_m->bind_param("i", $user_id);
     $stmt_m->execute();
     $res_monthly = $stmt_m->get_result();
 } else {
-    $res_monthly = $conn->query("SELECT MONTH(tgl_pemesanan) as bln, COUNT(*) as jml FROM transaksi WHERE YEAR(tgl_pemesanan) = YEAR(CURDATE()) GROUP BY MONTH(tgl_pemesanan)");
+    $res_monthly = $conn->query("SELECT MONTH(tgl_pemesanan) as bln, COUNT(*) as jml FROM transaksi WHERE YEAR(tgl_pemesanan) = YEAR(CURDATE()) AND deleted_at IS NULL GROUP BY MONTH(tgl_pemesanan)");
 }
 
 if ($res_monthly) {
@@ -128,11 +128,12 @@ if (empty($ticket_labels)) {
     $ticket_counts = [0];
 }
 
-// 5. Ambil 5 Transaksi Terkini
+// 5. Ambil 5 Transaksi Terkini (Hanya transaksi aktif)
 $recent_trans = [];
-$res_recent = $conn->query("SELECT t.id_transaksi, t.nama_pemesan, t.total_harga, t.tgl_pemesanan, t.status, t.metode_pembayaran, u.nama as user_nama 
+$res_recent = $conn->query("SELECT t.id_transaksi, t.total_harga, t.tgl_pemesanan, t.status, t.metode_pembayaran, u.nama as user_nama 
                             FROM transaksi t 
                             LEFT JOIN users u ON t.id_user = u.id_user 
+                            WHERE t.deleted_at IS NULL
                             ORDER BY t.id_transaksi DESC LIMIT 5");
 if ($res_recent) {
     while ($r = $res_recent->fetch_assoc()) {
@@ -279,7 +280,7 @@ require '../../app/layouts/admin_header.php';
         <div class="col-12 col-xl-8">
             <div class="modern-card">
                 <div class="modern-card-header d-flex justify-content-between align-items-center">
-                    <div class="fw-bold fs-6" style="color: #0f172a;">
+                    <div class="fw-bold fs-6 text-dark">
                         <i class="fa-solid fa-chart-simple text-primary me-2"></i> Grafik Transaksi Bulanan Tahun <?= $current_year ?> <?= ($user_level === 3) ? '(Transaksi Anda)' : '' ?>
                     </div>
                     <span class="badge badge-modern-primary">Real-time</span>
@@ -294,7 +295,7 @@ require '../../app/layouts/admin_header.php';
         <div class="col-12 col-xl-4">
             <div class="modern-card">
                 <div class="modern-card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold" style="color: #0f172a;">
+                    <h6 class="mb-0 fw-bold text-dark">
                         <i class="fa-regular fa-calendar text-primary me-2"></i>Kalender & Info
                     </h6>
                     <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.75rem;">Kemendesa API</span>

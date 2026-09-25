@@ -185,12 +185,25 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('patemon_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('theme-dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
 
     <style>
         body {
-            background-color: #f8fafc;
-            color: #0f172a;
+            background-color: var(--bg-body, #f8fafc);
+            color: var(--text-main, #0f172a);
         }
 
         .booking-header {
@@ -330,9 +343,24 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
     </style>
 </head>
 <body>
+<script>
+    if (localStorage.getItem('patemon_theme') === 'dark') {
+        document.body.classList.add('theme-dark');
+    }
+</script>
 
 <!-- Header Banner -->
-<div class="booking-header">
+<div class="booking-header position-relative">
+    <div style="position: absolute; top: 1.25rem; right: 1.5rem; z-index: 99; display: flex; align-items: center; gap: 0.5rem;">
+        <button type="button" class="btn-lang-switcher" onclick="togglePatemonLanguage()" title="Beralih Bahasa / Switch Language">
+            <svg class="flag-icon-svg" viewBox="0 0 640 480" width="18" height="13" style="border-radius:2px; vertical-align:middle; display:inline-block; box-shadow:0 0 1px rgba(0,0,0,0.5); margin-right:4px;"><g fill-rule="evenodd" stroke-width="1pt"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg><strong>ID</strong>
+        </button>
+        <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
+            <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
+            <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
+            <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+        </button>
+    </div>
     <div style="max-width: 600px; margin: auto;">
         <a href="<?= route_url('home') ?>" class="text-decoration-none d-inline-flex align-items-center gap-3 mb-3">
             <img src="<?= public_url('img/icon.png') ?>" alt="Logo Pemandian Patemon" style="height: 56px; width: auto; object-fit: contain;">
@@ -486,7 +514,7 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
                         </div>
 
                         <!-- Card Detail Transfer Bank -->
-                        <div id="transferSection" class="d-none p-3 rounded-3 mt-3" style="background: #f8fafc; border: 1.5px solid #cbd5e1;">
+                        <div id="transferSection" class="d-none order-info-box p-3 rounded-3 mt-3">
                             <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold">
                                 <i class="fa-solid fa-building-columns"></i>
                                 <span>Rekening Penerimaan Resmi Pemkab Jember:</span>
@@ -624,11 +652,13 @@ function recalcTotal() {
         }
     });
 
+    const isEn = ((localStorage.getItem('patemon_lang') || 'id') === 'en');
+
     if (!hasItem) {
-        summaryContainer.innerHTML = '<div class="text-muted small text-center py-2">Belum ada tiket yang dipilih.</div>';
+        summaryContainer.innerHTML = `<div class="text-muted small text-center py-2">${isEn ? 'No tickets selected yet.' : 'Belum ada tiket yang dipilih.'}</div>`;
     }
 
-    document.getElementById('summaryTotalQty').textContent = totalQty + ' Tiket';
+    document.getElementById('summaryTotalQty').textContent = totalQty + (isEn ? ' Tickets' : ' Tiket');
     document.getElementById('summaryTotalPrice').textContent = 'Rp ' + totalPrice.toLocaleString('id-ID');
 
     const submitBtn = document.getElementById('btnSubmitOrder');
@@ -644,7 +674,13 @@ function handlePaymentChange() {
     const proofSection = document.getElementById('proofUploadSection');
     const summaryMethod = document.getElementById('summaryMethod');
 
-    summaryMethod.textContent = selected;
+    const isEn = ((localStorage.getItem('patemon_lang') || 'id') === 'en');
+    let displayMethod = selected;
+    if (isEn) {
+        if (selected === 'Bayar Di Loket') displayMethod = 'Pay at Counter';
+        else if (selected === 'Transfer Bank') displayMethod = 'Bank Transfer';
+    }
+    summaryMethod.textContent = displayMethod;
 
     if (selected === 'Qris') {
         qrisSection.classList.remove('d-none');
@@ -660,6 +696,11 @@ function handlePaymentChange() {
         proofSection.classList.add('d-none');
     }
 }
+
+window.addEventListener('patemon_language_changed', function() {
+    recalcTotal();
+    handlePaymentChange();
+});
 
 function copyRekening(rek) {
     navigator.clipboard.writeText(rek).then(() => {
@@ -681,7 +722,33 @@ function previewFile(input) {
     }
 }
 
+function togglePatemonTheme() {
+    const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
+    const newTheme = isDark ? 'light' : 'dark';
+    applyPatemonTheme(newTheme);
+    localStorage.setItem('patemon_theme', newTheme);
+}
+
+function applyPatemonTheme(theme) {
+    const btn = document.getElementById('themeToggleBtn');
+    const label = document.getElementById('themeLabelText');
+    if (theme === 'dark') {
+        document.body.classList.add('theme-dark');
+        document.documentElement.classList.add('theme-dark');
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        if (btn) btn.classList.add('active-dark');
+        if (label) label.textContent = 'Gelap';
+    } else {
+        document.body.classList.remove('theme-dark');
+        document.documentElement.classList.remove('theme-dark');
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+        if (btn) btn.classList.remove('active-dark');
+        if (label) label.textContent = 'Terang';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
     recalcTotal();
     handlePaymentChange();
 });

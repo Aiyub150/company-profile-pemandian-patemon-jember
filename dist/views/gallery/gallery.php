@@ -173,7 +173,7 @@ require '../../app/layouts/admin_header.php';
 
 <div class="modern-card mb-4">
     <div class="modern-card-header">
-        <span class="fw-bold fs-6" style="color: #0f172a;">
+        <span class="fw-bold fs-6 text-dark">
             <i class="fa-solid fa-images text-primary me-2"></i> Daftar Konten Galeri (<?= count($gallery_items) ?>/3 Slot)
         </span>
         <small class="text-muted ms-2">Klik <strong>Edit</strong> untuk mengubah gambar atau deskripsi tiap slot galeri.</small>

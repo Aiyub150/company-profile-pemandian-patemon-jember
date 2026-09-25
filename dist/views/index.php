@@ -33,12 +33,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_ulasan'])) {
             $review_error = 'Format alamat email tidak valid.';
         } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
             $review_error = 'Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka).';
+        } elseif (has_toxic_words($raw_username) || has_toxic_words($raw_ulasan)) {
+            $toxicHits = array_merge(find_toxic_words($raw_username), find_toxic_words($raw_ulasan));
+            $review_error = 'Ulasan ditolak: Mengandung kata yang tidak pantas (' . e(implode(', ', array_unique($toxicHits))) . '). Mohon gunakan bahasa yang santun.';
+            if (function_exists('log_activity')) {
+                log_activity('TOXIC_BLOCKED', 'ulasan', "Kritik & saran publik diblokir karena kata terlarang: " . implode(', ', array_unique($toxicHits)));
+            }
         } else {
             $stmt = $conn->prepare("INSERT INTO ulasan (username, email, no_telepon, ulasan, tgl_ulasan) VALUES (?, ?, ?, ?, ?)");
             if ($stmt) {
                 $stmt->bind_param("sssss", $username, $email, $no_telepon, $ulasan, $tgl_ulasan);
                 if ($stmt->execute()) {
                     $review_success = true;
+                    if (function_exists('log_activity')) {
+                        log_activity('TAMBAH', 'ulasan', "Ulasan publik baru dari {$username}");
+                    }
                 } else {
                     $review_error = 'Terjadi kesalahan sistem saat menyimpan ulasan.';
                 }
@@ -93,6 +102,7 @@ if (empty($gallery_items_pub)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="../../public/css/styles.css" />
     <link rel="stylesheet" href="../../public/css/modern-theme.css" />
+    <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -412,16 +422,22 @@ if (empty($gallery_items_pub)) {
             </button>
             <div class="collapse navbar-collapse" id="navbarResponsive">
                 <ul class="navbar-nav text-uppercase ms-auto py-3 py-lg-0 align-items-center">
-                    <li class="nav-item"><a class="nav-link" href="#services">Fasilitas</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#portfolio">Galeri</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#pricing">Tarif Tiket</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#lokasi">Lokasi & Peta</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#kontak-info">Kontak Kami</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#contact">Kritik & Saran</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#services" data-i18n="nav_facilities">Fasilitas</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#portfolio" data-i18n="nav_gallery">Galeri</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#pricing" data-i18n="nav_pricing">Tarif Tiket</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#lokasi" data-i18n="nav_location">Lokasi & Peta</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#kontak-info" data-i18n="nav_contact">Kontak Kami</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#contact" data-i18n="nav_feedback">Kritik & Saran</a></li>
                     
                     <li class="nav-item ms-lg-2 my-1 my-lg-0">
+                        <button type="button" class="btn-lang-switcher" onclick="togglePatemonLanguage()" title="Beralih Bahasa / Switch Language" style="height: 34px; padding: 0.25rem 0.65rem; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.12); color: #fff;">
+                            <svg class="flag-icon-svg" viewBox="0 0 640 480" width="18" height="13" style="border-radius:2px; vertical-align:middle; display:inline-block; box-shadow:0 0 1px rgba(0,0,0,0.5); margin-right:4px;"><g fill-rule="evenodd" stroke-width="1pt"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg><strong>ID</strong>
+                        </button>
+                    </li>
+
+                    <li class="nav-item ms-lg-2 my-1 my-lg-0">
                         <a class="btn btn-pesan-nav text-white" href="<?= route_url('tiket_pesan') ?>">
-                            <i class="fa-solid fa-ticket me-1"></i> Pesan Tiket
+                            <i class="fa-solid fa-ticket me-1"></i> <span data-i18n="btn_book_now">Pesan Tiket</span>
                         </a>
                     </li>
                     <?php if (isset($_SESSION['id_user'])): ?>
@@ -903,7 +919,9 @@ if (empty($gallery_items_pub)) {
         const max = 500;
         const counter = document.getElementById('charCounter');
         if (counter) {
-            counter.textContent = `${currentLength} / ${max} Karakter`;
+            const isEn = ((localStorage.getItem('patemon_lang') || 'id') === 'en');
+            const unit = isEn ? 'Characters' : 'Karakter';
+            counter.textContent = `${currentLength} / ${max} ${unit}`;
             if (currentLength >= max) {
                 counter.className = 'badge bg-danger small';
             } else if (currentLength >= 400) {
