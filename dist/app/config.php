@@ -28,8 +28,9 @@ if (!$conn) {
 
 mysqli_set_charset($conn, "utf8mb4");
 
-// Start session secara aman jika belum aktif (SEC-06)
-if (session_status() === PHP_SESSION_NONE) {
+// Start session secara aman jika belum aktif (SEC-06 & MF-04 Hardened)
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    ini_set('session.use_strict_mode', 1);
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
     $isSecure = (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] === 'on' || $_SERVER['HTTPS'] === '1')) || 
@@ -67,7 +68,7 @@ if (!function_exists('e')) {
 }
 
 /**
- * Helper CSRF Token
+ * Helper CSRF Token (MF-09: Dibatasi hanya via POST & Header, bukan GET)
  */
 if (!function_exists('csrf_token')) {
     function csrf_token() {
@@ -80,7 +81,7 @@ if (!function_exists('csrf_token')) {
 
 if (!function_exists('validate_csrf')) {
     function validate_csrf($token = null) {
-        $token = $token ?: ($_POST['csrf_token'] ?? $_GET['csrf_token'] ?? '');
+        $token = $token ?: ($_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
         return !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], (string)$token);
     }
 }
@@ -318,6 +319,15 @@ if (!function_exists('route_url')) {
             'settings_server_log'    => 'admin/settings/server-log',
             'settings_history_log'   => 'admin/settings/history-log',
             'transaksi_restore'      => 'admin/transaksi/restore',
+            'users_restore'          => 'admin/users/restore',
+            'ulasan_restore'         => 'admin/ulasan/restore',
+
+            // Events (Feedback-7 Poin 6)
+            'events'                 => 'admin/events',
+            'event'                  => 'admin/events',
+            'events_tambah'          => 'admin/events/tambah',
+            'events_delete'          => 'admin/events/delete',
+            'events_toggle'          => 'admin/events/toggle',
 
             // Profil, Panduan, Versi
             'profile'                => 'profile',
@@ -565,6 +575,149 @@ if (!function_exists('record_server_log')) {
             return $stmt->execute();
         }
         return false;
+    }
+}
+
+/**
+ * Helper Keamanan Unggah Gambar Terpusat (Feedback-7 Poin 7: Anti-Polyglot & Steganography Hardening)
+ * Memvalidasi MIME type, ekstensi whitelist, ukuran, struktur piksel, membersihkan EXIF/script tersembunyi
+ * melalui re-encoding GD library murni, dan menghasilkan nama file acak CSPRNG.
+ */
+if (!function_exists('secure_upload_image')) {
+    function secure_upload_image($file, $target_dir, $allowed_extensions = ['jpg', 'jpeg', 'png', 'webp'], $max_bytes = 2097152) {
+        if (!isset($file['error']) || is_array($file['error'])) {
+            return ['success' => false, 'error' => 'Parameter berkas tidak valid.'];
+        }
+
+        switch ($file['error']) {
+            case UPLOAD_ERR_OK:
+                break;
+            case UPLOAD_ERR_NO_FILE:
+                return ['success' => false, 'error' => 'Tidak ada berkas yang diunggah.'];
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                return ['success' => false, 'error' => 'Ukuran berkas melebihi batas yang diizinkan server.'];
+            default:
+                return ['success' => false, 'error' => 'Terjadi kesalahan sistem saat mengunggah berkas.'];
+        }
+
+        if ($file['size'] > $max_bytes) {
+            $max_mb = round($max_bytes / 1048576, 1);
+            return ['success' => false, 'error' => "Ukuran berkas maksimal adalah {$max_mb} MB."];
+        }
+
+        // 1. Ekstensi Whitelist (Validasi awal format berkas)
+        $orig_ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($orig_ext, $allowed_extensions, true)) {
+            return ['success' => false, 'error' => 'Format ekstensi berkas tidak diizinkan. Hanya ' . implode(', ', $allowed_extensions) . ' yang diperbolehkan.'];
+        }
+
+        $tmp_name = $file['tmp_name'];
+        if (!is_uploaded_file($tmp_name) && !(php_sapi_name() === 'cli' && file_exists($tmp_name))) {
+            return ['success' => false, 'error' => 'Berkas tidak diunggah melalui mekanisme HTTP POST yang sah.'];
+        }
+
+        // 2. MIME Type Verification via finfo
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = @finfo_file($finfo, $tmp_name);
+        finfo_close($finfo);
+
+        $allowed_mimes = [
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png'  => 'image/png',
+            'webp' => 'image/webp'
+        ];
+
+        if (!in_array($mime, $allowed_mimes, true)) {
+            return ['success' => false, 'error' => 'Tipe konten berkas (MIME type) tidak sah atau bukan gambar yang valid.'];
+        }
+
+        // 3. Inspeksi Struktur Piksel Gambar (getimagesize)
+        $img_info = @getimagesize($tmp_name);
+        if ($img_info === false || $img_info[0] <= 0 || $img_info[1] <= 0) {
+            return ['success' => false, 'error' => 'Berkas rusak atau bukan merupakan gambar valid.'];
+        }
+
+        // 4. Deteksi Script Berbahaya / Polyglot / WebShell dalam Konten Mentah
+        $file_content = @file_get_contents($tmp_name, false, null, 0, 524288); // 512KB first chunk
+        if ($file_content !== false) {
+            $dangerous_patterns = [
+                '/<\?php/i',
+                '/<\?=/i',
+                '/<\x00?\?\x00?p\x00?h\x00?p/i',
+                '/<script\b/i',
+                '/\b(eval|passthru|shell_exec|exec|system|base64_decode|assert)\s*\(/i'
+            ];
+            foreach ($dangerous_patterns as $pattern) {
+                if (preg_match($pattern, $file_content)) {
+                    return ['success' => false, 'error' => 'Berkas ditolak: Terdeteksi pola script berbahaya atau kode tersembunyi dalam berkas gambar.'];
+                }
+            }
+        }
+
+        // Pastikan direktori tujuan ada dan berizin tulis
+        if (!is_dir($target_dir)) {
+            @mkdir($target_dir, 0755, true);
+        }
+        $target_dir = rtrim($target_dir, '/\\') . DIRECTORY_SEPARATOR;
+
+        // Nama file acak kriptografis (CSPRNG)
+        $safe_filename = bin2hex(random_bytes(16)) . '.' . ($orig_ext === 'jpeg' ? 'jpg' : $orig_ext);
+        $destination = $target_dir . $safe_filename;
+
+        // 5. Deep Re-Encoding & EXIF Stripping via GD Library
+        $sanitized = false;
+        if (extension_loaded('gd')) {
+            $src_img = null;
+            if ($mime === 'image/jpeg') {
+                $src_img = @imagecreatefromjpeg($tmp_name);
+            } elseif ($mime === 'image/png') {
+                $src_img = @imagecreatefrompng($tmp_name);
+            } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+                $src_img = @imagecreatefromwebp($tmp_name);
+            }
+
+            if ($src_img) {
+                // Pertahankan transparansi PNG / WebP
+                if ($mime === 'image/png' || $mime === 'image/webp') {
+                    imagealphablending($src_img, false);
+                    imagesavealpha($src_img, true);
+                }
+
+                if ($mime === 'image/jpeg') {
+                    $sanitized = @imagejpeg($src_img, $destination, 90);
+                } elseif ($mime === 'image/png') {
+                    $sanitized = @imagepng($src_img, $destination, 8);
+                } elseif ($mime === 'image/webp' && function_exists('imagewebp')) {
+                    $sanitized = @imagewebp($src_img, $destination, 90);
+                }
+                @imagedestroy($src_img);
+            }
+        }
+
+        // Fallback jika GD gagal atau tidak aktif
+        if (!$sanitized) {
+            $moved = false;
+            if (is_uploaded_file($tmp_name)) {
+                $moved = @move_uploaded_file($tmp_name, $destination);
+            } elseif (php_sapi_name() === 'cli' && file_exists($tmp_name)) {
+                $moved = @copy($tmp_name, $destination);
+            }
+            if (!$moved) {
+                return ['success' => false, 'error' => 'Gagal memindahkan berkas ke penyimpanan server.'];
+            }
+        }
+
+        @chmod($destination, 0644);
+
+        return [
+            'success'   => true,
+            'filename'  => $safe_filename,
+            'filepath'  => $destination,
+            'mime'      => $mime,
+            'size'      => @filesize($destination)
+        ];
     }
 }
 ?>

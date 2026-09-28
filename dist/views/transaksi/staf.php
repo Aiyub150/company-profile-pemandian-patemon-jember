@@ -25,7 +25,13 @@ $header_actions = '
 
 $search = trim($_GET['search'] ?? ($_GET['id_transaksi'] ?? ''));
 
-// Query Transaksi: Ketika mencari (termasuk hasil scan barcode), cari ke seluruh transaksi agar kasir dapat memverifikasi tiket pengunjung online
+// Feedback-7 Poin 4: Staf Kasir (Level 3) hanya melihat data transaksi yang diinputkannya sendiri
+$staff_filter_sql = "";
+if ($user_level === 3) {
+    $staff_filter_sql = " AND (transaksi.kasir_id = {$user_id} OR (transaksi.kasir_id IS NULL AND transaksi.id_user = {$user_id}))";
+}
+
+// Query Transaksi
 if (!empty($search)) {
     $id_search = 0;
     if (preg_match('/(?:TRX-\d{8}-)?0*(\d+)/i', $search, $m)) {
@@ -33,44 +39,65 @@ if (!empty($search)) {
     }
     $search_like = "%" . $search . "%";
 
-    $stmt = $conn->prepare("
-        SELECT transaksi.*, users.nama 
-        FROM transaksi 
-        INNER JOIN users ON transaksi.id_user = users.id_user 
-        WHERE transaksi.deleted_at IS NULL 
-          AND (transaksi.id_transaksi = ? 
-           OR users.nama LIKE ? 
-           OR transaksi.nama_pemesan LIKE ?
-           OR transaksi.metode_pembayaran LIKE ? 
-           OR transaksi.status LIKE ?
-           OR transaksi.tgl_pemesanan LIKE ?)
-        ORDER BY tgl_pemesanan DESC, id_transaksi DESC
-    ");
-    $stmt->bind_param("isssss", $id_search, $search_like, $search_like, $search_like, $search_like, $search_like);
+    // Jika staf memindai barcode / mencari spesifik ID tiket, izinkan verifikasi tiket pengunjung; 
+    // jika pencarian teks umum, terapkan batasan akun staf jika level 3
+    if ($user_level === 3 && $id_search === 0) {
+        $stmt = $conn->prepare("
+            SELECT transaksi.*, users.nama 
+            FROM transaksi 
+            INNER JOIN users ON transaksi.id_user = users.id_user 
+            WHERE transaksi.deleted_at IS NULL 
+              AND (transaksi.kasir_id = ? OR (transaksi.kasir_id IS NULL AND transaksi.id_user = ?))
+              AND (users.nama LIKE ? 
+               OR transaksi.nama_pemesan LIKE ?
+               OR transaksi.metode_pembayaran LIKE ? 
+               OR transaksi.status LIKE ?
+               OR transaksi.tgl_pemesanan LIKE ?)
+            ORDER BY tgl_pemesanan DESC, id_transaksi DESC
+        ");
+        $stmt->bind_param("iisssss", $user_id, $user_id, $search_like, $search_like, $search_like, $search_like, $search_like);
+    } else {
+        $stmt = $conn->prepare("
+            SELECT transaksi.*, users.nama 
+            FROM transaksi 
+            INNER JOIN users ON transaksi.id_user = users.id_user 
+            WHERE transaksi.deleted_at IS NULL 
+              AND (transaksi.id_transaksi = ? 
+               OR users.nama LIKE ? 
+               OR transaksi.nama_pemesan LIKE ?
+               OR transaksi.metode_pembayaran LIKE ? 
+               OR transaksi.status LIKE ?
+               OR transaksi.tgl_pemesanan LIKE ?)
+            ORDER BY tgl_pemesanan DESC, id_transaksi DESC
+        ");
+        $stmt->bind_param("isssss", $id_search, $search_like, $search_like, $search_like, $search_like, $search_like);
+    }
     $stmt->execute();
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    // Tampilkan transaksi terbaru loket & online agar staf kasir dapat melihat pemesanan masuk (hanya data aktif)
+    // Tampilkan transaksi aktif (staf level 3 hanya data yang dia inputkan)
     $sql = "SELECT transaksi.*, users.nama 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
             WHERE transaksi.deleted_at IS NULL 
+            {$staff_filter_sql}
             ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
     $result = $conn->query($sql);
 }
 
-// Rekap Omzet Hari Ini
+// Rekap Omzet Hari Ini (Staf hanya melihat total omzet yang dia kumpulkan)
 $today_omzet = 0;
 $today_tickets = 0;
-$recap = $conn->query("SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL");
+$recap_sql = "SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL {$staff_filter_sql}";
+$recap = $conn->query($recap_sql);
 if ($recap && $rc = $recap->fetch_assoc()) {
     $today_omzet = (float)($rc['omzet'] ?? 0);
     $today_tickets = (int)$rc['cnt'];
 }
 
 $extra_css = '
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="' . public_url('js/html5-qrcode.min.js') . '"></script>
 ';
 
 require '../../app/layouts/admin_header.php';

@@ -50,16 +50,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $result = $stmt->get_result();
 
             if ($user = $result->fetch_assoc()) {
-                // Verifikasi password hash BCRYPT (dengan fallback migrasi otomatis)
+                // Verifikasi password hash BCRYPT murni (MF-08: No Plaintext Fallback)
                 $is_password_valid = password_verify($password, $user['password']);
-                if (!$is_password_valid && $password === $user['password']) {
-                    $is_password_valid = true;
-                    $new_hash = password_hash($password, PASSWORD_BCRYPT);
-                    $up_stmt = $conn->prepare("UPDATE users SET password = ? WHERE id_user = ?");
-                    $up_stmt->bind_param("si", $new_hash, $user['id_user']);
-                    $up_stmt->execute();
-                    $up_stmt->close();
-                }
 
                 if ($is_password_valid) {
                     session_regenerate_id(true);

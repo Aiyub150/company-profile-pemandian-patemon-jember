@@ -67,7 +67,7 @@ if ($recap_res && $recap = $recap_res->fetch_assoc()) {
 }
 
 $extra_css = '
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="' . public_url('js/html5-qrcode.min.js') . '"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 ';
 

@@ -157,7 +157,7 @@ if (!function_exists('public_url')) {
                 <?php if ($is_admin_or_super): ?>
                 <!-- Administrator Settings Dropdown (Feedback-5 Poin 4) -->
                 <?php 
-                $is_admin_settings_active = in_array($current_page, ['user', 'gallery', 'settings_toxic', 'settings_server_log', 'settings_history_log'], true);
+                $is_admin_settings_active = in_array($current_page, ['user', 'gallery', 'events', 'settings_toxic', 'settings_server_log', 'settings_history_log'], true);
                 ?>
                 <li class="sidebar-item has-sub <?= $is_admin_settings_active ? 'active open' : '' ?>">
                     <a href="javascript:void(0)" class="sidebar-link sidebar-dropdown-toggle" style="border-radius: 10px; display: flex; align-items: center; justify-content: space-between;">
@@ -181,6 +181,13 @@ if (!function_exists('public_url')) {
                             <a href="<?= route_url('gallery') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-images" style="font-size: 0.8rem;"></i>
                                 <span>Kelola Galeri</span>
+                            </a>
+                        </li>
+
+                        <li class="submenu-item <?= ($current_page === 'events') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('events') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-bullhorn" style="font-size: 0.8rem; color: #f59e0b;"></i>
+                                <span>Kelola Event</span>
                             </a>
                         </li>
 
@@ -254,13 +261,54 @@ if (!function_exists('public_url')) {
                         </span>
                     </div>
                 </div>
-                <a href="<?= route_url('logout') ?>" class="btn btn-sm btn-outline-danger" title="Keluar / Logout" style="border-radius: 8px; width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                <form id="sidebarLogoutForm" action="<?= route_url('logout') ?>" method="POST" class="d-none">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                </form>
+                <button type="button" class="btn btn-sm btn-outline-danger" title="Keluar / Logout" onclick="confirmPatemonLogout()" style="border-radius: 8px; width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
                     <i class="fa-solid fa-power-off"></i>
-                </a>
+                </button>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function confirmPatemonLogout() {
+    function doSubmit() {
+        var form = document.getElementById('sidebarLogoutForm');
+        if (form) {
+            form.submit();
+        } else {
+            window.location.href = '<?= route_url('logout') ?>';
+        }
+    }
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Konfirmasi Keluar Akun',
+            text: 'Apakah Anda yakin ingin mengakhiri sesi kerja saat ini?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="fa-solid fa-power-off me-1"></i> Ya, Keluar',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            customClass: {
+                popup: 'rounded-4 shadow-lg border'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                doSubmit();
+            }
+        });
+    } else {
+        if (confirm('Apakah Anda yakin ingin keluar dari akun ini?')) {
+            doSubmit();
+        }
+    }
+}
+</script>
 
 <!-- Self-Contained Sidebar Script (Dropdowns & Mobile Drawer) -->
 <script>

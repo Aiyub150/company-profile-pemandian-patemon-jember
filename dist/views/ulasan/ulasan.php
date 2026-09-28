@@ -24,7 +24,7 @@ $filter_date  = trim($_GET['date'] ?? '');
 $filter_month = (int)($_GET['month'] ?? 0);
 $filter_year  = (int)($_GET['year'] ?? 0);
 
-$where = ["1=1"];
+$where = ["deleted_at IS NULL"];
 $params = [];
 $types = "";
 

@@ -23,7 +23,7 @@ $user_lvl = (int)($_SESSION['level'] ?? 0);
 $session_tx_id = (int)($_SESSION['id_transaksi'] ?? 0);
 $is_own_session = ($session_tx_id > 0 && $session_tx_id === $id_transaksi) ? 1 : 0;
 
-$stmt = $conn->prepare("SELECT transaksi.*, users.nama as user_nama, users.no_telepon, users.email FROM transaksi LEFT JOIN users ON transaksi.id_user = users.id_user WHERE id_transaksi = ? AND (transaksi.id_user = ? OR ? = 1 OR ? = 2 OR ? = 3 OR ? = 1) LIMIT 1");
+$stmt = $conn->prepare("SELECT transaksi.*, users.nama as user_nama, users.no_telepon, users.email, kasir.nama as kasir_nama, kasir.username as kasir_username FROM transaksi LEFT JOIN users ON transaksi.id_user = users.id_user LEFT JOIN users kasir ON transaksi.kasir_id = kasir.id_user WHERE id_transaksi = ? AND (transaksi.id_user = ? OR ? = 1 OR ? = 2 OR ? = 3 OR ? = 1) LIMIT 1");
 $stmt->bind_param("iiiiii", $id_transaksi, $id_user, $user_lvl, $user_lvl, $user_lvl, $is_own_session);
 $stmt->execute();
 $transaksi_data = $stmt->get_result()->fetch_assoc();
@@ -631,9 +631,32 @@ if (file_exists($logo_file)) {
         <?php endif; ?>
 
         <div class="item-row pt-2 border-top mt-2">
-            <span class="fw-bold fs-6 text-dark">Total Pembayaran:</span>
+            <span class="fw-bold fs-6 text-dark">TOTAL TAGIHAN:</span>
             <strong class="text-primary fs-5"><?= format_rupiah($transaksi_data['total_harga']) ?></strong>
         </div>
+
+        <?php 
+        $uang_bayar = (int)($transaksi_data['uang_bayar'] ?? 0);
+        $kembalian = (int)($transaksi_data['kembalian'] ?? 0);
+        $metode = strtolower($transaksi_data['metode_pembayaran'] ?? '');
+        $is_cash = str_contains($metode, 'tunai') || str_contains($metode, 'cash');
+        ?>
+        <div class="item-row" style="font-size: 0.85rem;">
+            <span class="text-muted"><?= $is_cash ? 'UANG DITERIMA (TUNAI):' : 'DIBAYAR (' . strtoupper(e($transaksi_data['metode_pembayaran'])) . '):' ?></span>
+            <strong><?= format_rupiah($uang_bayar > 0 ? $uang_bayar : $transaksi_data['total_harga']) ?></strong>
+        </div>
+
+        <div class="item-row" style="font-size: 0.85rem;">
+            <span class="text-muted">KEMBALIAN:</span>
+            <strong class="<?= $kembalian > 0 ? 'text-success' : 'text-dark' ?>"><?= format_rupiah($kembalian) ?></strong>
+        </div>
+
+        <?php if (!empty($transaksi_data['kasir_nama']) || !empty($transaksi_data['kasir_username'])): ?>
+            <div class="item-row mt-1 pt-1 border-top" style="font-size: 0.775rem;">
+                <span class="text-muted">PETUGAS KASIR:</span>
+                <span class="fw-semibold text-dark"><?= e($transaksi_data['kasir_nama'] ?: $transaksi_data['kasir_username']) ?></span>
+            </div>
+        <?php endif; ?>
 
         <!-- Status Lunas / Verifikasi -->
         <div class="text-center mt-3 pt-2">

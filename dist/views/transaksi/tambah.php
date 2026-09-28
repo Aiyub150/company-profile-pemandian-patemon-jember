@@ -21,7 +21,7 @@ if ($res_t) {
 }
 
 // Ambil daftar pengguna untuk dropdown akun terdaftar
-$users_list = $conn->query("SELECT id_user, nama, username, email FROM users ORDER BY nama ASC");
+$users_list = $conn->query("SELECT id_user, nama, username, email FROM users WHERE deleted_at IS NULL ORDER BY nama ASC");
 
 $error_msg = '';
 
@@ -34,6 +34,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $id_user_selected    = (int)($_POST['id_user'] ?? $_SESSION['id_user']);
         $metode_pembayaran   = trim($_POST['metode_pembayaran'] ?? 'Tunai');
         $status              = trim($_POST['status'] ?? 'done');
+        $uang_bayar          = (int)($_POST['uang_bayar'] ?? 0);
+        $kasir_id            = (int)($_SESSION['id_user'] ?? 0);
 
         // Tentukan id_user dan nama_pemesan yang disimpan di tabel transaksi
         if ($cust_type === 'manual') {
@@ -95,37 +97,59 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             if ($total_qty === 0) {
                 $error_msg = "Silakan pilih minimal 1 lembar tiket untuk melanjutkan transaksi.";
+            } elseif ($metode_pembayaran === 'Tunai' && $uang_bayar < $total_harga) {
+                // Feedback-7 Poin 3: Validasi uang kurang
+                $kurang = $total_harga - $uang_bayar;
+                $error_msg = "Uang pembayaran yang diterima (" . format_rupiah($uang_bayar) . ") kurang " . format_rupiah($kurang) . " dari total tagihan (" . format_rupiah($total_harga) . ").";
             } else {
-                $tgl_pemesanan = date('Y-m-d');
-                $nama_gambar   = null;
+                // Non-Tunai default bayar = total harga jika tidak diinput
+                if ($metode_pembayaran !== 'Tunai' && $uang_bayar <= 0) {
+                    $uang_bayar = $total_harga;
+                }
+                $kembalian = max(0, $uang_bayar - $total_harga);
 
-                $conn->begin_transaction();
-                try {
-                    $stmt = $conn->prepare("INSERT INTO transaksi (id_user, nama_pemesan, tgl_pemesanan, total_harga, metode_pembayaran, bukti_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param("ississs", $id_user_transaksi, $nama_pemesan_val, $tgl_pemesanan, $total_harga, $metode_pembayaran, $nama_gambar, $status);
-                    $stmt->execute();
-                    $new_id = $conn->insert_id;
-                    $stmt->close();
-
-                    $stmt_d = $conn->prepare("INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES (?, ?, ?, ?)");
-                    foreach ($order_items as $item) {
-                        $stmt_d->bind_param("isii", $new_id, $item['nama_tiket'], $item['qty'], $item['subtotal']);
-                        $stmt_d->execute();
+                // Feedback-7 Poin 3 & Poin 7: Upload bukti pembayaran non-tunai
+                $nama_gambar = null;
+                if (isset($_FILES['bukti_pembayaran']) && $_FILES['bukti_pembayaran']['error'] !== UPLOAD_ERR_NO_FILE) {
+                    $upload_res = secure_upload_image($_FILES['bukti_pembayaran'], __DIR__ . '/../../app/payment/');
+                    if ($upload_res['success']) {
+                        $nama_gambar = $upload_res['filename'];
+                    } else {
+                        $error_msg = "Bukti Pembayaran: " . $upload_res['error'];
                     }
-                    $stmt_d->close();
+                }
 
-                    $conn->commit();
+                if (empty($error_msg)) {
+                    $tgl_pemesanan = date('Y-m-d');
 
-                    if (function_exists('log_activity')) {
-                        $p_label = !empty($nama_pemesan_val) ? "Tamu: {$nama_pemesan_val}" : "User ID #{$id_user_transaksi}";
-                        log_activity('TAMBAH', 'transaksi', "Membuat transaksi loket POS ID #{$new_id} ({$p_label}) total Rp " . number_format($total_harga, 0, ',', '.') . " ({$metode_pembayaran})");
+                    $conn->begin_transaction();
+                    try {
+                        $stmt = $conn->prepare("INSERT INTO transaksi (id_user, kasir_id, nama_pemesan, tgl_pemesanan, total_harga, uang_bayar, kembalian, metode_pembayaran, bukti_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("iissiiisss", $id_user_transaksi, $kasir_id, $nama_pemesan_val, $tgl_pemesanan, $total_harga, $uang_bayar, $kembalian, $metode_pembayaran, $nama_gambar, $status);
+                        $stmt->execute();
+                        $new_id = $conn->insert_id;
+                        $stmt->close();
+
+                        $stmt_d = $conn->prepare("INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES (?, ?, ?, ?)");
+                        foreach ($order_items as $item) {
+                            $stmt_d->bind_param("isii", $new_id, $item['nama_tiket'], $item['qty'], $item['subtotal']);
+                            $stmt_d->execute();
+                        }
+                        $stmt_d->close();
+
+                        $conn->commit();
+
+                        if (function_exists('log_activity')) {
+                            $p_label = !empty($nama_pemesan_val) ? "Tamu: {$nama_pemesan_val}" : "User ID #{$id_user_transaksi}";
+                            log_activity('TAMBAH', 'transaksi', "Membuat transaksi loket POS ID #{$new_id} ({$p_label}) total Rp " . number_format($total_harga, 0, ',', '.') . " ({$metode_pembayaran})");
+                        }
+
+                        header("Location: " . route_url('nota', ['id' => $new_id]));
+                        exit();
+                    } catch (Exception $e) {
+                        $conn->rollback();
+                        $error_msg = "Gagal memproses transaksi loket: " . e($e->getMessage());
                     }
-
-                    header("Location: " . route_url('nota', ['id' => $new_id]));
-                    exit();
-                } catch (Exception $e) {
-                    $conn->rollback();
-                    $error_msg = "Gagal memproses transaksi loket: " . e($e->getMessage());
                 }
             }
         }
@@ -144,6 +168,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('assets/css/main/app.css') ?>">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>?v=<?= file_exists(__DIR__ . '/../../../public/css/modern-theme.css') ? filemtime(__DIR__ . '/../../../public/css/modern-theme.css') : time() ?>">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         (function() {
             var theme = localStorage.getItem('patemon_theme') || 'light';
@@ -165,8 +190,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background: var(--bg-card, #ffffff);
             color: var(--text-main, #0f172a);
             display: flex;
-            flex-column: column;
+            flex-direction: column !important;
             justify-content: space-between;
+            gap: 1.25rem;
             height: 100%;
         }
         .pos-ticket-card.active {
@@ -239,6 +265,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color: #0284c7;
             background: rgba(2, 132, 199, 0.08);
         }
+        .pos-kembalian-box {
+            transition: all 0.2s ease;
+        }
     </style>
 </head>
 
@@ -258,32 +287,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <i class="fa-solid fa-bars fs-3"></i>
                 </a>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                    <button type="button" id="themeToggleBtn" class="btn-theme-switcher" onclick="togglePatemonTheme()" title="Beralih Mode Gelap / Terang">
-                        <span class="theme-icon-moon"><i class="fa-solid fa-moon"></i></span>
-                        <span class="theme-icon-sun"><i class="fa-solid fa-sun"></i></span>
-                        <span class="d-none d-sm-inline ms-1" id="themeLabelText">Tema</span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="themeToggleBtn" onclick="togglePatemonTheme()" title="Beralih Mode Gelap/Terang" style="border-radius: 8px;">
+                        <i class="fa-solid fa-moon"></i> <span id="themeLabelText">Tema</span>
                     </button>
-                    <a href="<?= in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-sm btn-outline-secondary">
+                    <a href="<?= in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi') ?>" class="btn btn-outline-secondary btn-sm" style="border-radius: 8px;">
                         <i class="fa-solid fa-arrow-left me-1"></i> Kembali ke Riwayat
                     </a>
                 </div>
             </header>
 
             <div class="page-heading mb-4">
-                <h2 class="fw-bold text-dark mb-1" style="font-size: 1.75rem;">Kasir Loket Penjualan Tiket (POS)</h2>
-                <p class="text-muted mb-0">Pilih jenis tiket dan kuantitas, tentukan data pengunjung & metode pembayaran, lalu cetak nota struk.</p>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h3 class="fw-bold mb-1 text-dark">Kasir Loket (Point of Sale)</h3>
+                        <p class="text-muted mb-0">Input penjualan tiket loket fisik secara cepat, akurat, dan cetak struk pembayaran.</p>
+                    </div>
+                </div>
             </div>
 
             <?php if (!empty($error_msg)): ?>
-                <div class="alert alert-danger d-flex align-items-center gap-2 mb-4">
-                    <i class="fa-solid fa-circle-exclamation fs-5"></i>
+                <div class="alert alert-danger d-flex align-items-center gap-2 mb-4 border-0 shadow-sm" style="border-radius: 12px;">
+                    <i class="fa-solid fa-circle-exclamation fs-5 flex-shrink-0"></i>
                     <div><?= e($error_msg) ?></div>
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="" id="posForm">
+            <form method="POST" action="" id="posForm" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="cust_type" id="custTypeInput" value="manual">
+                <input type="hidden" name="uang_bayar" id="hiddenUangBayar" value="0">
 
                 <div class="row g-4">
                     <!-- Left Column: Tiket & Customer Selection -->
@@ -298,25 +330,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <span class="badge bg-light text-secondary border small">Loket Kasir</span>
                             </div>
                             <div class="modern-card-body">
-                                <!-- Switcher: Pengunjung Langsung vs Akun Terdaftar -->
-                                <div class="mb-3 d-flex flex-wrap gap-2">
+                                <!-- Type Switcher Pills -->
+                                <div class="d-flex gap-2 mb-3">
                                     <div class="cust-type-pill active" id="pillManual" onclick="switchCustType('manual')">
-                                        <i class="fa-solid fa-user-clock"></i>
-                                        <span>Pengunjung Langsung (Tamu Loket)</span>
+                                        <i class="fa-solid fa-user-plus"></i> Pengunjung Langsung (Tamu Loket)
                                     </div>
                                     <div class="cust-type-pill" id="pillRegistered" onclick="switchCustType('registered')">
-                                        <i class="fa-solid fa-address-book"></i>
-                                        <span>Pilih Akun Terdaftar</span>
+                                        <i class="fa-solid fa-address-book"></i> Pilih Akun Terdaftar
                                     </div>
                                 </div>
 
-                                <!-- Field 1: Input Manual Nama Tamu (Default) -->
+                                <!-- Field 1: Manual / Walk-in Name Input -->
                                 <div id="secManualCust">
                                     <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">
-                                        Nama Lengkap Pengunjung / Rombongan:
+                                        Nama Pengunjung / Rombongan:
                                     </label>
-                                    <div class="input-icon-group mb-1">
-                                        <i class="fa-solid fa-id-card input-icon"></i>
+                                    <div class="input-icon-group mb-2">
+                                        <i class="fa-solid fa-signature input-icon"></i>
                                         <input 
                                             type="text" 
                                             class="form-control-modern" 
@@ -333,7 +363,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     </small>
                                 </div>
 
-                                <!-- Field 2: Select Option Akun Terdaftar dengan Searchable Select (Feedback-6 Poin 5) -->
+                                <!-- Field 2: Select Option Akun Terdaftar dengan Searchable Select -->
                                 <div id="secRegisteredCust" style="display: none;">
                                     <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">
                                         Cari Akun Pengguna Terdaftar:
@@ -354,7 +384,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             </div>
                         </div>
 
-                        <!-- Ticket Selection Card (Feedback-6 Poin 4: Dynamic Ticket Categories) -->
+                        <!-- Ticket Selection Card (Feedback-6 Poin 4 & Feedback-7 Poin 3: Dynamic Ticket Categories Clean Layout) -->
                         <div class="modern-card mb-4">
                             <div class="modern-card-header d-flex justify-content-between align-items-center">
                                 <span class="fw-bold text-dark">
@@ -373,20 +403,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                             <div class="col-12 col-sm-6 col-xl-6">
                                                 <div class="pos-ticket-card" id="cardTicket_<?= $t['id_tiket'] ?>">
                                                     <div>
-                                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                                            <div class="fw-bold fs-5 text-dark"><?= e($t['nama_tiket']) ?></div>
-                                                            <div class="metric-icon-box blue" style="width: 42px; height: 42px; font-size: 1.15rem;">
+                                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                                            <div>
+                                                                <div class="fw-bold fs-5 text-dark"><?= e($t['nama_tiket']) ?></div>
+                                                                <div class="text-muted small mt-1">
+                                                                    Kategori resmi pemandian &bull; Sumber alami Patemon
+                                                                </div>
+                                                            </div>
+                                                            <div class="metric-icon-box blue flex-shrink-0 ms-2" style="width: 44px; height: 44px; font-size: 1.2rem; border-radius: 12px;">
                                                                 <i class="fa-solid <?= e($t['ikon']) ?>"></i>
                                                             </div>
                                                         </div>
-                                                        <div class="text-muted small mb-3">
-                                                            Kategori resmi pemandian &bull; Sumber alami Patemon
-                                                        </div>
                                                     </div>
-                                                    <div>
+                                                    <div class="pt-2 border-top">
                                                         <div class="d-flex justify-content-between align-items-center">
-                                                            <div class="fw-extrabold text-primary fs-5">
-                                                                <?= format_rupiah($t['harga']) ?>
+                                                            <div>
+                                                                <span class="text-muted small d-block" style="font-size: 0.75rem;">Tarif Tiket:</span>
+                                                                <div class="fw-extrabold text-primary fs-5">
+                                                                    <?= format_rupiah($t['harga']) ?>
+                                                                </div>
                                                             </div>
                                                             <div class="qty-stepper">
                                                                 <button type="button" onclick="changeTicketQty(<?= $t['id_tiket'] ?>, -1)">
@@ -405,8 +440,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <div class="text-end text-muted small mt-2">
-                                                            Subtotal: <strong id="subtotalTicketTxt_<?= $t['id_tiket'] ?>" class="text-dark">Rp 0</strong>
+                                                        <div class="d-flex justify-content-between align-items-center text-muted small mt-2 pt-1 border-top border-light">
+                                                            <span>Subtotal:</span>
+                                                            <strong id="subtotalTicketTxt_<?= $t['id_tiket'] ?>" class="text-dark fs-6">Rp 0</strong>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -417,7 +453,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             </div>
                         </div>
 
-                        <!-- Payment Method Card -->
+                        <!-- Payment Method Card (Feedback-7 Poin 3: Non-Cash Proof Upload) -->
                         <div class="modern-card">
                             <div class="modern-card-header">
                                 <span class="fw-bold text-dark">
@@ -438,6 +474,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <input type="radio" class="d-none" name="metode_pembayaran" id="pay_transfer" value="Transfer Bank">
                                         <label for="pay_transfer"><i class="fa-solid fa-building-columns text-info"></i> Transfer Bank</label>
                                     </div>
+                                </div>
+
+                                <!-- Dynamic Non-Cash Proof Upload (Feedback-7 Poin 3 & Poin 7) -->
+                                <div id="secProofUpload" class="p-3 rounded-4 border bg-light-subtle mb-3" style="display: none;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label fw-bold text-dark mb-0" style="font-size: 0.875rem;">
+                                            <i class="fa-solid fa-camera me-1 text-primary"></i> Unggah Bukti Pembayaran Non-Tunai
+                                        </label>
+                                        <span class="badge bg-primary text-white" style="font-size: 0.7rem;">QRIS / E-Wallet / Transfer</span>
+                                    </div>
+                                    <div class="d-flex gap-2 flex-wrap mb-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="triggerCameraCapture()" style="border-radius: 8px;">
+                                            <i class="fa-solid fa-camera me-1"></i> Ambil Foto Langsung
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('bukti_pembayaran_file').click()" style="border-radius: 8px;">
+                                            <i class="fa-solid fa-upload me-1"></i> Upload dari Perangkat
+                                        </button>
+                                    </div>
+                                    <input type="file" name="bukti_pembayaran" id="bukti_pembayaran_file" class="d-none" accept="image/*" onchange="previewPaymentProof(this)">
+                                    <input type="file" id="bukti_camera_file" class="d-none" accept="image/*" capture="environment" onchange="previewPaymentProof(this)">
+
+                                    <div id="proofPreviewBox" class="mt-2 text-center p-2 border rounded-3 bg-white" style="display: none;">
+                                        <img id="proofPreviewImg" src="" style="max-height: 160px; max-width: 100%; border-radius: 8px; object-fit: contain;">
+                                        <div class="mt-2 d-flex justify-content-center gap-2">
+                                            <span class="badge bg-success small"><i class="fa-solid fa-check me-1"></i> Foto Siap Diunggah</span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearPaymentProof()" style="font-size: 0.75rem; border-radius: 6px;">
+                                                <i class="fa-solid fa-trash me-1"></i> Hapus
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block mt-2" style="font-size: 0.775rem;">
+                                        Format: JPG, PNG, WebP (Maksimal 2MB). Foto struk transfer atau bukti scan QRIS pelanggan.
+                                    </small>
                                 </div>
 
                                 <div class="form-group mb-0">
@@ -475,8 +544,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <div class="fw-extrabold text-primary" id="totalHargaTxt" style="font-size: 1.85rem; line-height: 1;">Rp 0</div>
                             </div>
 
-                            <!-- Kalkulator Kembalian Uang Tunai -->
-                            <div class="mb-3">
+                            <!-- Kalkulator Kembalian Uang Tunai (Feedback-7 Poin 3: Deficit Minus Logic) -->
+                            <div id="secCashCalculator" class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <label class="form-label fw-semibold text-secondary small mb-0">Uang Diterima (Rp):</label>
                                     <span class="quick-cash-chip" onclick="setCashPas()">Uang Pas</span>
@@ -502,9 +571,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 </div>
                             </div>
 
-                            <div class="pos-kembalian-box d-flex justify-content-between align-items-center p-3 rounded-3 mb-4">
-                                <span class="text-success fw-bold small">Uang Kembalian:</span>
-                                <strong class="fs-5 text-success" id="uangKembalianTxt">Rp 0</strong>
+                            <div class="pos-kembalian-box d-flex justify-content-between align-items-center p-3 rounded-3 mb-4" id="boxKembalian" style="background: rgba(100, 116, 139, 0.08);">
+                                <span class="fw-bold small" id="lblKembalian">Uang Kembalian:</span>
+                                <strong class="fs-5" id="uangKembalianTxt">Rp 0</strong>
                             </div>
 
                             <button type="submit" class="btn-brand w-100 py-3 fs-5" id="btnSubmit">
@@ -619,7 +688,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         hitungKembalian();
     }
 
-    // Kalkulator Kembalian
+    // Kalkulator Kembalian Uang Tunai (Mendukung Tampilan Minus/Defisit)
     function hitungKembalian() {
         let grandTotal = 0;
         for (const [id, t] of Object.entries(ticketCatalog)) {
@@ -628,9 +697,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             grandTotal += (qty * t.harga);
         }
 
-        const bayar = parseInt(document.getElementById('uangBayar').value) || 0;
-        const kembalian = Math.max(0, bayar - grandTotal);
-        document.getElementById('uangKembalianTxt').innerText = formatRupiah(kembalian);
+        const bayarInput = document.getElementById('uangBayar');
+        const bayar = parseInt(bayarInput.value) || 0;
+        document.getElementById('hiddenUangBayar').value = bayar;
+
+        const box = document.getElementById('boxKembalian');
+        const lbl = document.getElementById('lblKembalian');
+        const txt = document.getElementById('uangKembalianTxt');
+
+        if (grandTotal === 0) {
+            lbl.className = 'text-muted small fw-bold';
+            lbl.innerText = 'Uang Kembalian:';
+            txt.className = 'fs-5 text-muted';
+            txt.innerText = 'Rp 0';
+            box.style.background = 'rgba(100, 116, 139, 0.08)';
+            box.style.border = 'none';
+            return;
+        }
+
+        const selisih = bayar - grandTotal;
+        if (selisih < 0) {
+            // Defisit / Kurang (Feedback-7 Poin 3)
+            lbl.className = 'text-danger fw-bold small';
+            lbl.innerText = 'Kekurangan Uang:';
+            txt.className = 'fs-5 text-danger fw-bold';
+            txt.innerText = '- ' + formatRupiah(Math.abs(selisih));
+            box.style.background = 'rgba(239, 68, 68, 0.1)';
+            box.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        } else {
+            lbl.className = 'text-success fw-bold small';
+            lbl.innerText = 'Uang Kembalian:';
+            txt.className = 'fs-5 text-success fw-bold';
+            txt.innerText = formatRupiah(selisih);
+            box.style.background = 'rgba(16, 185, 129, 0.1)';
+            box.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+        }
     }
 
     function addCash(amount) {
@@ -655,6 +756,97 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         document.getElementById('uangBayar').value = grandTotal;
         hitungKembalian();
     }
+
+    // Payment Method Switching Listener
+    document.querySelectorAll('input[name="metode_pembayaran"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const proofSec = document.getElementById('secProofUpload');
+            const cashCalcSec = document.getElementById('secCashCalculator');
+            if (this.value === 'Tunai') {
+                if (proofSec) proofSec.style.display = 'none';
+                if (cashCalcSec) cashCalcSec.style.display = 'block';
+            } else {
+                if (proofSec) proofSec.style.display = 'block';
+                if (cashCalcSec) cashCalcSec.style.display = 'none';
+                setCashPas();
+            }
+        });
+    });
+
+    // Camera & Upload Handlers
+    function triggerCameraCapture() {
+        const camInput = document.getElementById('bukti_camera_file');
+        if (camInput) camInput.click();
+    }
+
+    function previewPaymentProof(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            
+            // Sync files to main input if triggered by camera capture
+            if (input.id === 'bukti_camera_file') {
+                try {
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    document.getElementById('bukti_pembayaran_file').files = dt.files;
+                } catch(e) {}
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('proofPreviewImg').src = e.target.result;
+                document.getElementById('proofPreviewBox').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function clearPaymentProof() {
+        const mainInput = document.getElementById('bukti_pembayaran_file');
+        const camInput = document.getElementById('bukti_camera_file');
+        if (mainInput) mainInput.value = '';
+        if (camInput) camInput.value = '';
+        document.getElementById('proofPreviewImg').src = '';
+        document.getElementById('proofPreviewBox').style.display = 'none';
+    }
+
+    // Form Submit Interceptor & Validation
+    document.getElementById('posForm').addEventListener('submit', function(e) {
+        let grandTotal = 0;
+        let grandQty = 0;
+        for (const [id, t] of Object.entries(ticketCatalog)) {
+            const input = document.getElementById('ticket_qty_' + id);
+            const qty = input ? (parseInt(input.value) || 0) : 0;
+            grandTotal += (qty * t.harga);
+            grandQty += qty;
+        }
+
+        if (grandQty <= 0) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Tiket Belum Dipilih',
+                text: 'Silakan pilih minimal 1 lembar tiket masuk untuk melanjutkan transaksi loket.',
+                icon: 'warning',
+                confirmButtonColor: '#0284c7'
+            });
+            return false;
+        }
+
+        const payMethod = document.querySelector('input[name="metode_pembayaran"]:checked')?.value || 'Tunai';
+        const bayar = parseInt(document.getElementById('uangBayar').value) || 0;
+
+        if (payMethod === 'Tunai' && bayar < grandTotal) {
+            e.preventDefault();
+            const kurang = grandTotal - bayar;
+            Swal.fire({
+                title: 'Uang Pembayaran Kurang',
+                html: 'Total tagihan adalah <b>' + formatRupiah(grandTotal) + '</b>, sedangkan uang yang diterima <b>' + formatRupiah(bayar) + '</b>.<br><span class="text-danger fw-bold">Kekurangan uang: ' + formatRupiah(kurang) + '</span>.',
+                icon: 'error',
+                confirmButtonColor: '#ef4444'
+            });
+            return false;
+        }
+    });
 
     // Theme Switcher Controller
     function togglePatemonTheme() {

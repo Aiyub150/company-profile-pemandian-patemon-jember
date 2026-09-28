@@ -32,6 +32,7 @@ CREATE TABLE `users` (
   `no_telepon` varchar(20) DEFAULT NULL,
   `level` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=pengunjung, 1=superadmin, 2=admin, 3=staf',
   `avatar` varchar(255) DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id_user`),
   UNIQUE KEY `uniq_users_username` (`username`),
   UNIQUE KEY `uniq_users_email` (`email`)
@@ -48,21 +49,25 @@ CREATE TABLE `tiket` (
 CREATE TABLE `transaksi` (
   `id_transaksi` int(11) NOT NULL AUTO_INCREMENT,
   `id_user` int(11) NOT NULL,
+  `kasir_id` int(11) DEFAULT NULL,
   `nama_pemesan` varchar(100) DEFAULT NULL,
   `tgl_pemesanan` date NOT NULL,
   `total_harga` int(11) NOT NULL DEFAULT 0,
+  `uang_bayar` int(11) DEFAULT 0,
+  `kembalian` int(11) DEFAULT 0,
   `metode_pembayaran` varchar(50) NOT NULL,
   `bukti_pembayaran` varchar(255) DEFAULT NULL,
   `status` enum('done','notyet') NOT NULL DEFAULT 'notyet',
   `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id_transaksi`),
   KEY `idx_transaksi_user` (`id_user`),
+  KEY `idx_transaksi_kasir` (`kasir_id`),
   KEY `idx_transaksi_tgl` (`tgl_pemesanan`),
   KEY `idx_transaksi_deleted` (`deleted_at`),
   CONSTRAINT `fk_transaksi_user`
     FOREIGN KEY (`id_user`) REFERENCES `users` (`id_user`)
     ON UPDATE CASCADE
-    ON DELETE CASCADE
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `detail_transaksi` (
@@ -87,7 +92,23 @@ CREATE TABLE `ulasan` (
   `ulasan` text NOT NULL,
   `tgl_ulasan` date NOT NULL,
   `is_read` tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=belum dibaca, 1=sudah dibaca',
-  PRIMARY KEY (`id_ulasan`)
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_ulasan`),
+  KEY `idx_ulasan_deleted` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Tabel Event / Notifikasi Flyer Acara Patemon (Feedback-7 Poin 6)
+CREATE TABLE IF NOT EXISTS `events` (
+  `id_event` int(11) NOT NULL AUTO_INCREMENT,
+  `judul` varchar(150) NOT NULL,
+  `gambar` varchar(255) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `urutan` int(11) NOT NULL DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_event`),
+  KEY `idx_event_active` (`is_active`),
+  KEY `idx_event_urutan` (`urutan`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `gallery` (
@@ -154,6 +175,22 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
   KEY `idx_login_ip` (`ip_address`),
   KEY `idx_login_user` (`username`),
   KEY `idx_login_time` (`attempt_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Tabel Token Pemulihan Kata Sandi (MF-01: Secure Password Recovery)
+CREATE TABLE IF NOT EXISTS `password_resets` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id_user` int(11) NOT NULL,
+  `token_hash` varchar(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_reset_token` (`token_hash`),
+  KEY `idx_reset_user` (`id_user`),
+  CONSTRAINT `fk_pwreset_user`
+    FOREIGN KEY (`id_user`) REFERENCES `users` (`id_user`)
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- =============================================================

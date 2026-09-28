@@ -118,6 +118,8 @@ $cleanRoutes = [
     '/logout'                => 'dist/views/logout.php',
     '/forgot-password'       => 'dist/views/forgot_password.php',
     '/forgot_password'       => 'dist/views/forgot_password.php',
+    '/reset-password'        => 'dist/views/forgot_password.php',
+    '/reset_password'        => 'dist/views/forgot_password.php',
     '/tiket'                 => 'dist/views/tiket/pesan.php',
     '/tiket/pesan'           => 'dist/views/tiket/pesan.php',
     '/pesan'                 => 'dist/views/tiket/pesan.php',
@@ -171,6 +173,14 @@ $cleanRoutes = [
     '/admin/settings/server-log' => 'dist/views/settings/server_log.php',
     '/admin/settings/history-log'=> 'dist/views/settings/log_history.php',
     '/admin/transaksi/restore'   => 'dist/views/transaksi/restore.php',
+    '/admin/users/restore'       => 'dist/views/user/restore.php',
+    '/admin/ulasan/restore'      => 'dist/views/ulasan/restore.php',
+
+    '/admin/events'              => 'dist/views/events/event.php',
+    '/admin/event'               => 'dist/views/events/event.php',
+    '/admin/events/tambah'       => 'dist/views/events/tambah.php',
+    '/admin/events/delete'       => 'dist/views/events/delete.php',
+    '/admin/events/toggle'       => 'dist/views/events/toggle.php',
 
     '/profile'               => 'dist/views/profile/profile.php',
     '/guide'                 => 'dist/views/settings/guide.php',

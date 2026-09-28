@@ -129,7 +129,7 @@ img.img-cover,
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    overflow: hidden;
+    position: relative;
 }
 
 .modern-card:hover {
@@ -140,6 +140,8 @@ img.img-cover,
     background: transparent;
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2629,6 +2631,10 @@ html.theme-dark .btn-nota-back {
     position: relative;
     width: 100%;
     font-family: inherit;
+}
+
+.patemon-select-container.open {
+    z-index: 1050;
 }
 
 .patemon-select-btn {

@@ -1,5 +1,6 @@
 <?php
 require '../../app/config.php';
+// Hanya Super Admin (Level 1) yang dapat memulihkan pengguna yang dinonaktifkan
 check_auth([1]);
 
 $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
@@ -12,15 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => 'Method Not Allowed']);
     } else {
-        die("Method Not Allowed: Operasi ini membutuhkan HTTP POST.");
+        die("Method Not Allowed: Operasi pemulihan harus melalui metode HTTP POST.");
     }
     exit();
 }
 
-$id_ulasan = (int)($_POST["id"] ?? 0);
+$id_user = (int)($_POST["id"] ?? 0);
 $csrf = $_POST["csrf_token"] ?? '';
 
-if ($id_ulasan <= 0 || !validate_csrf($csrf)) {
+if ($id_user <= 0 || !validate_csrf($csrf)) {
     http_response_code(403);
     if ($isAjax) {
         header('Content-Type: application/json');
@@ -31,27 +32,28 @@ if ($id_ulasan <= 0 || !validate_csrf($csrf)) {
     exit();
 }
 
-$stmtInfo = $conn->prepare("SELECT username FROM ulasan WHERE id_ulasan = ?");
-$stmtInfo->bind_param("i", $id_ulasan);
+// Ambil info user
+$stmtInfo = $conn->prepare("SELECT username, nama FROM users WHERE id_user = ?");
+$stmtInfo->bind_param("i", $id_user);
 $stmtInfo->execute();
 $uInfo = $stmtInfo->get_result()->fetch_assoc();
 $stmtInfo->close();
 
-$stmt = $conn->prepare("UPDATE ulasan SET deleted_at = NOW() WHERE id_ulasan = ?");
-$stmt->bind_param("i", $id_ulasan);
+$stmt = $conn->prepare("UPDATE users SET deleted_at = NULL WHERE id_user = ?");
+$stmt->bind_param("i", $id_user);
 $stmt->execute();
 $stmt->close();
 
 if (function_exists('log_activity')) {
-    $author = $uInfo['username'] ?? "ID #{$id_ulasan}";
-    log_activity('SOFT_DELETE', 'ulasan', "Memindahkan ulasan dari {$author} ke tempat sampah (Soft Delete)");
+    $author = $uInfo ? "Username: {$uInfo['username']} ({$uInfo['nama']})" : "ID: {$id_user}";
+    log_activity('RESTORE', 'user', "Memulihkan akun pengguna {$author} dari tempat sampah kembali ke data aktif");
 }
 
 if ($isAjax) {
     header('Content-Type: application/json');
-    echo json_encode(['success' => true, 'message' => 'Ulasan berhasil dihapus.']);
+    echo json_encode(['success' => true, 'message' => 'Pengguna berhasil dipulihkan.']);
     exit();
 }
 
-header("Location: " . route_url('ulasan'));
+header("Location: " . route_url('settings_history_log', ['tab' => 'trash_user', 'restored' => 1]));
 exit();

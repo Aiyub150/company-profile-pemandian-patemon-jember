@@ -47,49 +47,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $gambar_card  = trim($_POST['gambar_card_current'] ?? '');
             $gambar_popup = trim($_POST['gambar_popup_current'] ?? '');
 
+            $gallery_dir = __DIR__ . '/../../../public/img/';
+
             // Upload gambar card
-            if (isset($_FILES['gambar_card']) && $_FILES['gambar_card']['error'] === UPLOAD_ERR_OK) {
-                $tmp  = $_FILES['gambar_card']['tmp_name'];
-                $ext  = strtolower(pathinfo($_FILES['gambar_card']['name'], PATHINFO_EXTENSION));
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mime  = finfo_file($finfo, $tmp);
-                finfo_close($finfo);
-                $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-                if (!in_array($mime, $allowed, true)) {
-                    $error_msg = 'Format gambar card tidak didukung (jpg/png/webp/gif).';
-                } elseif ($_FILES['gambar_card']['size'] > 3 * 1024 * 1024) {
-                    $error_msg = 'Ukuran gambar card maksimal 3 MB.';
+            if (isset($_FILES['gambar_card']) && $_FILES['gambar_card']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $upload_card = secure_upload_image($_FILES['gambar_card'], $gallery_dir, ['jpg', 'jpeg', 'png', 'webp'], 3145728);
+                if ($upload_card['success']) {
+                    $gambar_card = $upload_card['filename'];
                 } else {
-                    $newname = 'gallery_' . $id_gallery . '_card_' . time() . '.' . $ext;
-                    $dest    = __DIR__ . '/../../../public/img/' . $newname;
-                    if (move_uploaded_file($tmp, $dest)) {
-                        $gambar_card = $newname;
-                    } else {
-                        $error_msg = 'Gagal mengunggah gambar card. Pastikan folder public/img dapat ditulis.';
-                    }
+                    $error_msg = 'Gagal mengunggah gambar card: ' . $upload_card['error'];
                 }
             }
 
             // Upload gambar popup (jika tidak ada error sebelumnya)
-            if (empty($error_msg) && isset($_FILES['gambar_popup']) && $_FILES['gambar_popup']['error'] === UPLOAD_ERR_OK) {
-                $tmp  = $_FILES['gambar_popup']['tmp_name'];
-                $ext  = strtolower(pathinfo($_FILES['gambar_popup']['name'], PATHINFO_EXTENSION));
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mime  = finfo_file($finfo, $tmp);
-                finfo_close($finfo);
-                $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-                if (!in_array($mime, $allowed, true)) {
-                    $error_msg = 'Format gambar popup tidak didukung (jpg/png/webp/gif).';
-                } elseif ($_FILES['gambar_popup']['size'] > 3 * 1024 * 1024) {
-                    $error_msg = 'Ukuran gambar popup maksimal 3 MB.';
+            if (empty($error_msg) && isset($_FILES['gambar_popup']) && $_FILES['gambar_popup']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $upload_pop = secure_upload_image($_FILES['gambar_popup'], $gallery_dir, ['jpg', 'jpeg', 'png', 'webp'], 3145728);
+                if ($upload_pop['success']) {
+                    $gambar_popup = $upload_pop['filename'];
                 } else {
-                    $newname = 'gallery_' . $id_gallery . '_popup_' . time() . '.' . $ext;
-                    $dest    = __DIR__ . '/../../../public/img/' . $newname;
-                    if (move_uploaded_file($tmp, $dest)) {
-                        $gambar_popup = $newname;
-                    } else {
-                        $error_msg = 'Gagal mengunggah gambar popup.';
-                    }
+                    $error_msg = 'Gagal mengunggah gambar popup: ' . $upload_pop['error'];
                 }
             }
 

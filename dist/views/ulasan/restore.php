@@ -1,5 +1,6 @@
 <?php
 require '../../app/config.php';
+// Hanya Super Admin (Level 1) yang dapat memulihkan testimoni/ulasan yang dihapus
 check_auth([1]);
 
 $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
@@ -12,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => 'Method Not Allowed']);
     } else {
-        die("Method Not Allowed: Operasi ini membutuhkan HTTP POST.");
+        die("Method Not Allowed: Operasi pemulihan harus melalui metode HTTP POST.");
     }
     exit();
 }
@@ -37,21 +38,21 @@ $stmtInfo->execute();
 $uInfo = $stmtInfo->get_result()->fetch_assoc();
 $stmtInfo->close();
 
-$stmt = $conn->prepare("UPDATE ulasan SET deleted_at = NOW() WHERE id_ulasan = ?");
+$stmt = $conn->prepare("UPDATE ulasan SET deleted_at = NULL WHERE id_ulasan = ?");
 $stmt->bind_param("i", $id_ulasan);
 $stmt->execute();
 $stmt->close();
 
 if (function_exists('log_activity')) {
     $author = $uInfo['username'] ?? "ID #{$id_ulasan}";
-    log_activity('SOFT_DELETE', 'ulasan', "Memindahkan ulasan dari {$author} ke tempat sampah (Soft Delete)");
+    log_activity('RESTORE', 'ulasan', "Memulihkan ulasan dari {$author} dari tempat sampah kembali aktif");
 }
 
 if ($isAjax) {
     header('Content-Type: application/json');
-    echo json_encode(['success' => true, 'message' => 'Ulasan berhasil dihapus.']);
+    echo json_encode(['success' => true, 'message' => 'Ulasan berhasil dipulihkan.']);
     exit();
 }
 
-header("Location: " . route_url('ulasan'));
+header("Location: " . route_url('settings_history_log', ['tab' => 'trash_ulasan', 'restored' => 1]));
 exit();

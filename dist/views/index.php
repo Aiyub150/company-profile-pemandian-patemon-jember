@@ -88,6 +88,15 @@ if (empty($gallery_items_pub)) {
         ['id_gallery' => 3, 'judul' => 'Mata Air Alami Argopuro',        'deskripsi_card' => 'Kejernihan Sumber Air Alami Pemandian Patemon Tanggul',   'deskripsi_popup' => 'Keistimewaan utama Pemandian Patemon adalah limpahan mata air alami dari lereng Pegunungan Argopuro yang mengalir jernih, dingin, dan murni tanpa kaporit.',                                                                                                                         'gambar_card' => 'gambar4.png', 'gambar_popup' => 'gambar4.png'],
     ];
 }
+
+// Ambil data event aktif untuk pop-up notifikasi beranda (Feedback-7 Poin 6)
+$active_events = [];
+$res_events = $conn->query("SELECT * FROM events WHERE is_active = 1 AND deleted_at IS NULL ORDER BY urutan ASC, created_at DESC LIMIT 5");
+if ($res_events) {
+    while ($ev = $res_events->fetch_assoc()) {
+        $active_events[] = $ev;
+    }
+}
 ?>
 <!DOCTYPE html>
 
@@ -106,6 +115,152 @@ if (empty($gallery_items_pub)) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
+        /* Event Notification Pop-up Modal (Feedback-7 Poin 6) */
+        .patemon-event-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .patemon-event-overlay.show {
+            opacity: 1;
+        }
+        .patemon-event-dialog {
+            width: 90vw;
+            max-width: 400px;
+            aspect-ratio: 9 / 16;
+            max-height: 85vh;
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #0f172a;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            transform: scale(0.92);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .patemon-event-overlay.show .patemon-event-dialog {
+            transform: scale(1);
+        }
+        .patemon-event-slider {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .patemon-event-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.35s ease, visibility 0.35s ease;
+            overflow: hidden;
+        }
+        .patemon-event-slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .patemon-event-backdrop {
+            position: absolute;
+            inset: -15px;
+            background-size: cover;
+            background-position: center;
+            filter: blur(14px) brightness(0.65);
+            transform: scale(1.1);
+        }
+        .patemon-event-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            z-index: 2;
+        }
+        .patemon-event-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(6px);
+        }
+        .patemon-event-nav-btn:hover {
+            background: rgba(2, 132, 199, 0.9);
+            border-color: #38bdf8;
+            transform: translateY(-50%) scale(1.08);
+        }
+        .patemon-event-nav-prev {
+            left: 12px;
+        }
+        .patemon-event-nav-next {
+            right: 12px;
+        }
+        .patemon-event-close-btn {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(6px);
+        }
+        .patemon-event-close-btn:hover {
+            background: #ef4444;
+            border-color: #ef4444;
+            transform: rotate(90deg) scale(1.08);
+        }
+        .patemon-event-dots {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 15;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 6px 12px;
+            border-radius: 9999px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .patemon-event-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .patemon-event-dot.active {
+            width: 22px;
+            background: #38bdf8;
+        }
+
         /* Modern Navbar Styling */
         #mainNav {
             background-color: rgba(15, 23, 42, 0.94) !important;
@@ -906,6 +1061,146 @@ if (empty($gallery_items_pub)) {
         </div>
     </div>
     <?php endforeach; ?>
+
+    <?php if (!empty($active_events)): ?>
+    <!-- Event Notification Pop-up Modal (Feedback-7 Poin 6) -->
+    <div id="patemonEventOverlay" class="patemon-event-overlay" role="dialog" aria-modal="true" aria-label="Notifikasi Acara Pemandian Patemon">
+        <div class="patemon-event-dialog">
+            <!-- Close Button -->
+            <button type="button" class="patemon-event-close-btn" id="patemonEventCloseBtn" aria-label="Tutup Notifikasi Acara" title="Tutup (Esc)">
+                <i class="fa-solid fa-xmark fs-5"></i>
+            </button>
+
+            <!-- Slider Container -->
+            <div class="patemon-event-slider" id="patemonEventSlider">
+                <?php foreach ($active_events as $idx => $evItem): ?>
+                    <?php 
+                    $evtImgUrl = public_url('img/events/' . $evItem['gambar']);
+                    ?>
+                    <div class="patemon-event-slide <?= ($idx === 0) ? 'active' : '' ?>" data-slide-index="<?= $idx ?>">
+                        <!-- Blurred Backdrop for non-9:16 images -->
+                        <div class="patemon-event-backdrop" style="background-image: url('<?= e($evtImgUrl) ?>');"></div>
+                        <!-- Main Flyer Image (contained, non-distorted) -->
+                        <img src="<?= e($evtImgUrl) ?>" alt="<?= e($evItem['judul']) ?>" class="patemon-event-img" loading="lazy">
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <?php if (count($active_events) > 1): ?>
+                <!-- Left / Right Slide Navigation Buttons -->
+                <button type="button" class="patemon-event-nav-btn patemon-event-nav-prev" id="patemonEventPrevBtn" aria-label="Event Sebelumnya" title="Sebelumnya">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" class="patemon-event-nav-btn patemon-event-nav-next" id="patemonEventNextBtn" aria-label="Event Selanjutnya" title="Selanjutnya">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+
+                <!-- Indicator Dots -->
+                <div class="patemon-event-dots" id="patemonEventDots">
+                    <?php foreach ($active_events as $idx => $evItem): ?>
+                        <span class="patemon-event-dot <?= ($idx === 0) ? 'active' : '' ?>" data-slide-target="<?= $idx ?>" title="<?= e($evItem['judul']) ?>"></span>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const overlay = document.getElementById('patemonEventOverlay');
+        if (!overlay) return;
+
+        const slides = overlay.querySelectorAll('.patemon-event-slide');
+        const dots = overlay.querySelectorAll('.patemon-event-dot');
+        const btnClose = document.getElementById('patemonEventCloseBtn');
+        const btnPrev = document.getElementById('patemonEventPrevBtn');
+        const btnNext = document.getElementById('patemonEventNextBtn');
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+
+        function showSlide(index) {
+            if (index < 0) index = totalSlides - 1;
+            if (index >= totalSlides) index = 0;
+            currentSlide = index;
+
+            slides.forEach((s, i) => {
+                if (i === currentSlide) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+
+            dots.forEach((d, i) => {
+                if (i === currentSlide) {
+                    d.classList.add('active');
+                } else {
+                    d.classList.remove('active');
+                }
+            });
+        }
+
+        if (btnPrev) {
+            btnPrev.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showSlide(currentSlide - 1);
+            });
+        }
+
+        if (btnNext) {
+            btnNext.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showSlide(currentSlide + 1);
+            });
+        }
+
+        dots.forEach((dot, idx) => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showSlide(idx);
+            });
+        });
+
+        function closeEventPopup() {
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+            sessionStorage.setItem('patemon_event_popup_seen', 'true');
+        }
+
+        if (btnClose) {
+            btnClose.addEventListener('click', closeEventPopup);
+        }
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeEventPopup();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay.classList.contains('show')) {
+                closeEventPopup();
+            }
+            if (overlay.classList.contains('show')) {
+                if (e.key === 'ArrowLeft') showSlide(currentSlide - 1);
+                if (e.key === 'ArrowRight') showSlide(currentSlide + 1);
+            }
+        });
+
+        // First-visit check per session (like ikn.go.id)
+        if (!sessionStorage.getItem('patemon_event_popup_seen')) {
+            setTimeout(() => {
+                overlay.style.display = 'flex';
+                requestAnimationFrame(() => {
+                    overlay.classList.add('show');
+                });
+            }, 800);
+        }
+    })();
+    </script>
+    <?php endif; ?>
 
 
     <!-- Bootstrap core JS -->

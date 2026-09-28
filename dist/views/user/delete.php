@@ -83,31 +83,22 @@ $stmt_check->bind_result($tx_count);
 $stmt_check->fetch();
 $stmt_check->close();
 
-if ($tx_count > 0) {
-    if ($isAjax) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'Pengguna tidak dapat dihapus karena memiliki riwayat data transaksi keuangan.']);
-    } else {
-        header("Location: " . route_url('users', ['err' => 'has_transactions']));
-    }
-    exit();
-}
-
-$stmt = $conn->prepare("DELETE FROM users WHERE id_user = ?");
-$stmt->bind_param("i", $id_user);
-$stmt->execute();
-$stmt->close();
+// Soft Delete Akun Pengguna untuk Menjamin Kepatuhan Audit (Feedback-7 Poin 1)
+$stmtSoft = $conn->prepare("UPDATE users SET deleted_at = NOW() WHERE id_user = ?");
+$stmtSoft->bind_param("i", $id_user);
+$stmtSoft->execute();
+$stmtSoft->close();
 
 if (function_exists('log_activity')) {
     $uDesc = $uInfo ? "Username: {$uInfo['username']} ({$uInfo['nama']}, Level: {$uInfo['level']})" : "ID: {$id_user}";
-    log_activity('DELETE', 'user', "Menghapus user {$uDesc}");
+    log_activity('SOFT_DELETE', 'user', "Menonaktifkan pengguna ke tempat sampah (Soft Delete): {$uDesc}");
 }
 
 if ($isAjax) {
     header('Content-Type: application/json');
-    echo json_encode(['success' => true, 'message' => 'Pengguna berhasil dihapus permanen.']);
+    echo json_encode(['success' => true, 'message' => 'Pengguna berhasil dinonaktifkan (soft delete) dan tersimpan di riwayat audit.']);
     exit();
 }
 
-header("Location: " . route_url('users', ['msg' => 'deleted']));
+header("Location: " . route_url('users', ['msg' => 'soft_deleted']));
 exit();

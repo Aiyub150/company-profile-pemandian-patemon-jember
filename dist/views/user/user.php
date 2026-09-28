@@ -23,10 +23,11 @@ if (!empty($search)) {
     $stmt = $conn->prepare("
         SELECT id_user, nama, username, email, no_telepon, level, avatar 
         FROM users 
-        WHERE nama LIKE ? 
+        WHERE deleted_at IS NULL
+          AND (nama LIKE ? 
            OR username LIKE ? 
            OR email LIKE ? 
-           OR no_telepon LIKE ?
+           OR no_telepon LIKE ?)
         ORDER BY level ASC, id_user ASC
     ");
     $stmt->bind_param("ssss", $search_like, $search_like, $search_like, $search_like);
@@ -34,7 +35,7 @@ if (!empty($search)) {
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    $sql = "SELECT id_user, nama, username, email, no_telepon, level, avatar FROM users ORDER BY level ASC, id_user ASC";
+    $sql = "SELECT id_user, nama, username, email, no_telepon, level, avatar FROM users WHERE deleted_at IS NULL ORDER BY level ASC, id_user ASC";
     $result = $conn->query($sql);
 }
 

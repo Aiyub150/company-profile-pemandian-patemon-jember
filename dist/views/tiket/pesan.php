@@ -85,35 +85,14 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
             $status          = 'notyet';
             $nama_gambar     = null;
 
-            // Kelola unggahan bukti pembayaran jika memilih QRIS atau Transfer Bank
-            if (($metode_pembayaran === 'Qris' || $metode_pembayaran === 'Transfer Bank') && isset($_FILES["bukti_pembayaran"]) && $_FILES["bukti_pembayaran"]["error"] === UPLOAD_ERR_OK) {
-                $tmp_name = $_FILES["bukti_pembayaran"]["tmp_name"];
-                $original_name = $_FILES["bukti_pembayaran"]["name"];
-                $file_size = $_FILES["bukti_pembayaran"]["size"];
-                $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
-
-                $allowed_ext = ['jpg', 'jpeg', 'png', 'webp'];
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mime_type = finfo_file($finfo, $tmp_name);
-                finfo_close($finfo);
-
-                $allowed_mime = ['image/jpeg', 'image/png', 'image/webp'];
-
-                if (!in_array($ext, $allowed_ext, true) || !in_array($mime_type, $allowed_mime, true)) {
-                    $error_msg = "Format bukti pembayaran harus berupa gambar valid (JPG, PNG, atau WEBP).";
-                } elseif ($file_size > 2 * 1024 * 1024) { // max 2MB
-                    $error_msg = "Ukuran file bukti pembayaran maksimal adalah 2 MB.";
+            // Kelola unggahan bukti pembayaran jika memilih QRIS atau Transfer Bank via secure_upload_image
+            if (($metode_pembayaran === 'Qris' || $metode_pembayaran === 'Transfer Bank') && isset($_FILES["bukti_pembayaran"]) && $_FILES["bukti_pembayaran"]["error"] !== UPLOAD_ERR_NO_FILE) {
+                $target_dir = __DIR__ . '/../../app/payment/';
+                $upload_res = secure_upload_image($_FILES["bukti_pembayaran"], $target_dir, ['jpg', 'jpeg', 'png', 'webp'], 2097152);
+                if ($upload_res['success']) {
+                    $nama_gambar = $upload_res['filename'];
                 } else {
-                    $target_dir = __DIR__ . '/../../app/payment/';
-                    if (!is_dir($target_dir)) {
-                        mkdir($target_dir, 0755, true);
-                    }
-                    $safe_filename = 'pay_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
-                    if (move_uploaded_file($tmp_name, $target_dir . $safe_filename)) {
-                        $nama_gambar = $safe_filename;
-                    } else {
-                        $error_msg = "Gagal menyimpan file bukti pembayaran ke server.";
-                    }
+                    $error_msg = "Gagal memproses bukti pembayaran: " . $upload_res['error'];
                 }
             }
 

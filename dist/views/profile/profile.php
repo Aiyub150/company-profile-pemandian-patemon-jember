@@ -64,47 +64,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_profile
                 $avatar_uploaded = false;
 
                 if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] !== UPLOAD_ERR_NO_FILE) {
-                    $file_error = $_FILES['avatar']['error'];
-                    if ($file_error === UPLOAD_ERR_OK) {
-                        $file_tmp  = $_FILES['avatar']['tmp_name'];
-                        $file_size = $_FILES['avatar']['size'];
-                        $file_name = $_FILES['avatar']['name'];
-                        $file_ext  = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
-
-                        $allowed_exts = ['jpg', 'jpeg', 'png', 'webp'];
-                        $allowed_mime = ['image/jpeg', 'image/png', 'image/webp'];
-                        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                        $mime_type = finfo_file($finfo, $file_tmp);
-                        finfo_close($finfo);
-
-                        if (!in_array($file_ext, $allowed_exts) || !in_array($mime_type, $allowed_mime)) {
-                            $error_msg = 'Format foto tidak didukung. Harap unggah file berekstensi JPG, JPEG, PNG, atau WEBP.';
-                        } elseif ($file_size > 2 * 1024 * 1024) {
-                            $error_msg = 'Ukuran foto terlalu besar. Maksimum ukuran file adalah 2 MB.';
-                        } else {
-                            $avatar_dir = __DIR__ . '/../../../public/img/avatars/';
-                            if (!is_dir($avatar_dir)) {
-                                @mkdir($avatar_dir, 0755, true);
-                            }
-
-                            $new_avatar_name = 'avatar_' . $user_id . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $file_ext;
-                            $destination = $avatar_dir . $new_avatar_name;
-
-                            if (move_uploaded_file($file_tmp, $destination)) {
-                                // Hapus avatar lama jika ada file fisiknya
-                                if (!empty($curr_user['avatar'])) {
-                                    $old_file = $avatar_dir . basename($curr_user['avatar']);
-                                    if (file_exists($old_file) && is_file($old_file)) {
-                                        @unlink($old_file);
-                                    }
-                                }
-                                $avatar_uploaded = true;
-                            } else {
-                                $error_msg = 'Gagal menyimpan file foto ke server.';
+                    $avatar_dir = __DIR__ . '/../../../public/img/avatars/';
+                    $upload_res = secure_upload_image($_FILES['avatar'], $avatar_dir, ['jpg', 'jpeg', 'png', 'webp'], 2097152);
+                    if ($upload_res['success']) {
+                        $new_avatar_name = $upload_res['filename'];
+                        // Hapus avatar lama jika ada file fisiknya
+                        if (!empty($curr_user['avatar'])) {
+                            $old_file = $avatar_dir . basename($curr_user['avatar']);
+                            if (file_exists($old_file) && is_file($old_file)) {
+                                @unlink($old_file);
                             }
                         }
+                        $avatar_uploaded = true;
                     } else {
-                        $error_msg = 'Terjadi kesalahan saat mengunggah foto profil (Kode: ' . $file_error . ').';
+                        $error_msg = 'Gagal mengunggah foto profil: ' . $upload_res['error'];
                     }
                 }
 
