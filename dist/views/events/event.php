@@ -28,10 +28,11 @@ if ($resEvents) {
     }
 }
 
-require_once __DIR__ . '/../../app/partials/header.php';
+require_once __DIR__ . '/../../app/layouts/admin_header.php';
 ?>
 
-<div class="container-fluid px-3 px-md-4 py-3">
+<div class="page-content">
+<div class="container-fluid px-0 py-2">
     <!-- Header Page Actions -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
@@ -325,5 +326,7 @@ require_once __DIR__ . '/../../app/partials/header.php';
         }
     }
 </script>
+</div>
+</div>
 
-<?php require_once __DIR__ . '/../../app/partials/footer.php'; ?>
+<?php require_once __DIR__ . '/../../app/layouts/admin_footer.php'; ?>

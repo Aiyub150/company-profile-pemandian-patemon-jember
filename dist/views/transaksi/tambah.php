@@ -20,8 +20,8 @@ if ($res_t) {
     }
 }
 
-// Ambil daftar pengguna untuk dropdown akun terdaftar
-$users_list = $conn->query("SELECT id_user, nama, username, email FROM users WHERE deleted_at IS NULL ORDER BY nama ASC");
+// Ambil daftar pengguna untuk dropdown akun terdaftar (termasuk nomor telepon)
+$users_list = $conn->query("SELECT id_user, nama, username, email, no_telepon FROM users WHERE deleted_at IS NULL ORDER BY nama ASC");
 
 $error_msg = '';
 
@@ -31,21 +31,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         $cust_type           = trim($_POST['cust_type'] ?? 'manual');
         $nama_pemesan_custom = trim($_POST['nama_pemesan_custom'] ?? '');
+        $no_telepon_custom   = trim($_POST['no_telepon_custom'] ?? '');
         $id_user_selected    = (int)($_POST['id_user'] ?? $_SESSION['id_user']);
         $metode_pembayaran   = trim($_POST['metode_pembayaran'] ?? 'Tunai');
         $status              = trim($_POST['status'] ?? 'done');
         $uang_bayar          = (int)($_POST['uang_bayar'] ?? 0);
         $kasir_id            = (int)($_SESSION['id_user'] ?? 0);
 
-        // Tentukan id_user dan nama_pemesan yang disimpan di tabel transaksi
+        // Tentukan id_user, nama_pemesan, dan no_telepon yang disimpan di tabel transaksi (Feedback-8 Poin 2)
         if ($cust_type === 'manual') {
             // Walk-in / Pengunjung Langsung: foreign key id_user diisi kasir yang melayani
-            $id_user_transaksi = (int)$_SESSION['id_user'];
-            $nama_pemesan_val  = !empty($nama_pemesan_custom) ? $nama_pemesan_custom : 'Pengunjung Loket (Tamu)';
+            $id_user_transaksi  = (int)$_SESSION['id_user'];
+            $nama_pemesan_val   = !empty($nama_pemesan_custom) ? $nama_pemesan_custom : 'Pengunjung Loket (Tamu)';
+            $no_telepon_val     = !empty($no_telepon_custom) ? $no_telepon_custom : null;
         } else {
-            // Akun terdaftar dipilih
-            $id_user_transaksi = ($id_user_selected > 0) ? $id_user_selected : (int)$_SESSION['id_user'];
-            $nama_pemesan_val  = null; // Akan join langsung ke tabel users
+            // Akun terdaftar dipilih: nomor telepon otomatis diambil dari database tabel users
+            $id_user_transaksi  = ($id_user_selected > 0) ? $id_user_selected : (int)$_SESSION['id_user'];
+            $nama_pemesan_val   = null; // Akan join langsung ke tabel users
+            $no_telepon_val     = null;
+            $stmt_u = $conn->prepare("SELECT no_telepon FROM users WHERE id_user = ? LIMIT 1");
+            $stmt_u->bind_param("i", $id_user_transaksi);
+            $stmt_u->execute();
+            $u_row = $stmt_u->get_result()->fetch_assoc();
+            $stmt_u->close();
+            if ($u_row && !empty($u_row['no_telepon'])) {
+                $no_telepon_val = $u_row['no_telepon'];
+            }
         }
 
         // Cek filter kata terlarang (Toxic Words) pada nama manual jika diisi
@@ -124,8 +135,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     $conn->begin_transaction();
                     try {
-                        $stmt = $conn->prepare("INSERT INTO transaksi (id_user, kasir_id, nama_pemesan, tgl_pemesanan, total_harga, uang_bayar, kembalian, metode_pembayaran, bukti_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->bind_param("iissiiisss", $id_user_transaksi, $kasir_id, $nama_pemesan_val, $tgl_pemesanan, $total_harga, $uang_bayar, $kembalian, $metode_pembayaran, $nama_gambar, $status);
+                        $stmt = $conn->prepare("INSERT INTO transaksi (id_user, kasir_id, nama_pemesan, no_telepon_pemesan, tgl_pemesanan, total_harga, uang_bayar, kembalian, metode_pembayaran, bukti_pembayaran, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->bind_param("iisssiiisss", $id_user_transaksi, $kasir_id, $nama_pemesan_val, $no_telepon_val, $tgl_pemesanan, $total_harga, $uang_bayar, $kembalian, $metode_pembayaran, $nama_gambar, $status);
                         $stmt->execute();
                         $new_id = $conn->insert_id;
                         $stmt->close();
@@ -340,27 +351,52 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     </div>
                                 </div>
 
-                                <!-- Field 1: Manual / Walk-in Name Input -->
+                                <!-- Field 1: Manual / Walk-in Name & Phone Input (Feedback-8 Poin 2) -->
                                 <div id="secManualCust">
-                                    <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">
-                                        Nama Pengunjung / Rombongan:
-                                    </label>
-                                    <div class="input-icon-group mb-2">
-                                        <i class="fa-solid fa-signature input-icon"></i>
-                                        <input 
-                                            type="text" 
-                                            class="form-control-modern" 
-                                            name="nama_pemesan_custom" 
-                                            id="nama_pemesan_custom" 
-                                            placeholder="Contoh: Bpk. H. Rahmat / Rombongan SMPN 1 Tanggul"
-                                            maxlength="100"
-                                            value="<?= e($_POST['nama_pemesan_custom'] ?? '') ?>"
-                                        >
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-7">
+                                            <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">
+                                                Nama Pengunjung / Rombongan:
+                                            </label>
+                                            <div class="input-icon-group mb-1">
+                                                <i class="fa-solid fa-signature input-icon"></i>
+                                                <input 
+                                                    type="text" 
+                                                    class="form-control-modern" 
+                                                    name="nama_pemesan_custom" 
+                                                    id="nama_pemesan_custom" 
+                                                    placeholder="Contoh: Bpk. H. Rahmat / Rombongan SMPN 1 Tanggul"
+                                                    maxlength="100"
+                                                    value="<?= e($_POST['nama_pemesan_custom'] ?? '') ?>"
+                                                >
+                                            </div>
+                                            <small class="text-muted d-block" style="font-size: 0.775rem;">
+                                                <i class="fa-solid fa-circle-info me-1 text-primary"></i>
+                                                Opsional. Jika kosong, dicatat sebagai <em>Pengunjung Loket (Tamu)</em>.
+                                            </small>
+                                        </div>
+                                        <div class="col-12 col-md-5">
+                                            <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">
+                                                No. Telepon / WhatsApp:
+                                            </label>
+                                            <div class="input-icon-group mb-1">
+                                                <i class="fa-solid fa-phone input-icon"></i>
+                                                <input 
+                                                    type="text" 
+                                                    class="form-control-modern" 
+                                                    name="no_telepon_custom" 
+                                                    id="no_telepon_custom" 
+                                                    placeholder="Contoh: 081234567890"
+                                                    maxlength="20"
+                                                    value="<?= e($_POST['no_telepon_custom'] ?? '') ?>"
+                                                >
+                                            </div>
+                                            <small class="text-muted d-block" style="font-size: 0.775rem;">
+                                                <i class="fa-solid fa-shield-halved me-1 text-success"></i>
+                                                Kontak pengunjung untuk konfirmasi atau struk digital.
+                                            </small>
+                                        </div>
                                     </div>
-                                    <small class="text-muted d-block">
-                                        <i class="fa-solid fa-circle-info me-1 text-primary"></i>
-                                        Opsional. Jika dikosongkan, nama otomatis dicatat sebagai <em>Pengunjung Loket (Tamu)</em>.
-                                    </small>
                                 </div>
 
                                 <!-- Field 2: Select Option Akun Terdaftar dengan Searchable Select -->
@@ -372,13 +408,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         <?php if ($users_list && $users_list->num_rows > 0): ?>
                                             <?php while ($u = $users_list->fetch_assoc()): ?>
                                                 <option value="<?= (int)$u['id_user'] ?>" <?= ($u['id_user'] == $_SESSION['id_user']) ? 'selected' : '' ?>>
-                                                    <?= e($u['nama']) ?> (<?= e($u['username']) ?><?= !empty($u['email']) ? ' - ' . e($u['email']) : '' ?>)
+                                                    <?= e($u['nama']) ?> (<?= e($u['username']) ?><?= !empty($u['no_telepon']) ? ' &bull; Telp: ' . e($u['no_telepon']) : '' ?>)
                                                 </option>
                                             <?php endwhile; ?>
                                         <?php endif; ?>
                                     </select>
-                                    <small class="text-muted mt-1 d-block">
-                                        Pilih akun pengunjung yang telah terdaftar dalam sistem untuk sinkronisasi riwayat transaksi.
+                                    <small class="text-muted mt-1 d-block" style="font-size: 0.775rem;">
+                                        <i class="fa-solid fa-circle-check me-1 text-success"></i>
+                                        Nomor telepon otomatis diambil dari data akun terdaftar pengguna.
                                     </small>
                                 </div>
                             </div>
@@ -493,7 +530,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                         </button>
                                     </div>
                                     <input type="file" name="bukti_pembayaran" id="bukti_pembayaran_file" class="d-none" accept="image/*" onchange="previewPaymentProof(this)">
-                                    <input type="file" id="bukti_camera_file" class="d-none" accept="image/*" capture="environment" onchange="previewPaymentProof(this)">
 
                                     <div id="proofPreviewBox" class="mt-2 text-center p-2 border rounded-3 bg-white" style="display: none;">
                                         <img id="proofPreviewImg" src="" style="max-height: 160px; max-width: 100%; border-radius: 8px; object-fit: contain;">
@@ -592,6 +628,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <div class="mt-5">
                 <?php include '../../app/partials/footer.php'; ?>
+        </div>
+    </div>
+
+    <!-- Modal Live WebRTC Camera Capture (Feedback-8 Poin 2) -->
+    <div class="modal fade" id="modalCameraCapture" tabindex="-1" aria-labelledby="modalCameraLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+                <div class="modal-header bg-dark text-white border-0 py-3">
+                    <h5 class="modal-title fs-6 fw-bold text-white" id="modalCameraLabel">
+                        <i class="fa-solid fa-camera text-primary me-2"></i> Ambil Foto Bukti Pembayaran
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeCameraModal()" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3 bg-black text-center position-relative" style="min-height: 280px; display: flex; align-items: center; justify-content: center;">
+                    <div id="cameraLoadingSpinner" class="py-5 text-white">
+                        <div class="spinner-border text-primary mb-2" role="status"></div>
+                        <div class="small">Mengakses kamera perangkat...</div>
+                    </div>
+                    <video id="cameraVideo" autoplay playsinline class="w-100 rounded-3 shadow-sm" style="max-height: 380px; object-fit: cover; display: none; background: #000;"></video>
+                    <canvas id="cameraCanvas" style="display: none;"></canvas>
+                </div>
+                <div class="modal-footer bg-light border-0 justify-content-between p-3">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" onclick="closeCameraModal()" style="border-radius: 8px;">
+                        <i class="fa-solid fa-xmark me-1"></i> Batal
+                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="btnSwitchCamera" onclick="switchCameraFacing()" style="border-radius: 8px; display: none;">
+                            <i class="fa-solid fa-arrows-rotate me-1"></i> Balik Kamera
+                        </button>
+                        <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" id="btnSnapPhoto" onclick="capturePhotoFromStream()" style="border-radius: 8px;">
+                            <i class="fa-solid fa-camera-retro me-1"></i> Ambil Foto
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -773,25 +843,141 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         });
     });
 
-    // Camera & Upload Handlers
-    function triggerCameraCapture() {
-        const camInput = document.getElementById('bukti_camera_file');
-        if (camInput) camInput.click();
+    // Real WebRTC Camera & Upload Handlers (Feedback-8 Poin 2)
+    let cameraStream = null;
+    let currentFacingMode = 'environment';
+
+    async function triggerCameraCapture() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            Swal.fire({
+                title: 'Kamera Tidak Didukung',
+                text: 'Peramban Anda tidak mendukung akses WebRTC kamera langsung. Silakan gunakan tombol Upload dari Perangkat.',
+                icon: 'warning',
+                confirmButtonColor: '#0284c7'
+            });
+            return;
+        }
+
+        const modalEl = document.getElementById('modalCameraCapture');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        startCameraStream();
+    }
+
+    async function startCameraStream() {
+        const video = document.getElementById('cameraVideo');
+        const spinner = document.getElementById('cameraLoadingSpinner');
+        const btnSwitch = document.getElementById('btnSwitchCamera');
+
+        spinner.style.display = 'block';
+        video.style.display = 'none';
+
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+
+        try {
+            const constraints = {
+                video: {
+                    facingMode: { ideal: currentFacingMode },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+
+            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = cameraStream;
+            await video.play();
+
+            spinner.style.display = 'none';
+            video.style.display = 'block';
+            if (btnSwitch) btnSwitch.style.display = 'inline-block';
+        } catch (err) {
+            console.error('Camera stream error:', err);
+            spinner.style.display = 'none';
+            closeCameraModal();
+            Swal.fire({
+                title: 'Akses Kamera Ditolak / Tidak Ditemukan',
+                html: 'Browser memblokir izin kamera atau webcam tidak terdeteksi.<br><small class="text-muted">Pastikan Anda telah mengizinkan akses kamera pada peramban web atau gunakan tombol <b>Upload dari Perangkat</b>.</small>',
+                icon: 'error',
+                confirmButtonColor: '#0284c7'
+            });
+        }
+    }
+
+    function switchCameraFacing() {
+        currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        startCameraStream();
+    }
+
+    function closeCameraModal() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        const modalEl = document.getElementById('modalCameraCapture');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+
+    function capturePhotoFromStream() {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        if (!video || !video.videoWidth) {
+            Swal.fire('Kamera Belum Siap', 'Silakan tunggu video kamera aktif.', 'info');
+            return;
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(blob => {
+            if (!blob) {
+                Swal.fire('Gagal Mengambil Foto', 'Terjadi kesalahan saat memproses tangkapan gambar.', 'error');
+                return;
+            }
+
+            const fileName = 'struk_kamera_' + Date.now() + '.jpg';
+            const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+            try {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                const fileInput = document.getElementById('bukti_pembayaran_file');
+                fileInput.files = dt.files;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('proofPreviewImg').src = e.target.result;
+                    document.getElementById('proofPreviewBox').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+
+                closeCameraModal();
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Foto struk berhasil diambil!',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            } catch (err) {
+                console.error('DataTransfer error:', err);
+                closeCameraModal();
+            }
+        }, 'image/jpeg', 0.85);
     }
 
     function previewPaymentProof(input) {
         if (input.files && input.files[0]) {
             const file = input.files[0];
-            
-            // Sync files to main input if triggered by camera capture
-            if (input.id === 'bukti_camera_file') {
-                try {
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    document.getElementById('bukti_pembayaran_file').files = dt.files;
-                } catch(e) {}
-            }
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 document.getElementById('proofPreviewImg').src = e.target.result;
@@ -803,9 +989,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     function clearPaymentProof() {
         const mainInput = document.getElementById('bukti_pembayaran_file');
-        const camInput = document.getElementById('bukti_camera_file');
         if (mainInput) mainInput.value = '';
-        if (camInput) camInput.value = '';
         document.getElementById('proofPreviewImg').src = '';
         document.getElementById('proofPreviewBox').style.display = 'none';
     }

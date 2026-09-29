@@ -43,7 +43,7 @@ if (!empty($search)) {
     // jika pencarian teks umum, terapkan batasan akun staf jika level 3
     if ($user_level === 3 && $id_search === 0) {
         $stmt = $conn->prepare("
-            SELECT transaksi.*, users.nama 
+            SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
             WHERE transaksi.deleted_at IS NULL 
@@ -58,7 +58,7 @@ if (!empty($search)) {
         $stmt->bind_param("iisssss", $user_id, $user_id, $search_like, $search_like, $search_like, $search_like, $search_like);
     } else {
         $stmt = $conn->prepare("
-            SELECT transaksi.*, users.nama 
+            SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
             WHERE transaksi.deleted_at IS NULL 
@@ -77,7 +77,7 @@ if (!empty($search)) {
     $stmt->close();
 } else {
     // Tampilkan transaksi aktif (staf level 3 hanya data yang dia inputkan)
-    $sql = "SELECT transaksi.*, users.nama 
+    $sql = "SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
             WHERE transaksi.deleted_at IS NULL 
@@ -200,6 +200,11 @@ require '../../app/layouts/admin_header.php';
                                 <?= e(!empty($row["nama_pemesan"]) ? $row["nama_pemesan"] : $row["nama"]) ?>
                                 <?php if (!empty($row["nama_pemesan"])): ?>
                                     <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.68rem; font-weight: normal;">Loket</span>
+                                <?php endif; ?>
+                                <?php 
+                                $cust_phone = !empty($row["no_telepon_pemesan"]) ? $row["no_telepon_pemesan"] : ($row["user_telp"] ?? '');
+                                if (!empty($cust_phone)): ?>
+                                    <small class="text-muted d-block" style="font-size: 0.725rem;"><i class="fa-solid fa-phone me-1 text-primary"></i><?= e($cust_phone) ?></small>
                                 <?php endif; ?>
                             </td>
                             <td class="text-muted small"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>

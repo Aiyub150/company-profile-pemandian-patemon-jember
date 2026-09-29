@@ -34,7 +34,7 @@ if (!empty($search)) {
     $search_like = "%" . $search . "%";
 
     $stmt = $conn->prepare("
-        SELECT transaksi.*, users.nama 
+        SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
         FROM transaksi 
         INNER JOIN users ON transaksi.id_user = users.id_user 
         WHERE transaksi.deleted_at IS NULL 
@@ -51,7 +51,7 @@ if (!empty($search)) {
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    $sql = "SELECT transaksi.*, users.nama FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user WHERE transaksi.deleted_at IS NULL ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
+    $sql = "SELECT transaksi.*, users.nama, users.no_telepon as user_telp FROM transaksi INNER JOIN users ON transaksi.id_user = users.id_user WHERE transaksi.deleted_at IS NULL ORDER BY tgl_pemesanan DESC, id_transaksi DESC";
     $result = $conn->query($sql);
 }
 
@@ -182,6 +182,11 @@ require '../../app/layouts/admin_header.php';
                                 <?= e(!empty($row["nama_pemesan"]) ? $row["nama_pemesan"] : $row["nama"]) ?>
                                 <?php if (!empty($row["nama_pemesan"])): ?>
                                     <span class="badge bg-light text-secondary border ms-1" style="font-size: 0.68rem; font-weight: normal;">Loket</span>
+                                <?php endif; ?>
+                                <?php 
+                                $cust_phone = !empty($row["no_telepon_pemesan"]) ? $row["no_telepon_pemesan"] : ($row["user_telp"] ?? '');
+                                if (!empty($cust_phone)): ?>
+                                    <small class="text-muted d-block" style="font-size: 0.725rem;"><i class="fa-solid fa-phone me-1 text-primary"></i><?= e($cust_phone) ?></small>
                                 <?php endif; ?>
                             </td>
                             <td class="text-muted small"><?= date('d M Y', strtotime($row["tgl_pemesanan"])) ?></td>

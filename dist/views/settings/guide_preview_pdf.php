@@ -1,9 +1,8 @@
 <?php
 /**
  * Buku Panduan Pengguna Sistem (Manual Book Format Standar SIM-ASET)
- * Pemandian Patemon - Pemkab Jember
- * Format standar buku manual dengan Cover, Daftar Isi, Bab Pembahasan (Feedback-2 Poin 6)
- * Membuka langsung PDF preview inline di browser (Feedback-2 Poin 6 & 7)
+ * Pemandian Patemon - Pemkab Jember (Universal Open-Source Edition)
+ * Mendukung Ekspor Dwibahasa: Bahasa Indonesia & English (Feedback-8 Poin 6)
  */
 require_once __DIR__ . '/../../../vendor/autoload.php';
 require_once __DIR__ . '/../../app/config.php';
@@ -13,7 +12,12 @@ use Dompdf\Options;
 
 check_auth([0, 1, 2, 3], route_url('login'));
 
-// Load logo panjang Pemandian Patemon untuk halaman cover (JPEG untuk kompatibilitas Dompdf tanpa ekstensi GD)
+$lang = strtolower(trim($_GET['lang'] ?? 'id'));
+if (!in_array($lang, ['id', 'en'], true)) {
+    $lang = 'id';
+}
+
+// Load logo panjang Pemandian Patemon untuk halaman cover
 $logo_jpg = __DIR__ . '/../../../public/img/logo_pemandian_wide.jpg';
 $logo_png = __DIR__ . '/../../../public/img/logo_pemandian_transparant.png';
 $logo_img_tag = '';
@@ -26,13 +30,288 @@ if (file_exists($logo_jpg)) {
     $logo_img_tag = '<div style="margin-bottom: 25px;"><img src="' . $logo_base64 . '" alt="Wisata Pemandian Patemon" style="width: 290px; max-width: 80%; height: auto;"></div>';
 }
 
+if ($lang === 'en') {
+    // English Content
+    $doc_title = 'System Operations & User Manual - Pemandian Patemon';
+    $stream_filename = 'Operations_Manual_Pemandian_Patemon.pdf';
+    $html_content = '
+    <!-- COVER PAGE (ENGLISH) -->
+    <div class="cover-container">
+        ' . $logo_img_tag . '
+        <div class="cover-badge">OFFICIAL USER MANUAL & SOP</div>
+        <h1 class="cover-title">TOURISM POS & RESERVATION SYSTEM OPERATIONS MANUAL</h1>
+        <div class="cover-subtitle">Counter Retribution Governance, Online Ticketing & Public Accountability Reporting</div>
+        <div class="cover-divider"></div>
+
+        <div style="font-size: 11pt; font-weight: 600; color: #334155; margin-bottom: 8px;">
+            Jember Regency Government
+        </div>
+        <div style="font-size: 10pt; color: #64748b;">
+            Department of Tourism and Culture &bull; Patemon Natural Spring Baths
+        </div>
+
+        <div class="cover-meta">
+            <strong>System Edition:</strong> Version 2.0.0 (Enterprise Open-Source)<br>
+            <strong>Release Date:</strong> September 2026<br>
+            <strong>Operational Location:</strong> Tanggul, Jember Regency, East Java
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- TABLE OF CONTENTS (ENGLISH) -->
+    <div>
+        <h1 class="toc-heading">TABLE OF CONTENTS</h1>
+        <div class="toc-list">
+            <div class="toc-item toc-chapter">CHAPTER I &bull; INTRODUCTION & ACCESS ARCHITECTURE</div>
+            <div class="toc-item toc-sub">1.1 General System Overview & Purpose</div>
+            <div class="toc-item toc-sub">1.2 4-Tier Role-Based Access Control (RBAC)</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">CHAPTER II &bull; CASHIER COUNTER OPERATIONS (POINT OF SALE)</div>
+            <div class="toc-item toc-sub">2.1 POS Transaction Workflow (Walk-in & Registered Guests)</div>
+            <div class="toc-item toc-sub">2.2 Payment Methods & Live WebRTC Camera Evidence</div>
+            <div class="toc-item toc-sub">2.3 Thermal 80mm Roll Receipt Issuance & Barcode Printing</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">CHAPTER III &bull; TICKET CATEGORIES & RATE MANAGEMENT</div>
+            <div class="toc-item toc-sub">3.1 Dynamic Tariff Adjustments</div>
+            <div class="toc-item toc-sub">3.2 Visual Icon Configuration</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">CHAPTER IV &bull; REVENUE & AUDIT REPORTING MODULE</div>
+            <div class="toc-item toc-sub">4.1 Consolidated Reporting Filters (Daily, Weekly, Monthly, Annual)</div>
+            <div class="toc-item toc-sub">4.2 Exporting Standard Government PDF & Excel Reports</div>
+            <div class="toc-item toc-sub">4.3 Staff Shift Isolation & Personal Audit Trail</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">CHAPTER V &bull; PROFILE SETTINGS & SECURITY HARDENING</div>
+            <div class="toc-item toc-sub">5.1 Profile Management & Avatar Uploads</div>
+            <div class="toc-item toc-sub">5.2 Bcrypt Password Policies & Multi-layered Defense</div>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- CHAPTER I -->
+    <div class="chapter-title">CHAPTER I &bull; INTRODUCTION & ACCESS ARCHITECTURE</div>
+    <div class="sub-title">1.1 General System Overview & Purpose</div>
+    <p>
+        The Tourism POS, Cashier & Portfolio System is an integrated web-based platform designed to manage public recreation admissions, ticket counter operations, financial recording, and institutional accountability. The system is built with an open-source architecture that can be easily customized and deployed by any municipal agency, park authority, or recreational bath venue.
+    </p>
+
+    <div class="sub-title">1.2 4-Tier Role-Based Access Control (RBAC)</div>
+    <p>The application strictly enforces hierarchical permission levels:</p>
+    <table class="guide-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Tier</th>
+                <th style="width: 25%;">Role</th>
+                <th>Access Scope & Operational Responsibilities</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 1</td>
+                <td><strong>Super Admin</strong></td>
+                <td>Full system governance: User management (create, update, soft-delete), ticket master catalog, all counter orders, consolidated revenue reports, feedback moderation, and full security audit trails.</td>
+            </tr>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 2</td>
+                <td><strong>Administrator</strong></td>
+                <td>Operational administration: Ticket management, reviewing all transactions, managing visitor reviews and content, and inspecting government-standard financial reports.</td>
+            </tr>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 3</td>
+                <td><strong>Cashier Staff</strong></td>
+                <td>Ticket sales operations: Direct Point of Sale (POS) input, customer contact recording, instant thermal receipt roll printing, personal dashboard performance, and self-shift revenue auditing.</td>
+            </tr>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 0</td>
+                <td><strong>Public / Visitor</strong></td>
+                <td>Self-service booking: Online ticket reservations, e-voucher barcode downloads, feedback submission with automated profanity filtering, and multilingual viewing.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- CHAPTER II -->
+    <div class="chapter-title">CHAPTER II &bull; CASHIER COUNTER OPERATIONS (POINT OF SALE)</div>
+    <div class="sub-title">2.1 POS Transaction Workflow</div>
+    <ol>
+        <li>Staff accesses the <strong>Cashier Panel</strong> or <strong>New POS Order</strong> menu.</li>
+        <li>Select customer type: <em>Walk-in Guest (Counter Tamu)</em> with phone/WhatsApp number, or select a registered user account.</li>
+        <li>Specify ticket quantities for available categories; bill total and tax are calculated authoritatively on the server.</li>
+        <li>Choose payment method: Cash, QRIS, or Bank Transfer.</li>
+        <li>For non-cash payments, capture an instant photo proof using the integrated WebRTC camera feed or upload a transfer slip from the device.</li>
+        <li>Submit the order to produce a standardized 80mm thermal receipt roll complete with Code 128 barcode and QR Code.</li>
+    </ol>
+
+    <div class="sub-title">2.2 Thermal 80mm Roll Receipt Printing</div>
+    <p>
+        The receipt page features responsive CSS and thermal print media queries (@page 80mm auto) engineered specifically for standard POS receipt printers (Epson, Xprinter, etc.) without awkward A4 paper stretching.
+    </p>
+
+    <!-- CHAPTER III -->
+    <div class="chapter-title">CHAPTER III &bull; TICKET CATEGORIES & RATE MANAGEMENT</div>
+    <p>
+        Pricing can be dynamically adjusted based on regional regulations or management decisions. Administrators can add new categories, configure prices, and assign FontAwesome visual icons for rapid cashier identification.
+    </p>
+
+    <!-- CHAPTER IV -->
+    <div class="chapter-title">CHAPTER IV &bull; REVENUE & AUDIT REPORTING MODULE</div>
+    <p>
+        The reports section delivers comprehensive summaries across Daily, Weekly, Monthly, and Annual periods. Official documents feature official headers, spelled-out currency words, and tiered institutional approval signatures. Export is supported in both inline browser PDF and Excel format.
+    </p>
+
+    <!-- CHAPTER V -->
+    <div class="chapter-title">CHAPTER V &bull; PROFILE SETTINGS & SECURITY HARDENING</div>
+    <p>
+        All operators can manage their profile information, upload avatar photos, and update passwords backed by Bcrypt hashing. The system incorporates Defense-in-Depth security protections, including CSRF tokens, XSS output encoding, parameterized queries, and strict file upload MIME verification.
+    </p>
+    ';
+} else {
+    // Indonesian Content (Default)
+    $doc_title = 'Buku Panduan Operasional - Pemandian Patemon';
+    $stream_filename = 'Buku_Panduan_Pemandian_Patemon.pdf';
+    $html_content = '
+    <!-- HALAMAN COVER RESMI (INDONESIA) -->
+    <div class="cover-container">
+        ' . $logo_img_tag . '
+        <div class="cover-badge">BUKU PANDUAN PENGGUNA RESMI</div>
+        <h1 class="cover-title">MANUAL SISTEM INFORMASI KASIR & WISATA PEMANDIAN PATEMON</h1>
+        <div class="cover-subtitle">Tata Kelola Loket Retribusi, Pemesanan Tiket Online & Pelaporan Akuntabilitas Daerah</div>
+        <div class="cover-divider"></div>
+
+        <div style="font-size: 11pt; font-weight: 600; color: #334155; margin-bottom: 8px;">
+            Pemerintah Kabupaten Jember
+        </div>
+        <div style="font-size: 10pt; color: #64748b;">
+            Dinas Pariwisata dan Kebudayaan (Disparbud) Kabupaten Jember
+        </div>
+
+        <div class="cover-meta">
+            <strong>Edisi Sistem:</strong> Versi 2.0.0 (Enterprise Open-Source)<br>
+            <strong>Waktu Rilis:</strong> September 2026<br>
+            <strong>Lokasi Operasional:</strong> Tanggul, Kabupaten Jember, Jawa Timur
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- HALAMAN DAFTAR ISI (INDONESIA) -->
+    <div>
+        <h1 class="toc-heading">DAFTAR ISI</h1>
+        <div class="toc-list">
+            <div class="toc-item toc-chapter">BAB I &bull; PENDAHULUAN & ARSITEKTUR HAK AKSES</div>
+            <div class="toc-item toc-sub">1.1 Gambaran Umum Sistem & Regulasi Pemda</div>
+            <div class="toc-item toc-sub">1.2 Hak Akses 4 Tingkat (Super Admin, Admin, Staf, Pengunjung)</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB II &bull; OPERASIONAL KASIR LOKET & TRANSAKSI (POS)</div>
+            <div class="toc-item toc-sub">2.1 Alur Transaksi Kasir Loket (Pengunjung Langsung & Akun Terdaftar)</div>
+            <div class="toc-item toc-sub">2.2 Metode Pembayaran & Pengambilan Foto Kamera WebRTC</div>
+            <div class="toc-item toc-sub">2.3 Penerbitan Nota Roll Termal 80mm Berbarcode & Validasi</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB III &bull; MANAJEMEN TIKET & TARIF RETRIBUSI</div>
+            <div class="toc-item toc-sub">3.1 Penambahan & Penyesuaian Tarif Tiket</div>
+            <div class="toc-item toc-sub">3.2 Konfigurasi Ikon Visual Kategori Tiket</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB IV &bull; MODUL LAPORAN & AKUNTABILITAS RETRIBUSI</div>
+            <div class="toc-item toc-sub">4.1 Filter Laporan Terpadu (Harian, Mingguan, Bulanan, Tahunan)</div>
+            <div class="toc-item toc-sub">4.2 Ekspor Dokumen Resmi PDF Standar & Excel</div>
+            <div class="toc-item toc-sub">4.3 Isolasi Pelaporan Kinerja Staf Kasir</div>
+
+            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB V &bull; PENGATURAN PROFIL & KEAMANAN AKUN</div>
+            <div class="toc-item toc-sub">5.1 Pembaruan Profil & Unggah Foto Avatar</div>
+            <div class="toc-item toc-sub">5.2 Kebijakan Keamanan Kata Sandi Bcrypt & Proteksi Berlapis</div>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- BAB I -->
+    <div class="chapter-title">BAB I &bull; PENDAHULUAN & ARSITEKTUR HAK AKSES</div>
+    <div class="sub-title">1.1 Gambaran Umum Sistem & Regulasi Pemda</div>
+    <p>
+        Aplikasi Sistem Kasir & Portofolio Wisata Pemandian Patemon merupakan platform digital terpadu yang mendigitalisasi pencatatan retribusi pengunjung loket, pemesanan tiket masuk wisatawan, serta pelaporan keuangan secara transparan dan akuntabel. Sistem bersifat open-source dan dapat disesuaikan untuk berbagai objek wisata alam, pemandian, dan waterpark.
+    </p>
+
+    <div class="sub-title">1.2 Hak Akses 4 Tingkat (Role-Based Access Control)</div>
+    <p>Sistem menerapkan pemisahan tugas dan wewenang (RBAC) 4 tingkat standar pemerintahan:</p>
+    <table class="guide-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Tingkat</th>
+                <th style="width: 25%;">Peran</th>
+                <th>Cakupan Hak Akses & Tanggung Jawab</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 1</td>
+                <td><strong>Super Admin</strong></td>
+                <td>Hak akses tertinggi. Mengelola seluruh pengguna (tambah, edit, hapus), konfigurasi tarif tiket, seluruh transaksi kasir, laporan omzet lengkap, ulasan pengunjung, serta audit sistem.</td>
+            </tr>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 2</td>
+                <td><strong>Admin</strong></td>
+                <td>Mengelola operasional tiket, melihat seluruh transaksi loket, mengelola data feedback pengunjung, dan mengakses seluruh modul laporan pendapatan.</td>
+            </tr>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 3</td>
+                <td><strong>Staf Kasir Loket</strong></td>
+                <td>Melayani input transaksi loket (POS), menginput kontak tamu loket, mencetak struk roll termal 80mm, melihat performa loket pribadi pada dashboard staf, dan mencetak laporan transaksi atas namanya sendiri.</td>
+            </tr>
+            <tr>
+                <td style="text-align: center; font-weight: bold;">Level 0</td>
+                <td><strong>Pengunjung / Publik</strong></td>
+                <td>Melakukan pemesanan tiket masuk secara mandiri, mengunduh nota digital berbarcode, dan mengirim kritik & saran.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BAB II -->
+    <div class="chapter-title">BAB II &bull; OPERASIONAL KASIR LOKET & TRANSAKSI (POS)</div>
+    <div class="sub-title">2.1 Alur Transaksi Kasir Loket</div>
+    <ol>
+        <li>Petugas kasir loket masuk ke menu <strong>Kasir Loket</strong> pada sidebar.</li>
+        <li>Klik tombol <strong>Input Transaksi Baru (POS)</strong> untuk memulai tiket baru.</li>
+        <li>Tentukan jenis pembeli: Masukkan nama & nomor telepon pengunjung langsung, atau pilih akun pengguna terdaftar.</li>
+        <li>Pilih jumlah lembar tiket untuk tiap kategori (Dewasa, Anak-Anak, dll.). Nilai total harga dihitung otomatis oleh sistem.</li>
+        <li>Pilih metode pembayaran (Tunai, QRIS, atau Transfer Bank). Untuk non-tunai, ambil foto struk menggunakan kamera WebRTC langsung atau unggah dari perangkat.</li>
+        <li>Klik <strong>Proses & Cetak Nota</strong>. Sistem langsung mencetak struk nota roll termal 80mm berbarcode unik.</li>
+    </ol>
+
+    <div class="sub-title">2.2 Metode Pembayaran & Struk Roll Termal 80mm</div>
+    <p>
+        Nota transaksi dilengkapi dengan kode unik referensi <code>TRX-YYYYMMDD-XXXX</code>, barcode Code-128 standar industri, serta QR code. Ukuran cetak struk telah disesuaikan dengan format kertas roll termal 80mm agar tidak melebar saat dicetak ke printer POS loket.
+    </p>
+
+    <!-- BAB III -->
+    <div class="chapter-title">BAB III &bull; MANAJEMEN TIKET & TARIF RETRIBUSI</div>
+    <p>
+        Pengaturan harga tiket disesuaikan dengan regulasi retribusi. Administrator dapat menambahkan jenis tiket baru, mengatur nominal tarif, dan menetapkan ikon visual untuk mempermudah identifikasi staf kasir.
+    </p>
+
+    <!-- BAB IV -->
+    <div class="chapter-title">BAB IV &bull; MODUL LAPORAN & AKUNTABILITAS RETRIBUSI</div>
+    <p>
+        Menu Laporan menyediakan konsolidasi rekapitulasi data berdasarkan 4 periode waktu (Harian, Mingguan, Bulanan, dan Tahunan) lengkap dengan kop dinas resmi, nominal terbilang rupiah, serta tanda tangan pengesahan bertingkat.
+    </p>
+
+    <!-- BAB V -->
+    <div class="chapter-title">BAB V &bull; PENGATURAN PROFIL & KEAMANAN AKUN</div>
+    <p>
+        Setiap pengguna sistem dapat mengelola profil pribadi, mengunggah foto avatar resmi dalam format JPG/PNG, serta memperbarui kata sandi secara berkala dengan perlindungan enkripsi Bcrypt.
+    </p>
+    <div class="note-box">
+        <strong>Pemberitahuan Keamanan:</strong> Jangan membagikan kata sandi akun Anda kepada pihak lain. Segera hubungi Super Admin apabila terdapat aktivitas mencurigakan pada akun loket Anda.
+    </div>
+    ';
+}
+
 // Siapkan konten HTML buku panduan standar
 $html = '
 <!DOCTYPE html>
-<html lang="id">
+<html lang="' . $lang . '">
 <head>
     <meta charset="utf-8">
-    <title>Buku Panduan Operasional - Pemandian Patemon</title>
+    <title>' . htmlspecialchars($doc_title) . '</title>
     <style>
         @page {
             size: A4 portrait;
@@ -66,7 +345,7 @@ $html = '
             margin-bottom: 25px;
         }
         .cover-title {
-            font-size: 24pt;
+            font-size: 22pt;
             font-weight: 800;
             color: #0f172a;
             line-height: 1.25;
@@ -74,7 +353,7 @@ $html = '
             letter-spacing: -0.5px;
         }
         .cover-subtitle {
-            font-size: 13pt;
+            font-size: 12pt;
             color: #0284c7;
             font-weight: 600;
             margin-bottom: 40px;
@@ -128,7 +407,7 @@ $html = '
 
         /* Chapter Headings */
         .chapter-title {
-            font-size: 13pt;
+            font-size: 12.5pt;
             font-weight: bold;
             color: #0369a1;
             background: #f0f9ff;
@@ -138,7 +417,7 @@ $html = '
             margin-bottom: 14px;
         }
         .sub-title {
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-weight: bold;
             color: #0f172a;
             margin-top: 16px;
@@ -184,164 +463,7 @@ $html = '
     </style>
 </head>
 <body>
-
-    <!-- HALAMAN COVER RESMI -->
-    <div class="cover-container">
-        ' . $logo_img_tag . '
-        <div class="cover-badge">BUKU PANDUAN PENGGUNA RESMI</div>
-        <h1 class="cover-title">MANUAL SISTEM INFORMASI KASIR & WISATA PEMANDIAN PATEMON</h1>
-        <div class="cover-subtitle">Tata Kelola Loket Retribusi, Pemesanan Tiket Online & Pelaporan Akuntabilitas Daerah</div>
-        <div class="cover-divider"></div>
-
-        <div style="font-size: 11pt; font-weight: 600; color: #334155; margin-bottom: 8px;">
-            Pemerintah Kabupaten Jember
-        </div>
-        <div style="font-size: 10pt; color: #64748b;">
-            Dinas Pariwisata dan Kebudayaan (Disparbud) Kabupaten Jember
-        </div>
-
-        <div class="cover-meta">
-            <strong>Edisi Sistem:</strong> Versi 2.0.0 (Enterprise)<br>
-            <strong>Waktu Rilis:</strong> September 2026<br>
-            <strong>Lokasi Operasional:</strong> Tanggul, Kabupaten Jember, Jawa Timur
-        </div>
-    </div>
-
-    <div class="page-break"></div>
-
-    <!-- HALAMAN DAFTAR ISI -->
-    <div>
-        <h1 class="toc-heading">DAFTAR ISI</h1>
-        <div class="toc-list">
-            <div class="toc-item toc-chapter">BAB I &bull; PENDAHULUAN & ARSITEKTUR HAK AKSES</div>
-            <div class="toc-item toc-sub">1.1 Gambaran Umum Sistem & Regulasi Pemda</div>
-            <div class="toc-item toc-sub">1.2 Hak Akses 4 Tingkat (Super Admin, Admin, Staf, Pengunjung)</div>
-
-            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB II &bull; OPERASIONAL KASIR LOKET & TRANSAKSI (POS)</div>
-            <div class="toc-item toc-sub">2.1 Alur Transaksi Kasir Loket</div>
-            <div class="toc-item toc-sub">2.2 Metode Pembayaran (Tunai, QRIS Dinamis, Transfer Bank)</div>
-            <div class="toc-item toc-sub">2.3 Penerbitan Nota Struk Berbarcode & Validasi</div>
-
-            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB III &bull; MANAJEMEN TIKET & TARIF RETRIBUSI</div>
-            <div class="toc-item toc-sub">3.1 Penambahan & Penyesuaian Tarif Tiket</div>
-            <div class="toc-item toc-sub">3.2 Konfigurasi Ikon Visual Kategori Tiket</div>
-
-            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB IV &bull; MODUL LAPORAN & AKUNTABILITAS RETRIBUSI</div>
-            <div class="toc-item toc-sub">4.1 Filter Laporan Terpadu (Harian, Mingguan, Bulanan, Tahunan)</div>
-            <div class="toc-item toc-sub">4.2 Ekspor Dokumen Resmi PDF Standar & Excel</div>
-            <div class="toc-item toc-sub">4.3 Isolasi Pelaporan Kinerja Staf Kasir</div>
-
-            <div class="toc-item toc-chapter" style="margin-top: 15px;">BAB V &bull; PENGATURAN PROFIL & KEAMANAN AKUN</div>
-            <div class="toc-item toc-sub">5.1 Pembaruan Profil & Unggah Foto Avatar</div>
-            <div class="toc-item toc-sub">5.2 Kebijakan Keamanan Kata Sandi & Proteksi Akun</div>
-        </div>
-    </div>
-
-    <div class="page-break"></div>
-
-    <!-- BAB I -->
-    <div class="chapter-title">BAB I &bull; PENDAHULUAN & ARSITEKTUR HAK AKSES</div>
-    <div class="sub-title">1.1 Gambaran Umum Sistem & Regulasi Pemda</div>
-    <p>
-        Aplikasi Sistem Kasir & Portofolio Wisata Pemandian Patemon merupakan platform digital terpadu milik Pemerintah Kabupaten Jember yang dikelola oleh Dinas Pariwisata dan Kebudayaan. Sistem ini berfungsi mendigitalisasi pencatatan retribusi pengunjung loket, pemesanan tiket masuk wisatawan, serta pelaporan keuangan daerah secara transparan dan akuntabel.
-    </p>
-
-    <div class="sub-title">1.2 Hak Akses 4 Tingkat (Role-Based Access Control)</div>
-    <p>Sistem menerapkan pemisahan tugas dan wewenang (RBAC) 4 tingkat standar pemerintahan:</p>
-    <table class="guide-table">
-        <thead>
-            <tr>
-                <th style="width: 15%;">Tingkat</th>
-                <th style="width: 25%;">Peran</th>
-                <th>Cakupan Hak Akses & Tanggung Jawab</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td style="text-align: center; font-weight: bold;">Level 1</td>
-                <td><strong>Super Admin</strong></td>
-                <td>Hak akses tertinggi. Mengelola seluruh pengguna (tambah, edit, hapus), konfigurasi tarif tiket, seluruh transaksi kasir, laporan omzet lengkap, ulasan pengunjung, serta audit sistem.</td>
-            </tr>
-            <tr>
-                <td style="text-align: center; font-weight: bold;">Level 2</td>
-                <td><strong>Admin</strong></td>
-                <td>Mengelola operasional tiket, melihat seluruh transaksi loket, mengelola data feedback pengunjung, dan mengakses seluruh modul laporan pendapatan.</td>
-            </tr>
-            <tr>
-                <td style="text-align: center; font-weight: bold;">Level 3</td>
-                <td><strong>Staf Kasir Loket</strong></td>
-                <td>Melayani input transaksi loket (POS), mencetak struk nota pengunjung, melihat performa loket pribadi pada dashboard staf, dan mencetak laporan transaksi atas namanya sendiri.</td>
-            </tr>
-            <tr>
-                <td style="text-align: center; font-weight: bold;">Level 0</td>
-                <td><strong>Pengunjung / Publik</strong></td>
-                <td>Melakukan pemesanan tiket masuk secara mandiri, mengunduh nota digital berbarcode, dan mengirim kritik & saran.</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <!-- BAB II -->
-    <div class="chapter-title">BAB II &bull; OPERASIONAL KASIR LOKET & TRANSAKSI (POS)</div>
-    <div class="sub-title">2.1 Alur Transaksi Kasir Loket</div>
-    <ol>
-        <li>Petugas kasir loket masuk ke menu <strong>Kasir Loket</strong> pada sidebar.</li>
-        <li>Klik tombol <strong>Input Transaksi Baru (POS)</strong> untuk memulai tiket baru.</li>
-        <li>Tentukan nama pemesan atau gunakan identitas *Pengunjung Loket*.</li>
-        <li>Pilih jumlah lembar tiket untuk tiap kategori (Dewasa, Anak-Anak, Lansia, dll.). Nilai total harga dihitung otomatis oleh sistem.</li>
-        <li>Pilih metode pembayaran (Tunai, QRIS, atau Transfer Bank).</li>
-        <li>Klik <strong>Simpan Transaksi</strong>. Sistem langsung menerbitkan nota struk pembayaran.</li>
-    </ol>
-
-    <div class="sub-title">2.2 Metode Pembayaran</div>
-    <ul>
-        <li><strong>Tunai (Cash):</strong> Pembayaran tunai di tempat. Status transaksi langsung terverifikasi *done* (Lunas).</li>
-        <li><strong>Scan QRIS:</strong> Menggunakan QR code standar BI yang didukung seluruh aplikasi mobile banking dan e-wallet.</li>
-        <li><strong>Transfer Bank:</strong> Ditujukan ke rekening kas resmi daerah Pemerintah Kabupaten Jember.</li>
-    </ul>
-
-    <div class="sub-title">2.3 Pencetakan Struk Nota</div>
-    <p>
-        Nota transaksi dilengkapi dengan kode unik referensi <code>TRX-YYYYMMDD-XXXX</code> serta barcode Code-128 standar industri. Barcode dapat dipindai oleh petugas penjaga pintu kolam untuk memvalidasi keabsahan tiket.
-    </p>
-
-    <!-- BAB III -->
-    <div class="chapter-title">BAB III &bull; MANAJEMEN TIKET & TARIF RETRIBUSI</div>
-    <p>
-        Pengaturan harga tiket disesuaikan dengan Peraturan Daerah (Perda) Retribusi Wisata Kabupaten Jember. Administrator dapat menambahkan jenis tiket baru, mengatur nominal tarif, dan menetapkan ikon visual untuk mempermudah identifikasi staf kasir.
-    </p>
-
-    <!-- BAB IV -->
-    <div class="chapter-title">BAB IV &bull; MODUL LAPORAN & AKUNTABILITAS RETRIBUSI</div>
-    <div class="sub-title">4.1 Filter Laporan Terpadu</div>
-    <p>
-        Menu Laporan menyediakan satu halaman konsolidasi yang memuat rekapitulasi data berdasarkan 4 periode waktu:
-    </p>
-    <ul>
-        <li><strong>Harian:</strong> Rekap penjualan tiket pada tanggal spesifik.</li>
-        <li><strong>Mingguan:</strong> Rekap kinerja operasional dalam rentang 7 hari kalender.</li>
-        <li><strong>Bulanan:</strong> Laporan bulanan resmi untuk keperluan buku kas penerimaan.</li>
-        <li><strong>Tahunan:</strong> Ringkasan akumulasi penerimaan retribusi selama satu tahun anggaran.</li>
-    </ul>
-
-    <div class="sub-title">4.2 Ekspor Dokumen Resmi PDF & Excel</div>
-    <p>
-        Tombol <strong>PDF</strong> pada halaman laporan akan merender dokumen cetak resmi dan membukanya langsung di browser tanpa perlu mengunduh file sementara. Tombol <strong>Excel</strong> memungkinkan ekspor cepat ke spreadsheet untuk audit internal.
-    </p>
-
-    <div class="sub-title">4.3 Isolasi Pelaporan Staf Kasir</div>
-    <p>
-        Bagi pengguna berlevel Staf Kasir, sistem secara otomatis mengunci cakupan laporan hanya pada transaksi yang dilayani oleh staf tersebut. Ini menjamin akuntabilitas setoran kasir pergantian shift.
-    </p>
-
-    <!-- BAB V -->
-    <div class="chapter-title">BAB V &bull; PENGATURAN PROFIL & KEAMANAN AKUN</div>
-    <p>
-        Setiap pengguna sistem dapat mengelola profil pribadi, mengunggah foto avatar resmi dalam format JPG/PNG, serta memperbarui kata sandi secara berkala dengan perlindungan enkripsi Bcrypt.
-    </p>
-    <div class="note-box">
-        <strong>Pemberitahuan Keamanan:</strong> Jangan membagikan kata sandi akun Anda kepada pihak lain. Segera hubungi Super Admin apabila terdapat aktivitas mencurigakan pada akun loket Anda.
-    </div>
-
+    ' . $html_content . '
 </body>
 </html>
 ';
@@ -357,6 +479,6 @@ $dompdf->loadHtml($html);
 $dompdf->setPaper('A4', 'portrait');
 $dompdf->render();
 
-// Buka langsung PDF di browser (inline preview, Feedback-2 Poin 6)
-$dompdf->stream("Buku_Panduan_Pemandian_Patemon.pdf", ["Attachment" => false]);
+// Buka langsung PDF di browser (inline preview)
+$dompdf->stream($stream_filename, ["Attachment" => false]);
 exit();

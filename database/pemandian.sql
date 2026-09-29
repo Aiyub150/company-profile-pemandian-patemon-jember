@@ -51,6 +51,7 @@ CREATE TABLE `transaksi` (
   `id_user` int(11) NOT NULL,
   `kasir_id` int(11) DEFAULT NULL,
   `nama_pemesan` varchar(100) DEFAULT NULL,
+  `no_telepon_pemesan` varchar(20) DEFAULT NULL,
   `tgl_pemesanan` date NOT NULL,
   `total_harga` int(11) NOT NULL DEFAULT 0,
   `uang_bayar` int(11) DEFAULT 0,

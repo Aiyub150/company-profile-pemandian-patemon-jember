@@ -427,6 +427,19 @@ img.img-cover,
     color: #5b21b6;
 }
 
+.badge-payment-method {
+    background-color: #f1f5f9;
+    color: #1e293b !important;
+    border: 1px solid #cbd5e1;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
 /* ==========================================================================
    Forms & Inputs
    ========================================================================== */
@@ -1208,11 +1221,11 @@ html.theme-dark .modern-card-header {
 }
 
 body.theme-dark .modern-card-header .fw-bold,
-body.theme-dark .modern-card-header span,
+body.theme-dark .modern-card-header span:not(.badge):not([class*="badge-"]),
 body.theme-dark .modern-card-header h5,
 body.theme-dark .modern-card-header h6,
 html.theme-dark .modern-card-header .fw-bold,
-html.theme-dark .modern-card-header span,
+html.theme-dark .modern-card-header span:not(.badge):not([class*="badge-"]),
 html.theme-dark .modern-card-header h5,
 html.theme-dark .modern-card-header h6 {
     color: #f8fafc !important;
@@ -1347,14 +1360,61 @@ html.theme-dark .table .text-muted {
     color: #94a3b8 !important;
 }
 
-/* Table Badges & Metadata */
+/* Table Badges & Metadata (Feedback-8 Poin 7: UI Contrast Fixes) */
 body.theme-dark .badge-payment-method,
 html.theme-dark .badge-payment-method,
+[data-bs-theme="dark"] .badge-payment-method {
+    background-color: #0f172a !important;
+    color: #38bdf8 !important;
+    border: 1px solid #334155 !important;
+}
+
 body.theme-dark .table .badge:not(.badge-modern),
 html.theme-dark .table .badge:not(.badge-modern) {
     background-color: #0f172a !important;
     color: #cbd5e1 !important;
     border: 1px solid #334155 !important;
+}
+
+/* Modern Badges Contrast in Dark Mode (Feedback-8 Poin 7: Real-time & Kategori Tersedia) */
+body.theme-dark .badge-modern-primary,
+html.theme-dark .badge-modern-primary,
+[data-bs-theme="dark"] .badge-modern-primary {
+    background-color: rgba(14, 165, 233, 0.22) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}
+
+body.theme-dark .badge-modern-success,
+html.theme-dark .badge-modern-success,
+[data-bs-theme="dark"] .badge-modern-success {
+    background-color: rgba(16, 185, 129, 0.22) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(52, 211, 153, 0.4) !important;
+}
+
+body.theme-dark .badge-modern-warning,
+html.theme-dark .badge-modern-warning,
+[data-bs-theme="dark"] .badge-modern-warning {
+    background-color: rgba(245, 158, 11, 0.22) !important;
+    color: #fbbf24 !important;
+    border: 1px solid rgba(251, 191, 36, 0.4) !important;
+}
+
+body.theme-dark .badge-modern-danger,
+html.theme-dark .badge-modern-danger,
+[data-bs-theme="dark"] .badge-modern-danger {
+    background-color: rgba(239, 68, 68, 0.22) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(248, 113, 113, 0.4) !important;
+}
+
+body.theme-dark .badge-modern-purple,
+html.theme-dark .badge-modern-purple,
+[data-bs-theme="dark"] .badge-modern-purple {
+    background-color: rgba(168, 85, 247, 0.22) !important;
+    color: #c084fc !important;
+    border: 1px solid rgba(192, 132, 252, 0.4) !important;
 }
 
 /* Category Icon Boxes */

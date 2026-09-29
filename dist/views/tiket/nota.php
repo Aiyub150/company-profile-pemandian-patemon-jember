@@ -502,29 +502,105 @@ if (file_exists($logo_file)) {
             color: #ffffff !important;
         }
 
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+
         @media print {
-            body, body.theme-dark, html.theme-dark body {
+            html, body, body.theme-dark, html.theme-dark body {
+                width: 80mm !important;
+                min-width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
                 background: #ffffff !important;
                 background-color: #ffffff !important;
                 color: #000000 !important;
-                padding: 0 !important;
-                margin: 0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
-            .action-bar, .no-print {
+            .action-bar, .no-print, .action-controls-row {
                 display: none !important;
             }
             .ticket-voucher,
             body.theme-dark .ticket-voucher,
             html.theme-dark .ticket-voucher {
                 box-shadow: none !important;
-                border: 1px solid #cbd5e1 !important;
-                max-width: 100% !important;
-                width: 100% !important;
-                margin: 0 !important;
-                border-radius: 0 !important;
+                border: 1px dashed #94a3b8 !important;
+                max-width: 76mm !important;
+                width: 76mm !important;
+                margin: 1.5mm auto !important;
+                padding: 0 !important;
+                border-radius: 4px !important;
                 background: #ffffff !important;
                 background-color: #ffffff !important;
                 color: #000000 !important;
+            }
+            .voucher-header,
+            body.theme-dark .voucher-header,
+            html.theme-dark .voucher-header {
+                background: #0284c7 !important;
+                color: #ffffff !important;
+                padding: 10px 8px 8px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .voucher-logo {
+                width: 40px !important;
+                height: 40px !important;
+                margin-bottom: 4px !important;
+            }
+            .voucher-header h1 {
+                font-size: 13px !important;
+                color: #ffffff !important;
+            }
+            .voucher-header p {
+                font-size: 8.5px !important;
+                color: #ffffff !important;
+            }
+            .voucher-body {
+                padding: 10px 8px !important;
+            }
+            .barcode-section {
+                margin-bottom: 8px !important;
+                padding-bottom: 8px !important;
+            }
+            .barcode-label {
+                font-size: 9px !important;
+            }
+            .barcode-code {
+                font-size: 12px !important;
+            }
+            .qr-code-box {
+                padding: 4px !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            .qr-code-box img, .qr-code-box canvas {
+                width: 90px !important;
+                height: 90px !important;
+            }
+            .barcode-wrapper {
+                max-width: 220px !important;
+                padding: 2px !important;
+            }
+            .barcode-wrapper svg {
+                height: 38px !important;
+            }
+            .barcode-note {
+                font-size: 8.5px !important;
+                line-height: 1.2 !important;
+            }
+            .item-row {
+                font-size: 10.5px !important;
+                padding: 2px 0 !important;
+            }
+            .perforated-divider {
+                margin: 8px 0 !important;
+            }
+            .badge-modern {
+                padding: 4px 8px !important;
+                font-size: 10px !important;
             }
             .ticket-voucher div,
             .ticket-voucher span,
@@ -544,14 +620,6 @@ if (file_exists($logo_file)) {
             }
             .ticket-voucher .text-primary {
                 color: #0284c7 !important;
-            }
-            .voucher-header,
-            body.theme-dark .voucher-header,
-            html.theme-dark .voucher-header {
-                background: #0284c7 !important;
-                color: #ffffff !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
             }
             .voucher-header h1, .voucher-header p {
                 color: #ffffff !important;
@@ -595,6 +663,14 @@ if (file_exists($logo_file)) {
             <span class="text-muted">Nama Pengunjung:</span>
             <strong class="text-dark"><?= e($transaksi_data['user_nama'] ?? $transaksi_data['nama_pemesan'] ?? $nama) ?></strong>
         </div>
+        <?php 
+        $cust_telp = !empty($transaksi_data['no_telepon_pemesan']) ? $transaksi_data['no_telepon_pemesan'] : ($transaksi_data['no_telepon'] ?? '');
+        if (!empty($cust_telp)): ?>
+        <div class="item-row">
+            <span class="text-muted">No. Telepon / WA:</span>
+            <strong class="text-dark"><?= e($cust_telp) ?></strong>
+        </div>
+        <?php endif; ?>
         <div class="item-row">
             <span class="text-muted">Tanggal Kunjungan:</span>
             <strong><?= date('d M Y', strtotime($transaksi_data['tgl_pemesanan'])) ?></strong>
@@ -699,8 +775,17 @@ if (file_exists($logo_file)) {
             <i class="fa-solid fa-print"></i> Cetak
         </button>
         <?php
+        $ref = trim($_GET['ref'] ?? '');
         $back_url = route_url('home');
-        if ($user_lvl === 1 || $user_lvl === 2) {
+        if ($ref === 'laporan' || $ref === 'omzet') {
+            $back_url = route_url('laporan');
+        } elseif ($ref === 'harian') {
+            $back_url = route_url('laporan_harian');
+        } elseif ($ref === 'bulanan') {
+            $back_url = route_url('laporan_bulanan');
+        } elseif ($ref === 'tahunan') {
+            $back_url = route_url('laporan_tahunan');
+        } elseif ($user_lvl === 1 || $user_lvl === 2) {
             $back_url = route_url('transaksi');
         } elseif ($user_lvl === 3) {
             $back_url = route_url('kasir');
@@ -708,7 +793,7 @@ if (file_exists($logo_file)) {
             $back_url = route_url('home');
         }
         ?>
-        <a href="<?= $back_url ?>" class="btn-nota-action btn-nota-back" title="Kembali ke halaman sebelumnya">
+        <a href="<?= e($back_url) ?>" class="btn-nota-action btn-nota-back" title="Kembali ke halaman sebelumnya">
             <i class="fa-solid fa-arrow-left"></i> Kembali
         </a>
     </div>

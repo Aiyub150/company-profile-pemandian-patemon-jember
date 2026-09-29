@@ -1,33 +1,121 @@
-# 🌊 Sistem Informasi Kasir & Reservasi Wisata Pemandian Patemon
-### UPTD Pariwisata & Kebudayaan Kabupaten Jember
+# 🌊 Sistem Informasi Kasir, POS & E-Ticketing Pariwisata (Universal Open-Source Edition)
+### Platform Tata Kelola Destinasi Wisata, Tiket Digital & Kasir Loket Multi-Instansi
 
 [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D%208.1-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
 [![Database](https://img.shields.io/badge/MySQL-8.0%20%7C%20MariaDB-005C84?style=for-the-badge&logo=mysql&logoColor=white)](https://mysql.com)
-[![Architecture](https://img.shields.io/badge/Architecture-Front%20Controller%20%7C%20Modular%20MVC-0284c7?style=for-the-badge)](https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon)
-[![Government Standard](https://img.shields.io/badge/Standard-SIM--ASET-059669?style=for-the-badge)](https://github.com/Aiyub150/SIM-ASET)
-[![Security Standard](https://img.shields.io/badge/Security-Defense--in--Depth%20Audited-10b981?style=for-the-badge)](https://github.com/Aiyub150/aplikasi-kasir-dan-portofolio-pemandian-patemon)
+[![License](https://img.shields.io/badge/License-MIT%20%2F%20Open%20Source-green?style=for-the-badge)](LICENSE)
+[![Architecture](https://img.shields.io/badge/Architecture-Front%20Controller%20%7C%20Modular%20MVC-0284c7?style=for-the-badge)](#)
+[![Security Standard](https://img.shields.io/badge/Security-Defense--in--Depth%20Audited-10b981?style=for-the-badge)](#)
 
 ---
 
 ## 🏛️ 1. Tentang Sistem
 
-**Sistem Informasi & Kasir Loket Pemandian Patemon** adalah platform tata kelola pariwisata terpadu yang dirancang untuk objek wisata mata air alam Patemon di bawah naungan UPTD Pariwisata dan Kebudayaan Pemerintah Kabupaten Jember. 
+**Sistem Informasi Kasir, POS & E-Ticketing Pariwisata** adalah platform open-source universal yang dirancang untuk mengelola operasional destinasi wisata, taman rekreasi, museum, wahana air, maupun fasilitas publik lainnya. 
 
-Platform ini menjembatani dua kebutuhan vital pariwisata modern:
-1. **Layanan Publik Digital:** Memperkenalkan daya tarik wisata, fasilitas, dan kemudahan reservasi tiket masuk secara mandiri bagi wisatawan domestik maupun mancanegara.
-2. **Tata Kelola Operasional Kasir (POS):** Menyediakan sistem pencatatan transaksi loket fisik yang cepat, akurat, terhindar dari kebocoran retribusi, serta menghasilkan laporan penerimaan kas daerah yang memenuhi standar audit kedinasan.
+Platform ini bersifat **universal dan mudah disesuaikan (adaptable)** oleh instansi kedinasan (BUMD/UPTD), pengelola swasta, maupun komunitas wisata.
+
+Sistem menjembatani dua kebutuhan utama tata kelola pariwisata modern:
+1. **Layanan Publik & E-Ticketing Digital:** Memperkenalkan daya tarik wisata, galeri, fasilitas, serta kemudahan reservasi tiket masuk secara mandiri.
+2. **Point of Sale (POS) Kasir Loket:** Pencatatan transaksi fisik loket yang cepat, pencegahan kebocoran retribusi, verifikasi barcode fisik/digital, serta pembuatan laporan keuangan bertingkat standar dinas.
 
 ---
 
-## ✨ 2. Fitur-Fitur Utama Sistem
+## ✨ 2. Fitur Utama, Library & Kutipan Kode (Libraries & Code Snippets)
 
-* **Portal Publik & Portofolio Wisata:** Showcase wahana kolam alami, galeri dokumentasi kegiatan, informasi tarif resmi, formulir ulasan dengan sensor kata terlarang otomatis, serta antarmuka dwibahasa (Indonesia & Inggris).
-* **Reservasi & Tiket Digital (E-Ticketing):** Pemesanan mandiri oleh pengunjung dengan opsi pembayaran tunai loket, QRIS dinamis, atau transfer bank, dilengkapi barcode unik Code 128 untuk validasi tiket.
-* **Point of Sale (POS) Kasir Loket Cepat:** Formulir kasir cerdas yang mendukung pengunjung langsung (*walk-in guest*) tanpa akun, pemuatan katalog tiket dinamis dari database, live stepper kuantitas, kalkulator uang kembalian instan, dan pencetakan nota transaksi.
-* **Pemindaian & Verifikasi Tiket:** Scanner barcode terintegrasi menggunakan kamera perangkat (smartphone/laptop) untuk validasi tiket masuk secara *real-time*.
-* **Pelaporan Standar Kedinasan (SIM-ASET Standard):** Laporan penerimaan harian, mingguan, bulanan, dan tahunan yang dilengkapi kop surat resmi dinas Pemkab Jember, konversi angka ke kalimat terbilang rupiah baku, serta lembar pengesahan tanda tangan ganda bertingkat.
-* **Dasbor Manajerial & Kalender Wisata:** Statistik omzet, tren volume pengunjung, serta kalender terintegrasi API Hari Libur Nasional (SKB 3 Menteri) untuk proyeksi lonjakan wisatawan saat *high season*.
-* **Keamanan Berlapis (Defense-in-Depth):** Proteksi CSRF kriptografis, sanitasi output XSS, query terparameter bebas SQL Injection, proteksi path traversal, pembatasan percobaan login (anti-brute force), audit trail aktivitas, serta log request server real-time.
+Berikut adalah rincian fitur utama beserta pustaka (library) dan kutipan kode (*code snippets*) yang mendasarinya:
+
+### A. Point of Sale (POS) Kasir Loket & Foto Kamera Live
+* **Fungsi:** Transaksi loket cepat untuk pengunjung langsung (*walk-in guest*) tanpa akun maupun pengunjung terdaftar, dilengkapi pengambilan foto bukti bayar secara live melalui WebRTC camera.
+* **Pustaka & API:** Browser HTML5 WebRTC `navigator.mediaDevices.getUserMedia()`, HTML5 Canvas API.
+* **Kutipan Kode (WebRTC Camera Capture):**
+  ```javascript
+  // Mengakses stream kamera perangkat secara real-time
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      const videoEl = document.getElementById('webcamVideo');
+      videoEl.srcObject = stream;
+      videoEl.play();
+    })
+    .catch(err => {
+      Swal.fire({ icon: 'error', title: 'Akses Kamera Ditolak', text: err.message });
+    });
+  ```
+
+### B. E-Ticketing & Generator Barcode
+* **Fungsi:** Menghasilkan kode unik tiket dan barcode fisik/digital untuk validasi di pintu masuk.
+* **Pustaka Backend:** `picqer/php-barcode-generator` (`Picqer\Barcode\BarcodeGeneratorPNG`).
+* **Kutipan Kode (PHP Barcode Generator):**
+  ```php
+  use Picqer\Barcode\BarcodeGeneratorPNG;
+
+  $generator = new BarcodeGeneratorPNG();
+  $barcode_data = $generator->getBarcode($kode_tiket, $generator::TYPE_CODE_128);
+  $barcode_base64 = 'data:image/png;base64,' . base64_encode($barcode_data);
+  // Barcode siap ditampilkan pada nota/voucher
+  ```
+
+### C. Pemindaian & Verifikasi Tiket (QR & Barcode Scanner)
+* **Fungsi:** Petugas pintu masuk memindai kode tiket menggunakan kamera HP/laptop untuk validasi status (*valid*, *sudah digunakan*, atau *kadaluarsa*).
+* **Pustaka Frontend:** `html5-qrcode` library.
+* **Kutipan Kode (Barcode Scanner):**
+  ```javascript
+  const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+  html5QrcodeScanner.render((decodedText) => {
+      // Kirim hasil scan ke endpoint validasi
+      fetch('/admin/validasi-tiket?code=' + encodeURIComponent(decodedText))
+          .then(res => res.json())
+          .then(data => handleValidationResponse(data));
+  });
+  ```
+
+### D. Cetak Struk Thermal 80mm & Laporan PDF
+* **Fungsi:** Mencetak nota pembayaran format thermal (80mm) dan menghasilkan laporan omzet/pendapatan format PDF standar dinas.
+* **Pustaka:** Backend `dompdf/dompdf`, Frontend `jspdf` & `@media print` thermal CSS.
+* **Kutipan Kode (Struk Thermal 80mm CSS):**
+  ```css
+  @media print {
+      @page {
+          size: 80mm auto;
+          margin: 0;
+      }
+      body {
+          width: 80mm;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+      }
+  }
+  ```
+
+### E. Mesin Dwibahasa (i18n Engine) & Interseptor Dynamic Modal
+* **Fungsi:** Mengubah seluruh antarmuka teks, placeholder, tooltip, dan dialog konfirmasi (SweetAlert) dari Bahasa Indonesia ke Bahasa Inggris secara instan tanpa reload halaman.
+* **Pustaka:** Vanilla JavaScript custom i18n engine (`public/js/patemon-i18n.js`) dengan monkey-patching `Swal.fire`.
+* **Kutipan Kode (SweetAlert Translation Interceptor):**
+  ```javascript
+  const originalFire = window.Swal.fire.bind(window.Swal);
+  window.Swal.fire = function(config) {
+      if (getPatemonLanguage() === 'en') {
+          if (config.title) config.title = translateText(config.title);
+          if (config.text) config.text = translateText(config.text);
+          if (config.confirmButtonText) config.confirmButtonText = translateText(config.confirmButtonText);
+      }
+      return originalFire(config);
+  };
+  ```
+
+### F. Moderasi Konten & Filter Kata Terlarang (Toxic Word Filter)
+* **Fungsi:** Memfilter ulasan publik dari kata-kata kasar/terlarang secara otomatis sebelum disimpan ke basis data.
+* **Pustaka:** Custom Regex Engine & Multi-word Tokenizer PHP.
+* **Kutipan Kode (PHP Word Filter):**
+  ```php
+  function filterToxicWords(string $text, array $bad_words): string {
+      foreach ($bad_words as $word) {
+          $pattern = '/' . preg_quote($word, '/') . '/i';
+          $text = preg_replace($pattern, str_repeat('*', mb_strlen($word)), $text);
+      }
+      return $text;
+  }
+  ```
 
 ---
 

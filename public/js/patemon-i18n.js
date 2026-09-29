@@ -777,7 +777,206 @@
         "Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code>.": "Composer autoloader cleanup and integration of <code>dompdf/dompdf</code> & <code>picqer/php-barcode-generator</code> libraries.",
         "Pembersihan autoloader Composer dan integrasi pustaka <code>dompdf/dompdf</code> &amp; <code>picqer/php-barcode-generator</code>.": "Composer autoloader cleanup and integration of <code>dompdf/dompdf</code> &amp; <code>picqer/php-barcode-generator</code> libraries.",
         "Implementasi Clean Routing Front Controller (URL bersih tanpa ekstensi <code>.php</code>).": "Implementation of Clean Routing Front Controller (clean URLs without <code>.php</code> extension).",
-        "Pemisahan nomor urut tabel dan format kode referensi standar <code>TRX-YYYYMMDD-XXXX</code>.": "Separation of table row numbers and standard reference code format <code>TRX-YYYYMMDD-XXXX</code>."
+        "Pemisahan nomor urut tabel dan format kode referensi standar <code>TRX-YYYYMMDD-XXXX</code>.": "Separation of table row numbers and standard reference code format <code>TRX-YYYYMMDD-XXXX</code>.",
+
+        // --- SWEETALERT2, NOTIFICATIONS & SYSTEM DIALOGS (Feedback-8 Poin 5) ---
+        "Konfirmasi Hapus": "Confirm Deletion",
+        "Apakah Anda yakin ingin menghapus data ini?": "Are you sure you want to delete this data?",
+        "Data yang dihapus tidak dapat dikembalikan.": "Deleted data cannot be recovered.",
+        "Ya, Hapus!": "Yes, Delete!",
+        "Batal": "Cancel",
+        "Tutup": "Close",
+        "Konfirmasi Logout": "Confirm Logout",
+        "Apakah Anda yakin ingin keluar dari sistem?": "Are you sure you want to log out of the system?",
+        "Ya, Keluar": "Yes, Log Out",
+        "Tetap di Sini": "Stay Here",
+        "Tiket Belum Dipilih": "No Tickets Selected",
+        "Silakan pilih minimal 1 lembar tiket masuk untuk melanjutkan transaksi loket.": "Please select at least 1 ticket to proceed with the cashier transaction.",
+        "Uang Pembayaran Kurang": "Insufficient Payment Amount",
+        "Kamera Tidak Didukung": "Camera Not Supported",
+        "Akses Kamera Gagal": "Camera Access Failed",
+        "Akses Kamera Ditolak / Tidak Ditemukan": "Camera Access Denied / Not Found",
+        "Foto struk berhasil diambil!": "Receipt photo captured successfully!",
+        "Foto berhasil diambil!": "Photo captured successfully!",
+        "Kamera Belum Siap": "Camera Not Ready",
+        "Silakan tunggu video kamera aktif.": "Please wait for camera video to become active.",
+        "Gagal Mengambil Foto": "Failed to Capture Photo",
+        "Terjadi kesalahan saat memproses tangkapan gambar.": "An error occurred while processing image capture.",
+        "Ambil Foto": "Capture Photo",
+        "Balik Kamera": "Switch Camera",
+        "Ambil Foto Bukti Pembayaran": "Capture Payment Proof Photo",
+        "Mengakses kamera perangkat...": "Accessing device camera...",
+        "Berhasil!": "Success!",
+        "Gagal!": "Failed!",
+        "Perhatian!": "Attention!",
+        "Informasi": "Information",
+        "Data berhasil disimpan": "Data saved successfully",
+        "Data berhasil disimpan!": "Data saved successfully!",
+        "Data berhasil diperbarui": "Data updated successfully",
+        "Data berhasil diperbarui!": "Data updated successfully!",
+        "Data berhasil dihapus": "Data deleted successfully",
+        "Data berhasil dihapus!": "Data deleted successfully!",
+        "Akun ini akan dinonaktifkan dan dihapus dari sistem secara permanen.": "This account will be deactivated and permanently deleted from the system.",
+        "Akun pengguna ini akan diaktifkan kembali dan dapat masuk ke sistem.": "This user account will be reactivated and can log into the system.",
+        "Akun pengguna ini akan dihapus permanen dari sistem. Jika pengguna memiliki riwayat transaksi keuangan, penghapusan fisik akan dicegah demi integritas audit.": "This user account will be permanently deleted from the system. If the user has financial transaction records, physical deletion will be prevented for audit integrity.",
+        "Bersihkan Seluruh Log Server?": "Clear All Server Logs?",
+        "Data akan disembunyikan dan diarsipkan ke riwayat audit (Soft Delete).": "Data will be hidden and archived to audit history (Soft Delete).",
+        "Gagal Mengirim Ulasan": "Failed to Submit Review",
+        "Hapus Kata Terlarang?": "Delete Forbidden Word?",
+        "Hapus Kategori Tiket": "Delete Ticket Category",
+        "Hapus Kritik & Saran?": "Delete Feedback?",
+        "Hapus Permanen": "Permanent Delete",
+        "Kritik dan saran Anda telah berhasil kami terima.": "Your feedback has been successfully received.",
+        "Pastikan tiket ini tidak sedang digunakan pada transaksi aktif!": "Make sure this ticket is not being used in an active transaction!",
+        "Semua riwayat trafik HTTP yang tersimpan di database akan dihapus permanen.": "All HTTP traffic history stored in the database will be permanently deleted.",
+        "Terima Kasih!": "Thank You!",
+        "Tindakan ini permanen dan tidak dapat dibatalkan.": "This action is permanent and cannot be undone.",
+        "Transaksi akan dikembalikan ke status aktif dan muncul kembali di kasir serta laporan omzet.": "Transaction will be restored to active status and reappear in cashier and revenue reports.",
+        "Ulasan ini akan dihapus permanen dari basis data dan tidak dapat dikembalikan.": "This review will be permanently deleted from the database and cannot be restored.",
+        "Ulasan ini akan dipulihkan dan ditampilkan kembali di daftar kritik & saran aktif.": "This review will be restored and displayed again in the active feedback list.",
+        "Ya, Aktifkan Kembali!": "Yes, Reactivate!",
+        "Ya, Bersihkan!": "Yes, Clear!",
+        "Ya, Hapus Permanen!": "Yes, Delete Permanently!",
+        "Ya, Pulihkan Data!": "Yes, Restore Data!",
+        "Ya, Pulihkan Ulasan!": "Yes, Restore Review!",
+        "PERINGATAN: Data transaksi dan tiket detail akan dihapus permanen dari basis data dan TIDAK DAPAT dipulihkan lagi!": "WARNING: Transaction data and ticket details will be permanently deleted from the database and CANNOT be recovered!",
+        "Foto struk berhasil diambil!": "Receipt photo captured successfully!",
+        "Akses Kamera Ditolak / Tidak Ditemukan": "Camera Access Denied / Not Found",
+        "Kamera Tidak Didukung": "Camera Not Supported",
+        "Silakan pilih minimal 1 lembar tiket masuk untuk melanjutkan transaksi loket.": "Please select at least 1 admission ticket to continue the counter transaction.",
+        "Tiket Belum Dipilih": "No Ticket Selected",
+        "Uang Pembayaran Kurang": "Insufficient Payment",
+        "Pindahkan Transaksi": "Move Transaction",
+        "Pulihkan Transaksi": "Restore Transaction",
+        "Pilih Bahasa Panduan / Select Manual Language": "Select Manual Language / Pilih Bahasa Panduan",
+        "Silakan pilih versi bahasa buku panduan yang ingin Anda baca:": "Please select the language version of the user manual you would like to read:",
+        "Batal": "Cancel",
+
+        // --- GENERAL FORMS & BUTTON ACTIONS ---
+        "Simpan": "Save",
+        "Simpan Perubahan": "Save Changes",
+        "Simpan Transaksi": "Save Transaction",
+        "Proses & Cetak Nota": "Process & Print Receipt",
+        "Batalkan Transaksi": "Cancel Transaction",
+        "Download Gambar Nota": "Download Receipt Image",
+        "Cetak": "Print",
+        "Kembali": "Back",
+        "Tambah": "Add",
+        "Tambah Data": "Add New",
+        "Edit": "Edit",
+        "Edit Data": "Edit Data",
+        "Hapus": "Delete",
+        "Hapus Data": "Delete Data",
+        "Lihat": "View",
+        "Lihat Nota": "View Receipt",
+        "Detail": "Details",
+        "Aksi": "Action",
+        "Status": "Status",
+        "Kategori": "Category",
+        "Tarif": "Price",
+        "Jumlah": "Quantity",
+        "Subtotal": "Subtotal",
+        "Total": "Total",
+        "Selesai": "Done",
+        "Lunas": "Paid",
+        "Belum Lunas": "Unpaid",
+        "Semua": "All",
+        "Pilih": "Select",
+        "Cari...": "Search...",
+        "Cari": "Search",
+        "Filter": "Filter",
+        "Reset": "Reset",
+        "Tanggal": "Date",
+        "Waktu": "Time",
+        "Nama": "Name",
+        "Telepon": "Phone",
+        "No. Telepon": "Phone Number",
+        "No. Telepon / WA": "Phone / WA No.",
+        "No. Telepon / WhatsApp": "Phone / WhatsApp No.",
+        "No. Telepon / WhatsApp:": "Phone / WhatsApp No.:",
+        "Metode": "Method",
+        "Metode Pembayaran": "Payment Method",
+        "Metode Pembayaran & Status": "Payment Method & Status",
+        "Bukti": "Proof",
+        "Bukti Pembayaran": "Payment Proof",
+        "Unggah": "Upload",
+        "Pilih File": "Choose File",
+
+        // --- POS COUNTER & TRANSAKSI TAMBAH/EDIT ---
+        "Kasir Loket (Point of Sale)": "Cashier Counter (Point of Sale)",
+        "Input penjualan tiket loket fisik secara cepat, akurat, dan cetak struk pembayaran.": "Input counter ticket sales quickly and accurately, and print payment receipts.",
+        "Data Pelanggan / Pengunjung": "Customer / Visitor Data",
+        "Loket Kasir": "Cashier Counter",
+        "Pengunjung Langsung (Tamu Loket)": "Walk-in Visitor (Counter Guest)",
+        "Pilih Akun Terdaftar": "Select Registered Account",
+        "Nama Pengunjung / Rombongan:": "Visitor / Group Name:",
+        "Nama Pengunjung / Rombongan": "Visitor / Group Name",
+        "Cari Akun Pengguna Terdaftar:": "Search Registered User Account:",
+        "Pilih akun pengunjung yang telah terdaftar dalam sistem untuk sinkronisasi riwayat transaksi.": "Select registered visitor account to synchronize transaction history.",
+        "Nomor telepon otomatis diambil dari data akun terdaftar pengguna.": "Phone number is automatically retrieved from registered user data.",
+        "Kontak pengunjung untuk konfirmasi atau struk digital.": "Visitor contact for verification or digital receipt.",
+        "Pilih Kategori & Jumlah Tiket": "Select Categories & Ticket Quantities",
+        "Kategori Tersedia": "Categories Available",
+        "Tarif Tiket:": "Ticket Rate:",
+        "Tunai (Cash)": "Cash (Tunai)",
+        "QRIS / E-Wallet": "QRIS / E-Wallet",
+        "Transfer Bank": "Bank Transfer",
+        "Unggah Bukti Pembayaran Non-Tunai": "Upload Non-Cash Payment Proof",
+        "Ambil Foto Langsung": "Capture Live Photo",
+        "Upload dari Perangkat": "Upload from Device",
+        "Foto Siap Diunggah": "Photo Ready to Upload",
+        "Status Transaksi:": "Transaction Status:",
+        "Status Transaksi": "Transaction Status",
+        "Sudah Dibayar (Lunas)": "Paid (Done)",
+        "Menunggu Pembayaran (Pending)": "Awaiting Payment (Pending)",
+        "Ringkasan Tagihan": "Bill Summary",
+        "POS Loket": "POS Counter",
+        "Total Tagihan": "Total Bill",
+        "Total Tagihan:": "Total Bill:",
+        "Uang Diterima:": "Amount Received:",
+        "Uang Diterima": "Amount Received",
+        "Uang Pas": "Exact Amount",
+        "Kembalian": "Change",
+        "Kekurangan:": "Shortage:",
+        "Real-time": "Real-time",
+
+        // --- USER MANUAL (BILINGUAL MODAL) ---
+        "Buku Panduan Penggunaan Sistem": "System Operations & User Manual",
+        "Buku Panduan Operasional Sistem": "System Operations & User Manual",
+        "Panduan Pengoperasian Wisata Pemandian Patemon": "Patemon Tourism System Operations & User Manual",
+        "Buka Dokumen PDF Panduan": "Open PDF Manual Document",
+        "Pilih Bahasa / Language": "Select Language",
+        "Pilih Bahasa Panduan / Select Manual Language": "Select Manual Language",
+        "Silakan pilih versi bahasa buku panduan yang ingin dibaca:": "Please select the manual version you wish to read:",
+        "Silakan pilih versi bahasa buku panduan yang ingin Anda baca:": "Please select the manual version you wish to read:",
+
+        // --- EVENTS, FACILITIES & USERS ---
+        "Kelola Event & Agenda Wisata": "Manage Tourism Events & Agendas",
+        "Tambah Event Baru": "Add New Event",
+        "Tambah Event": "Add Event",
+        "Edit Event": "Edit Event",
+        "Nama Event": "Event Name",
+        "Tanggal Mulai": "Start Date",
+        "Tanggal Selesai": "End Date",
+        "Lokasi Event": "Event Location",
+        "Status Event": "Event Status",
+        "Akan Datang": "Upcoming",
+        "Sedang Berlangsung": "Ongoing",
+        "Kelola Fasilitas": "Manage Facilities",
+        "Tambah Fasilitas Baru": "Add New Facility",
+        "Tambah Fasilitas": "Add Facility",
+        "Edit Fasilitas": "Edit Facility",
+        "Nama Fasilitas": "Facility Name",
+        "Deskripsi Fasilitas": "Facility Description",
+        "Kelola Pengguna": "Manage Users",
+        "Tambah Pengguna Baru": "Add New User",
+        "Tambah Pengguna": "Add User",
+        "Edit Pengguna": "Edit User",
+        "Level Akses": "Access Level",
+        "Super Admin": "Super Admin",
+        "Admin": "Admin",
+        "Staf Kasir": "Cashier Staff",
+        "Pengunjung": "Visitor"
     });
 
     /**
@@ -831,6 +1030,24 @@
         const slotMatch = trimmed.match(/^Edit Galeri Slot\s+#?(\d+)$/i);
         if (slotMatch) {
             return "Edit Gallery Slot #" + slotMatch[1];
+        }
+
+        // 4b. Dynamic patterns: "Slot #X"
+        const slotShortMatch = trimmed.match(/^Slot\s+#?(\d+)$/i);
+        if (slotShortMatch) {
+            return "Slot #" + slotShortMatch[1];
+        }
+
+        // 4c. Dynamic patterns: "ID: #X"
+        const idMatch = trimmed.match(/^ID:\s+#?(\d+)$/i);
+        if (idMatch) {
+            return "ID: #" + idMatch[1];
+        }
+
+        // 4d. Dynamic patterns: "X Kategori Tersedia" (Feedback-8 Poin 7)
+        const catAvailMatch = trimmed.match(/^(\d+)\s+Kategori\s+Tersedia$/i);
+        if (catAvailMatch) {
+            return catAvailMatch[1] + " Categories Available";
         }
 
         // 5. Dynamic patterns: "RINCIAN TIKET MASUK (TOTAL X TIKET)"
@@ -1048,6 +1265,41 @@
         applyLanguage(newLang);
     }
 
+    /**
+     * Translate SweetAlert2 dialogs created after the initial DOM pass.
+     * SweetAlert inserts its markup dynamically, so DOM walking alone cannot
+     * translate titles, messages, or button labels emitted by PHP views.
+     */
+    function translateAlertValue(value) {
+        if (typeof value !== 'string') return value;
+        const translated = findTranslation(value.trim());
+        if (!translated) return value;
+        return value.replace(value.trim(), translated);
+    }
+
+    function installSweetAlertTranslation() {
+        if (!window.Swal || window.Swal.__patemonI18nWrapped) return;
+        const originalFire = window.Swal.fire.bind(window.Swal);
+        window.Swal.fire = function(arg1, arg2, arg3) {
+            const lang = localStorage.getItem('patemon_lang') || 'id';
+            if (lang !== 'en') return originalFire(arg1, arg2, arg3);
+
+            if (typeof arg1 === 'object' && arg1 !== null) {
+                const config = { ...arg1 };
+                ['title', 'text', 'html', 'confirmButtonText', 'denyButtonText', 'cancelButtonText', 'footer'].forEach(key => {
+                    if (typeof config[key] === 'string') config[key] = translateAlertValue(config[key]);
+                });
+                return originalFire(config);
+            }
+            return originalFire(
+                translateAlertValue(arg1),
+                translateAlertValue(arg2),
+                translateAlertValue(arg3)
+            );
+        };
+        window.Swal.__patemonI18nWrapped = true;
+    }
+
     // Ekspor fungsi ke global scope
     window.setPatemonLanguage = applyLanguage;
     window.togglePatemonLanguage = toggleLanguage;
@@ -1057,6 +1309,7 @@
 
     // Inisialisasi saat DOM siap
     document.addEventListener('DOMContentLoaded', function() {
+        installSweetAlertTranslation();
         const savedLang = localStorage.getItem('patemon_lang') || 'id';
         if (savedLang === 'en') {
             applyLanguage('en');

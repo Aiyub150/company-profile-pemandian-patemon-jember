@@ -462,7 +462,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                                 </td>
                                 <td class="text-end fw-bold text-dark"><?= format_rupiah($t['total_harga']) ?></td>
                                 <td class="text-center">
-                                    <a href="<?= route_url('nota', ['id' => (int)$t['id_transaksi']]) ?>" class="btn btn-sm btn-soft-primary btn-action-icon" title="Lihat Nota">
+                                    <a href="<?= route_url('nota', ['id' => (int)$t['id_transaksi'], 'ref' => 'laporan']) ?>" class="btn btn-sm btn-soft-primary btn-action-icon" title="Lihat Nota">
                                         <i class="fa-solid fa-receipt"></i>
                                     </a>
                                 </td>
