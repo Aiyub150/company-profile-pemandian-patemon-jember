@@ -146,6 +146,58 @@ if (!function_exists('format_bulan_indonesia')) {
     }
 }
 
+/**
+ * Helper manajemen pengaturan sistem dinamis (Key-Value Store)
+ * Enterprise-grade auto-table migration and runtime caching
+ */
+if (!function_exists('get_setting')) {
+    function get_setting($key, $default = null) {
+        global $conn;
+        if (!isset($GLOBALS['settings_cache'])) {
+            $GLOBALS['settings_cache'] = [];
+            if ($conn) {
+                // Buat tabel jika belum ada secara otomatis
+                $conn->query("CREATE TABLE IF NOT EXISTS `settings` (
+                  `setting_key` varchar(50) NOT NULL,
+                  `setting_value` text DEFAULT NULL,
+                  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  PRIMARY KEY (`setting_key`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+                $res = $conn->query("SELECT setting_key, setting_value FROM settings");
+                if ($res) {
+                    while ($r = $res->fetch_assoc()) {
+                        $GLOBALS['settings_cache'][$r['setting_key']] = $r['setting_value'];
+                    }
+                }
+            }
+        }
+        return $GLOBALS['settings_cache'][$key] ?? $default;
+    }
+}
+
+if (!function_exists('set_setting')) {
+    function set_setting($key, $value) {
+        global $conn;
+        if (!$conn) return false;
+
+        $key = trim($key);
+        // Pastikan cache dan tabel terinisialisasi
+        get_setting('__init__', '');
+
+        $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()");
+        if ($stmt) {
+            $stmt->bind_param("ss", $key, $value);
+            $res = $stmt->execute();
+            $stmt->close();
+            if ($res) {
+                $GLOBALS['settings_cache'][$key] = $value;
+            }
+            return $res;
+        }
+        return false;
+    }
+}
 
 /**
  * Helper informasi peran RBAC (Standar SIM-ASET)

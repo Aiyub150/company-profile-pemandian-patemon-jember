@@ -598,12 +598,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                     >
                                 </div>
                                 <!-- Quick chips -->
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    <span class="quick-cash-chip text-primary fw-bold" onclick="setCashPas()"><i class="fa-solid fa-check me-1"></i>Uang Pas</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(10000)">10.000</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(20000)">20.000</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(50000)">50.000</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(100000)">100.000</span>
+                                </div>
                                 <div class="d-flex flex-wrap gap-1">
                                     <span class="quick-cash-chip" onclick="addCash(10000)">+10rb</span>
                                     <span class="quick-cash-chip" onclick="addCash(20000)">+20rb</span>
                                     <span class="quick-cash-chip" onclick="addCash(50000)">+50rb</span>
                                     <span class="quick-cash-chip" onclick="addCash(100000)">+100rb</span>
-                                    <span class="quick-cash-chip" onclick="clearCash()">Reset</span>
+                                    <span class="quick-cash-chip text-danger" onclick="clearCash()"><i class="fa-solid fa-rotate-left me-1"></i>Reset</span>
                                 </div>
                             </div>
 
@@ -615,6 +622,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <button type="submit" class="btn-brand w-100 py-3 fs-5" id="btnSubmit">
                                 <i class="fa-solid fa-print me-1"></i> Proses & Cetak Nota
                             </button>
+
+                            <div class="mt-3 p-2 rounded-3 bg-light text-center border" style="font-size: 0.76rem;">
+                                <span class="text-muted"><i class="fa-solid fa-keyboard me-1 text-primary"></i> <strong>Pintasan POS:</strong></span>
+                                <span class="badge bg-secondary ms-1">F2</span> Baru
+                                <span class="badge bg-secondary ms-1">F4</span> Uang Diterima
+                                <span class="badge bg-secondary ms-1">Enter</span> Bayar & Cetak
+                            </div>
 
                             <div class="text-center mt-3">
                                 <a href="<?= in_array((int)$_SESSION['level'], [2, 3], true) ? route_url('kasir') : route_url('transaksi') ?>" class="text-secondary small text-decoration-none">
@@ -826,6 +840,79 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         document.getElementById('uangBayar').value = grandTotal;
         hitungKembalian();
     }
+
+    function setExactCash(amount) {
+        document.getElementById('uangBayar').value = amount;
+        hitungKembalian();
+    }
+
+    function resetPosForm() {
+        Swal.fire({
+            title: 'Transaksi Baru?',
+            text: 'Kosongkan formulir loket dan mulai transaksi baru? (F2)',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Reset',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#0284c7'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                for (const id of Object.keys(ticketCatalog)) {
+                    const input = document.getElementById('ticket_qty_' + id);
+                    if (input) input.value = 0;
+                }
+                document.getElementById('uangBayar').value = '';
+                const namaCust = document.getElementById('nama_pemesan');
+                if (namaCust) namaCust.value = '';
+                const telpCust = document.getElementById('no_telepon_pemesan');
+                if (telpCust) telpCust.value = '';
+                clearPaymentProof();
+                recalculate();
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Formulir loket telah dibersihkan',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        });
+    }
+
+    // Global POS Keyboard Shortcuts
+    window.addEventListener('keydown', function(e) {
+        // Jangan aktifkan jika sedang membuka modal camera
+        if (document.getElementById('modalCameraCapture')?.classList.contains('show')) return;
+
+        // F2: Transaksi Baru / Reset
+        if (e.key === 'F2') {
+            e.preventDefault();
+            resetPosForm();
+        }
+        // F4: Fokus ke input Uang Diterima
+        else if (e.key === 'F4') {
+            e.preventDefault();
+            const uangInput = document.getElementById('uangBayar');
+            if (uangInput) {
+                uangInput.focus();
+                uangInput.select();
+            }
+        }
+    });
+
+    // Enter pada uangBayar langsung submit jika nominal sudah mencukupi
+    document.addEventListener('DOMContentLoaded', () => {
+        const ubInput = document.getElementById('uangBayar');
+        if (ubInput) {
+            ubInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btnSubmit').click();
+                }
+            });
+        }
+    });
 
     // Payment Method Switching Listener
     document.querySelectorAll('input[name="metode_pembayaran"]').forEach(radio => {

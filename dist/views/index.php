@@ -97,6 +97,36 @@ if ($res_events) {
         $active_events[] = $ev;
     }
 }
+
+// Status Kepadatan Wahana Hari Ini (Real-time Crowd Density Indicator)
+$today_visitors = 0;
+$res_crowd = $conn->query("
+    SELECT COALESCE(SUM(dt.quantity), 0) AS total_today 
+    FROM transaksi t 
+    JOIN detail_transaksi dt ON t.id_transaksi = dt.id_transaksi 
+    WHERE t.tgl_pemesanan = CURDATE() AND t.status = 'done' AND t.deleted_at IS NULL
+");
+if ($res_crowd) {
+    $row_c = $res_crowd->fetch_assoc();
+    $today_visitors = (int)($row_c['total_today'] ?? 0);
+}
+
+if ($today_visitors < 100) {
+    $crowd_level = 'Lengang';
+    $crowd_badge_class = 'badge-crowd-green';
+    $crowd_desc = 'Kondisi kolam sangat nyaman & leluasa untuk berenang.';
+    $crowd_icon = 'fa-circle-check';
+} elseif ($today_visitors <= 350) {
+    $crowd_level = 'Ramai Lancar';
+    $crowd_badge_class = 'badge-crowd-yellow';
+    $crowd_desc = 'Aktivitas kolam sedang hangat dan kondusif.';
+    $crowd_icon = 'fa-users';
+} else {
+    $crowd_level = 'Padat';
+    $crowd_badge_class = 'badge-crowd-red';
+    $crowd_desc = 'Kunjungan tinggi, disarankan memesan tiket lebih awal.';
+    $crowd_icon = 'fa-triangle-exclamation';
+}
 ?>
 <!DOCTYPE html>
 
@@ -545,6 +575,49 @@ if ($res_events) {
         }
 
         /* Contact Section */
+        .pulse-indicator-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            position: relative;
+        }
+        .pulse-indicator-dot::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        .dot-green {
+            background-color: #22c55e;
+            box-shadow: 0 0 10px #22c55e;
+        }
+        .dot-green::after {
+            border: 2px solid #22c55e;
+        }
+        .dot-yellow {
+            background-color: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+        .dot-yellow::after {
+            border: 2px solid #f59e0b;
+        }
+        .dot-red {
+            background-color: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+        .dot-red::after {
+            border: 2px solid #ef4444;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.6); opacity: 0.9; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+
         #contact {
             background: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.95)), url("../../public/img/background.png");
             background-size: cover;
@@ -652,6 +725,13 @@ if ($res_events) {
                 <div class="hero-stat-item">
                     <div class="hero-stat-num">10.000+</div>
                     <div class="hero-stat-label">Pengunjung Puas Per Tahun</div>
+                </div>
+                <div class="hero-stat-item" style="border-left: 2px dashed rgba(255,255,255,0.25);">
+                    <div class="hero-stat-num d-flex align-items-center justify-content-center gap-2">
+                        <span class="pulse-indicator-dot <?= ($crowd_level === 'Lengang') ? 'dot-green' : (($crowd_level === 'Ramai Lancar') ? 'dot-yellow' : 'dot-red') ?>"></span>
+                        <span style="font-size: 1.35rem; font-weight: 800;"><?= e($crowd_level) ?></span>
+                    </div>
+                    <div class="hero-stat-label">Status Kolam Hari Ini (<?= $today_visitors ?> Tiket)</div>
                 </div>
             </div>
         </div>

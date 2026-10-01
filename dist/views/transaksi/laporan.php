@@ -150,6 +150,72 @@ if (!empty($trans_ids)) {
 
 $rata_rata_transaksi = $total_transaksi > 0 ? ($total_omzet / $total_transaksi) : 0;
 
+// Penanganan Ekspor CSV Server-Side Mentah (UTF-8 BOM)
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    $filename = "Laporan_Penjualan_" . ucfirst($tipe) . "_" . date('Ymd_His') . ".csv";
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    // Tulis UTF-8 BOM agar Excel membukanya langsung dengan karakter yang rapi
+    echo "\xEF\xBB\xBF";
+
+    $out = fopen('php://output', 'w');
+
+    // Header Metadata
+    fputcsv($out, ['WISATA PEMANDIAN PATEMON JEMBER - LAPORAN PENJUALAN TIKET']);
+    fputcsv($out, ['Periode', $periode_label]);
+    fputcsv($out, ['Dicetak Oleh', $user_name . ' (' . get_role_name($user_level) . ')']);
+    fputcsv($out, ['Waktu Ekspor', date('d-m-Y H:i:s')]);
+    fputcsv($out, []);
+
+    // Ringkasan Eksekutif
+    fputcsv($out, ['RINGKASAN EKSEKUTIF']);
+    fputcsv($out, ['Indikator', 'Nilai']);
+    fputcsv($out, ['Total Omzet', 'Rp ' . number_format($total_omzet, 0, ',', '.')]);
+    fputcsv($out, ['Total Lembar Tiket', number_format($total_lembar_tiket, 0, ',', '.')]);
+    fputcsv($out, ['Total Transaksi', number_format($total_transaksi, 0, ',', '.')]);
+    fputcsv($out, ['Rata-rata Transaksi', 'Rp ' . number_format($rata_rata_transaksi, 0, ',', '.')]);
+    fputcsv($out, []);
+
+    // Rekapitulasi per Kategori
+    fputcsv($out, ['REKAPITULASI PENJUALAN PER KATEGORI']);
+    fputcsv($out, ['No', 'Kategori Tiket', 'Jumlah Terjual (Lembar)', 'Total Penerimaan (Rp)']);
+    $no_c = 1;
+    foreach ($rekap_kategori as $c) {
+        fputcsv($out, [$no_c++, $c['jenis_tiket'], $c['total_qty'], $c['total_sub']]);
+    }
+    fputcsv($out, []);
+
+    // Rincian Transaksi
+    fputcsv($out, ['DAFTAR TRANSAKSI RINCI']);
+    fputcsv($out, ['No', 'ID Transaksi', 'Kode Transaksi', 'Tanggal', 'Nama Pemesan', 'Kasir / Petugas', 'Metode Bayar', 'Rincian Tiket', 'Total Bayar (Rp)', 'Status']);
+    $no_t = 1;
+    foreach ($transaksi_list as $tr) {
+        $kode_trx = format_kode_transaksi($tr['id_transaksi'], $tr['tgl_pemesanan']);
+        $items_str = isset($trans_items[$tr['id_transaksi']]) ? implode('; ', $trans_items[$tr['id_transaksi']]) : '-';
+        $cust = !empty($tr['nama_pemesan']) ? $tr['nama_pemesan'] : ($tr['user_nama'] ?? '-');
+        $kasir_n = !empty($tr['user_nama']) ? $tr['user_nama'] : '-';
+
+        fputcsv($out, [
+            $no_t++,
+            $tr['id_transaksi'],
+            $kode_trx,
+            date('d-m-Y', strtotime($tr['tgl_pemesanan'])),
+            $cust,
+            $kasir_n,
+            $tr['metode_pembayaran'] ?? 'Tunai',
+            $items_str,
+            $tr['total_harga'],
+            $tr['status'] === 'done' ? 'Selesai (Lunas)' : $tr['status']
+        ]);
+    }
+
+    fclose($out);
+    exit;
+}
+
 // Setup Halaman
 $active_menu = 'laporan';
 if ($user_level === 3) {
@@ -196,9 +262,12 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                 <a href="<?= $pdf_url ?>" class="btn btn-soft-danger px-3 py-2 fw-semibold" title="Buka Dokumen PDF Standar">
                     <i class="fa-solid fa-file-pdf me-1"></i> PDF
                 </a>
-                <button onclick="exportToExcel('tableLaporan', 'Laporan_Patemon_<?= $tipe ?>')" class="btn btn-soft-success px-3 py-2 fw-semibold">
+                <button onclick="exportToExcel('tableLaporan', 'Laporan_Patemon_<?= $tipe ?>')" class="btn btn-soft-success px-3 py-2 fw-semibold" title="Ekspor Lembar Kerja Excel">
                     <i class="fa-solid fa-file-excel me-1"></i> Excel
                 </button>
+                <a href="?<?= http_build_query(array_merge($_GET, ['export' => 'csv'])) ?>" class="btn btn-soft-secondary px-3 py-2 fw-semibold" title="Unduh Berkas Data CSV Mentah (UTF-8 BOM)">
+                    <i class="fa-solid fa-file-csv me-1"></i> CSV
+                </a>
             </div>
         </div>
 

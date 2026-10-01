@@ -161,6 +161,43 @@ foreach ($holidays_list as $h) {
 // Ambil maksimal 4 libur nasional mendatang
 $upcoming_holidays = array_slice($upcoming_holidays, 0, 4);
 
+// 7. Analisis Jam Sibuk Kunjungan (Peak Hours Analysis: 07:00 - 17:00 WIB)
+$hours_labels = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+$hourly_counts = array_fill(0, 11, 0);
+
+$res_hours = $conn->query("
+    SELECT HOUR(created_at) AS jam, COUNT(*) AS jml 
+    FROM activity_logs 
+    WHERE module = 'transaksi' AND action = 'tambah'
+    GROUP BY HOUR(created_at)
+");
+$has_hour_data = false;
+if ($res_hours && $res_hours->num_rows > 0) {
+    while ($hr = $res_hours->fetch_assoc()) {
+        $j = (int)$hr['jam'];
+        if ($j >= 7 && $j <= 17) {
+            $hourly_counts[$j - 7] = (int)$hr['jml'];
+            if ((int)$hr['jml'] > 0) $has_hour_data = true;
+        }
+    }
+}
+if (!$has_hour_data) {
+    $res_srv = $conn->query("
+        SELECT HOUR(created_at) AS jam, COUNT(*) AS jml 
+        FROM server_logs 
+        WHERE path LIKE '%transaksi%' OR path LIKE '%tiket%'
+        GROUP BY HOUR(created_at)
+    ");
+    if ($res_srv && $res_srv->num_rows > 0) {
+        while ($shr = $res_srv->fetch_assoc()) {
+            $j = (int)$shr['jam'];
+            if ($j >= 7 && $j <= 17) {
+                $hourly_counts[$j - 7] = (int)$shr['jml'];
+            }
+        }
+    }
+}
+
 $extra_css = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>';
 
 require '../../app/layouts/admin_header.php';
@@ -313,6 +350,28 @@ require '../../app/layouts/admin_header.php';
         </div>
     </div>
 
+    <!-- Analisis Jam Sibuk Kunjungan (Peak Hours Analysis) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card">
+                <div class="modern-card-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                    <div>
+                        <div class="fw-bold fs-6 text-dark">
+                            <i class="fa-solid fa-clock-rotate-left text-warning me-2"></i> Analisis Jam Sibuk Kunjungan (Peak Hours)
+                        </div>
+                        <small class="text-muted">Distribusi frekuensi kedatangan pada jam operasional 07:00 - 17:00 WIB untuk optimalisasi penugasan petugas loket dan penjaga kolam (lifeguard).</small>
+                    </div>
+                    <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-1.5 rounded-pill fw-semibold align-self-start align-self-sm-center">
+                        <i class="fa-solid fa-person-swimming me-1"></i> Jam Operasional
+                    </span>
+                </div>
+                <div class="modern-card-body">
+                    <canvas id="peakHoursChart" height="75"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Navigation Standard SIM-ASET -->
     <div class="row g-3 mb-4">
         <?php if ($user_level === 3): ?>
@@ -445,6 +504,68 @@ if (chartEl) {
                 monthlyChart.options.scales.x.ticks.color = colors.text;
             }
             monthlyChart.update();
+        }
+    });
+}
+
+// Peak Hours Line Chart
+const peakEl = document.getElementById("peakHoursChart");
+if (peakEl) {
+    const ctxPeak = peakEl.getContext("2d");
+    const peakGradient = ctxPeak.createLinearGradient(0, 0, 0, 220);
+    peakGradient.addColorStop(0, "rgba(245, 158, 11, 0.45)");
+    peakGradient.addColorStop(1, "rgba(245, 158, 11, 0.02)");
+
+    const peakChart = new Chart(ctxPeak, {
+        type: "line",
+        data: {
+            labels: ' . json_encode($hours_labels) . ',
+            datasets: [{
+                label: "Frekuensi Kunjungan / Transaksi",
+                data: ' . json_encode($hourly_counts) . ',
+                borderColor: "#f59e0b",
+                borderWidth: 2.5,
+                backgroundColor: peakGradient,
+                fill: true,
+                tension: 0.38,
+                pointBackgroundColor: "#d97706",
+                pointBorderColor: "#ffffff",
+                pointBorderWidth: 1.5,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { family: "Inter" }, color: initialColors.text },
+                    grid: { color: initialColors.grid }
+                },
+                x: {
+                    ticks: { font: { family: "Inter" }, color: initialColors.text },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    window.addEventListener("patemon_theme_changed", function(e) {
+        if (peakChart && peakChart.options && peakChart.options.scales) {
+            const colors = getChartThemeColors();
+            if (peakChart.options.scales.y) {
+                peakChart.options.scales.y.grid.color = colors.grid;
+                peakChart.options.scales.y.ticks.color = colors.text;
+            }
+            if (peakChart.options.scales.x) {
+                peakChart.options.scales.x.ticks.color = colors.text;
+            }
+            peakChart.update();
         }
     });
 }
