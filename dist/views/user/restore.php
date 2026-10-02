@@ -39,7 +39,7 @@ $stmtInfo->execute();
 $uInfo = $stmtInfo->get_result()->fetch_assoc();
 $stmtInfo->close();
 
-$stmt = $conn->prepare("UPDATE users SET deleted_at = NULL WHERE id_user = ?");
+$stmt = $conn->prepare("UPDATE users SET deleted_at = NULL, is_active = 1 WHERE id_user = ?");
 $stmt->bind_param("i", $id_user);
 $stmt->execute();
 $stmt->close();

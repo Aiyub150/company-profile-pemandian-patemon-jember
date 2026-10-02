@@ -7,7 +7,16 @@ function exportToPDF(tableId, title = 'Laporan') {
 
     const jsPDFConstructor = window.jspdf ? window.jspdf.jsPDF : (typeof jsPDF !== 'undefined' ? jsPDF : null);
     if (!jsPDFConstructor) {
-        alert('Library jsPDF tidak ditemukan. Silakan periksa koneksi internet Anda.');
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Ekspor PDF Gagal',
+                text: 'Library jsPDF tidak ditemukan. Silakan periksa koneksi internet Anda.',
+                confirmButtonColor: '#0284c7'
+            });
+        } else {
+            console.error('Library jsPDF tidak ditemukan. Silakan periksa koneksi internet Anda.');
+        }
         return;
     }
 
@@ -44,7 +53,16 @@ function exportToPDF(tableId, title = 'Laporan') {
 
         doc.save((title || 'laporan').replace(/[^a-zA-Z0-9_\-]/g, '_') + '.pdf');
     } else {
-        alert('Plugin jsPDF autoTable tidak ditemukan.');
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Plugin Tidak Ditemukan',
+                text: 'Plugin jsPDF autoTable tidak ditemukan.',
+                confirmButtonColor: '#0284c7'
+            });
+        } else {
+            console.error('Plugin jsPDF autoTable tidak ditemukan.');
+        }
     }
 
     document.body.removeChild(clone);

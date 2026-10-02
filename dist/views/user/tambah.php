@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../../app/config.php';
-// Hak Akses: Super Admin (1) & Admin (2) - Feedback-5 Poin 4
-check_auth([1, 2]);
+// Hak Akses: Khusus Super Admin (Level 1)
+check_auth([1], route_url('dashboard'));
 
 $curr_login_lvl = (int)($_SESSION['level'] ?? 0);
 $active_menu = 'user';
@@ -48,13 +48,80 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $error_msg = "Username atau email tersebut sudah digunakan pengguna lain.";
             } else {
                 $hashed = password_hash($password, PASSWORD_BCRYPT);
-                $stmt = $conn->prepare("INSERT INTO users (nama, username, password, email, no_telepon, level) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssi", $nama, $username, $hashed, $email, $no_telepon, $level);
+
+                // Feedback-9 Poin 6: Staf baru dimulai dengan status belum aktif dan dikirimi email aktivasi
+                $is_active = 0;
+                $activation_token = bin2hex(random_bytes(32));
+                $activation_expires_at = date('Y-m-d H:i:s', time() + (72 * 3600)); // 3 hari
+
+                $stmt = $conn->prepare("INSERT INTO users (nama, username, password, email, no_telepon, level, is_active, activation_token, activation_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssssiiss", $nama, $username, $hashed, $email, $no_telepon, $level, $is_active, $activation_token, $activation_expires_at);
                 if ($stmt->execute()) {
                     $newId = $stmt->insert_id;
                     if (function_exists('log_activity')) {
-                        log_activity('TAMBAH', 'user', "Menambahkan user baru ID #{$newId}: {$username} (Role: " . get_role_name($level) . ")");
+                        log_activity('TAMBAH', 'user', "Menambahkan user baru ID #{$newId}: {$username} (Role: " . get_role_name($level) . ", Status: Menunggu Aktivasi)");
                     }
+
+                    // Kirim email aktivasi ke staf baru via SMTP Mailpit (menggunakan Absolute URL ke Port Web Aplikasi Utama)
+                    $activation_url = route_url('activate', ['token' => $activation_token], true);
+                    $subject = "🎉 [Pemandian Patemon] Aktivasi Akun Staf Baru (@" . $username . ")";
+                    $htmlBody = '
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }
+                            .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+                            .header { background: linear-gradient(135deg, #0ea5e9, #0284c7); padding: 28px; text-align: center; color: #ffffff; }
+                            .body { padding: 32px 28px; line-height: 1.6; font-size: 15px; }
+                            .btn { display: inline-block; background-color: #0284c7; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; margin-top: 16px; margin-bottom: 20px; }
+                            .note { background-color: #f0f9ff; border-left: 4px solid #0284c7; padding: 12px 16px; font-size: 13px; color: #0369a1; border-radius: 0 6px 6px 0; margin-top: 20px; }
+                            .footer { padding: 16px 28px; background-color: #f1f5f9; text-align: center; font-size: 12px; color: #64748b; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="card">
+                            <div class="header">
+                                <h2 style="margin: 0; font-size: 20px;">Wisata Pemandian Patemon Jember</h2>
+                                <p style="margin: 6px 0 0; opacity: 0.9; font-size: 14px;">Undangan Aktivasi Akun Staf Baru</p>
+                            </div>
+                            <div class="body">
+                                <p>Halo <strong>' . htmlspecialchars($nama ?: $username, ENT_QUOTES, 'UTF-8') . '</strong>,</p>
+                                <p>Selamat datang di tim Wisata Pemandian Patemon Tanggul, Jember. Super Administrator telah mendaftarkan akun staf Anda di sistem dengan username <code>' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</code>.</p>
+                                <p>Untuk mengaktifkan akun dan membuat kata sandi Anda sendiri, silakan klik tautan aktivasi berikut:</p>
+                                <div style="text-align: center;">
+                                    <a href="' . $activation_url . '" class="btn">Aktivasi Akun & Buat Kata Sandi</a>
+                                </div>
+                                <div class="note">
+                                    <strong>Perhatian:</strong><br>
+                                    Tautan ini berlaku selama <strong>3 hari (72 jam)</strong> hingga <strong>' . date('d M Y H:i', strtotime($activation_expires_at)) . ' WIB</strong>. Jangan berikan tautan ini kepada orang lain demi keamanan akun Anda.
+                                </div>
+                                <p style="margin-top: 20px; font-size: 13px; color: #64748b;">
+                                    Jika tombol di atas tidak berfungsi, salin tautan berikut ke peramban web:<br>
+                                    <a href="' . $activation_url . '" style="color: #0284c7; word-break: break-all;">' . $activation_url . '</a>
+                                </p>
+                            </div>
+                            <div class="footer">
+                                &copy; ' . date('Y') . ' UPTD Pariwisata Pemandian Patemon Tanggul, Jember.
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    ';
+                    $plainBody = "Halo " . ($nama ?: $username) . ",\n\n"
+                        . "Selamat datang di Pemandian Patemon. Administrator telah mendaftarkan akun Anda (@{$username}).\n"
+                        . "Silakan klik tautan berikut untuk mengaktifkan akun dan membuat kata sandi Anda:\n"
+                        . $activation_url . "\n\n"
+                        . "Tautan berlaku hingga: " . date('d M Y H:i', strtotime($activation_expires_at)) . " WIB.\n";
+
+                    $mailRes = send_smtp_email($email, $nama ?: $username, $subject, $htmlBody, $plainBody);
+                    if ($mailRes['success']) {
+                        $_SESSION['flash_success'] = "Pengguna baru <strong>@" . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . "</strong> berhasil ditambahkan dan email aktivasi telah dikirimkan ke <strong>" . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . "</strong>.";
+                    } else {
+                        $_SESSION['flash_warning'] = "Pengguna baru <strong>@" . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . "</strong> berhasil ditambahkan (Belum Aktif), namun email aktivasi gagal terkirim (" . htmlspecialchars($mailRes['error'] ?? 'koneksi SMTP terputus', ENT_QUOTES, 'UTF-8') . "). Anda dapat mengirim ulang email aktivasi dari tabel pengguna.";
+                    }
+
                     header("Location: " . route_url('users'));
                     exit();
                 } else {

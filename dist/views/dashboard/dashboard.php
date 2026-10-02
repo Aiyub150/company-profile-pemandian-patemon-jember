@@ -572,26 +572,46 @@ if (peakEl) {
 
 // SIM-ASET Calendar Async Navigation
 window.loadCalendar = function(year, month) {
-    document.querySelectorAll("#calendar-loading").forEach(el => el.classList.remove("d-none"));
-    fetch(`${DASHBOARD_URL}?cal_year=${year}&cal_month=${month}&ajax_calendar=1`, {
+    var loading = document.getElementById("calendar-loading");
+    if (loading) {
+        loading.classList.remove("d-none");
+    }
+    
+    var baseUrl = (typeof DASHBOARD_URL !== "undefined" && DASHBOARD_URL) ? DASHBOARD_URL : window.location.href.split("?")[0];
+    var sep = baseUrl.indexOf("?") !== -1 ? "&" : "?";
+    var fetchUrl = baseUrl + sep + "cal_year=" + year + "&cal_month=" + month + "&ajax_calendar=1";
+
+    fetch(fetchUrl, {
         headers: {
             "X-Requested-With": "XMLHttpRequest"
         }
     })
-    .then(res => res.text())
-    .then(html => {
-        document.querySelectorAll(".calendar-widget").forEach(el => {
-            el.parentElement.innerHTML = html;
-        });
+    .then(function(res) {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.text();
+    })
+    .then(function(html) {
+        var container = document.getElementById("admin-calendar-container");
+        if (container) {
+            container.innerHTML = html;
+        } else {
+            var widget = document.querySelector(".calendar-widget");
+            if (widget && widget.parentElement) {
+                widget.parentElement.innerHTML = html;
+            }
+        }
         // Re-init tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll(\'[data-bs-toggle="tooltip"]\'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     })
-    .catch(err => {
+    .catch(function(err) {
         console.error("Error loading calendar:", err);
-        document.querySelectorAll("#calendar-loading").forEach(el => el.classList.add("d-none"));
+        var loadingEl = document.getElementById("calendar-loading");
+        if (loadingEl) {
+            loadingEl.classList.add("d-none");
+        }
     });
 };
 

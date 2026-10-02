@@ -98,6 +98,12 @@ if (!function_exists('verify_csrf_token')) {
     }
 }
 
+if (!function_exists('isValidCSRFToken')) {
+    function isValidCSRFToken($token = null) {
+        return validate_csrf($token);
+    }
+}
+
 /**
  * Helper format rupiah
  */
@@ -163,6 +169,32 @@ if (!function_exists('get_setting')) {
                   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                   PRIMARY KEY (`setting_key`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+                // Auto-migration tabel calendar_holidays (Feedback-9 Poin 4)
+                $conn->query("CREATE TABLE IF NOT EXISTS `calendar_holidays` (
+                  `id` int(11) NOT NULL AUTO_INCREMENT,
+                  `tanggal` date NOT NULL,
+                  `keterangan` varchar(255) NOT NULL,
+                  `tipe` enum('libur', 'tutup_pemeliharaan', 'cuti') NOT NULL DEFAULT 'libur',
+                  `created_by` int(11) DEFAULT NULL,
+                  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+                  PRIMARY KEY (`id`),
+                  KEY `idx_tanggal` (`tanggal`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+                // Auto-migration kolom status aktivasi pada tabel users (Feedback-9 Poin 6)
+                $chk_act = $conn->query("SHOW COLUMNS FROM `users` LIKE 'is_active'");
+                if ($chk_act && $chk_act->num_rows === 0) {
+                    $conn->query("ALTER TABLE `users` ADD COLUMN `is_active` tinyint(1) NOT NULL DEFAULT 1 AFTER `level`");
+                }
+                $chk_act_tok = $conn->query("SHOW COLUMNS FROM `users` LIKE 'activation_token'");
+                if ($chk_act_tok && $chk_act_tok->num_rows === 0) {
+                    $conn->query("ALTER TABLE `users` ADD COLUMN `activation_token` varchar(100) DEFAULT NULL AFTER `is_active`");
+                }
+                $chk_act_exp = $conn->query("SHOW COLUMNS FROM `users` LIKE 'activation_expires_at'");
+                if ($chk_act_exp && $chk_act_exp->num_rows === 0) {
+                    $conn->query("ALTER TABLE `users` ADD COLUMN `activation_expires_at` datetime DEFAULT NULL AFTER `activation_token`");
+                }
 
                 $res = $conn->query("SELECT setting_key, setting_value FROM settings");
                 if ($res) {
@@ -264,7 +296,7 @@ if (!function_exists('base_url')) {
             if ($pos === false) $pos = strpos($script, '/public/');
             if ($pos === false) $pos = strpos($script, '/index.php');
             $root = ($pos !== false) ? substr($script, 0, $pos) : rtrim(dirname($script), '/\\');
-            if ($root === '/' || $root === '\\') $root = '';
+            if ($root === '/' || $root === '\\' || $root === '.' || empty($script)) $root = '';
         }
         $clean_path = ltrim($path, '/');
         return ($root !== '' ? rtrim($root, '/') : '') . ($clean_path !== '' ? '/' . $clean_path : '/');
@@ -289,11 +321,42 @@ if (!function_exists('payment_url')) {
     }
 }
 
+if (!function_exists('app_url')) {
+    /**
+     * Menghasilkan Full Absolute URL lengkap dengan skema (http/https), host, dan port web aplikasi.
+     * Sangat penting untuk tautan yang dikirim melalui email (aktivasi staf, reset sandi),
+     * agar saat dibuka di Mailpit Web UI (port 8025) atau webmail lain, tautan langsung mengarah
+     * ke aplikasi web utama (port 8000), bukan ke port webmail.
+     *
+     * @param string $path Jalur relatif
+     * @return string URL absolut lengkap (contoh: http://localhost:8000/activate)
+     */
+    function app_url($path = '') {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+        if (empty($host)) {
+            $server_name = $_SERVER['SERVER_NAME'] ?? 'localhost';
+            $port = $_SERVER['SERVER_PORT'] ?? '8000';
+            $host = $server_name . ($port && !in_array($port, ['80', '443']) ? ':' . $port : '');
+        }
+
+        // Jika host localhost/127.0.0.1 tanpa port, tambahkan default port web 8000
+        if ($host === 'localhost' || $host === '127.0.0.1') {
+            $port = $_SERVER['SERVER_PORT'] ?? '8000';
+            $host .= ':' . $port;
+        }
+
+        $base = base_url($path);
+        return $scheme . '://' . $host . $base;
+    }
+}
+
 /**
  * Helper Clean Route Name Resolver
  */
 if (!function_exists('route_url')) {
-    function route_url($name = '', $params = []) {
+    function route_url($name = '', $params = [], $absolute = false) {
         $routes = [
             // Home / Landing
             ''                       => '',
@@ -366,20 +429,29 @@ if (!function_exists('route_url')) {
             'gallery'                => 'admin/gallery',
             'admin_gallery'          => 'admin/gallery',
 
-            // Settings & Super Admin Modules (Feedback-5)
+            // Settings & Super Admin Modules (Feedback-5 & Feedback-9)
             'settings_toxic'         => 'admin/settings/toxic',
             'settings_server_log'    => 'admin/settings/server-log',
             'settings_history_log'   => 'admin/settings/history-log',
+            'settings_calendar'      => 'admin/settings/calendar',
+            'calendar'               => 'admin/settings/calendar',
             'transaksi_restore'      => 'admin/transaksi/restore',
             'users_restore'          => 'admin/users/restore',
             'ulasan_restore'         => 'admin/ulasan/restore',
+            'users_toggle'           => 'admin/users/toggle',
+            'users_resend_activation'=> 'admin/users/resend-activation',
 
-            // Events (Feedback-7 Poin 6)
+            // Events (Feedback-7 & Feedback-9 Poin 3)
             'events'                 => 'admin/events',
             'event'                  => 'admin/events',
             'events_tambah'          => 'admin/events/tambah',
             'events_delete'          => 'admin/events/delete',
             'events_toggle'          => 'admin/events/toggle',
+            'events_reorder'         => 'admin/events/reorder',
+
+            // Auth & Aktivasi Akun (Feedback-9 Poin 6)
+            'activate'               => 'activate',
+            'user_activate'          => 'activate',
 
             // Profil, Panduan, Versi
             'profile'                => 'profile',
@@ -392,7 +464,7 @@ if (!function_exists('route_url')) {
         ];
 
         $path = $routes[$name] ?? $name;
-        $url = base_url($path);
+        $url = $absolute ? app_url($path) : base_url($path);
         if (!empty($params)) {
             $separator = (strpos($url, '?') !== false) ? '&' : '?';
             $url .= $separator . http_build_query($params);
@@ -476,11 +548,11 @@ if (!function_exists('get_national_holidays')) {
             }
         }
 
-        // Ambil data dari API Kemendesa (seperti pada SIM-ASET)
+        // Ambil data dari API Kemendesa (seperti pada SIM-ASET) dengan timeout ultra-cepat
         $url = "https://api.kemendesa.link/libur-nasional/api/holidays/{$year}.json";
         $ctx = stream_context_create([
             'http' => [
-                'timeout' => 3, // fast timeout agar tidak menghambat loading jika offline
+                'timeout' => 1.2, // Ultra-fast timeout agar navigasi kalender instan tanpa lag
                 'ignore_errors' => true,
                 'user_agent' => 'PemandianPatemon/2.0'
             ]
@@ -495,8 +567,8 @@ if (!function_exists('get_national_holidays')) {
             }
         }
 
-        // Fallback jika offline
-        return [
+        // Fallback jika offline atau timeout, cache sementara agar navigasi bulan berikutnya tidak delay
+        $fallback = [
             'data' => [
                 ['date' => $year . '-01-01', 'name' => 'Tahun Baru Masehi', 'is_cuti_bersama' => false],
                 ['date' => $year . '-05-01', 'name' => 'Hari Buruh Internasional', 'is_cuti_bersama' => false],
@@ -504,6 +576,68 @@ if (!function_exists('get_national_holidays')) {
                 ['date' => $year . '-12-25', 'name' => 'Hari Raya Natal', 'is_cuti_bersama' => false],
             ]
         ];
+        @file_put_contents($cacheFile, json_encode($fallback));
+        return $fallback;
+    }
+}
+
+if (!function_exists('get_custom_holidays')) {
+    function get_custom_holidays($year = null, $month = null) {
+        global $conn;
+        $holidays = [];
+        if (!$conn) return $holidays;
+        
+        $year = (int)($year ?: date('Y'));
+        $where = "YEAR(tanggal) = {$year}";
+        if ($month) {
+            $month = (int)$month;
+            $where .= " AND MONTH(tanggal) = {$month}";
+        }
+        
+        $res = $conn->query("SELECT id, tanggal, keterangan, tipe FROM calendar_holidays WHERE {$where} ORDER BY tanggal ASC");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $holidays[] = [
+                    'id'         => (int)$row['id'],
+                    'date'       => $row['tanggal'],
+                    'title'      => $row['keterangan'],
+                    'tipe'       => $row['tipe'],
+                    'is_custom'  => true,
+                    'is_cuti'    => ($row['tipe'] === 'cuti')
+                ];
+            }
+        }
+        return $holidays;
+    }
+}
+
+if (!function_exists('get_active_closure_today')) {
+    function get_active_closure_today() {
+        global $conn;
+        if (!$conn) return null;
+        $today = date('Y-m-d');
+        // Hanya entri khusus yang ditetapkan Super Admin yang menyatakan penutupan:
+        // tipe 'tutup_pemeliharaan' ATAU entri libur khusus pengelola
+        $stmt = $conn->prepare("SELECT id, tanggal, keterangan, tipe FROM calendar_holidays WHERE tanggal = ? AND tipe IN ('tutup_pemeliharaan', 'libur') LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("s", $today);
+            $stmt->execute();
+            $res = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            return $res ?: null;
+        }
+        return null;
+    }
+}
+
+if (!function_exists('is_pool_closed_today')) {
+    /**
+     * Memeriksa apakah kolam pemandian ditutup hari ini karena pemeliharaan / penutupan khusus oleh Super Admin.
+     * Hari libur nasional atau cuti bersama umum TIDAK menutup kolam (pengunjung tetap ramai dan tiket tetap dibuka).
+     */
+    function is_pool_closed_today() {
+        $closure = get_active_closure_today();
+        return $closure !== null;
     }
 }
 
@@ -520,13 +654,150 @@ if (!function_exists('get_month_holidays')) {
             $d = $item['date'] ?? ($item['holiday_date'] ?? '');
             if (strpos($d, $prefix) === 0) {
                 $result[] = [
-                    'date'    => $d,
-                    'title'   => $item['name'] ?? ($item['holiday_name'] ?? 'Hari Libur'),
-                    'is_cuti' => !empty($item['is_cuti_bersama']) || !empty($item['is_cuti'])
+                    'date'      => $d,
+                    'title'     => $item['name'] ?? ($item['holiday_name'] ?? 'Hari Libur'),
+                    'is_cuti'   => !empty($item['is_cuti_bersama']) || !empty($item['is_cuti']),
+                    'is_custom' => false,
+                    'tipe'      => 'libur'
                 ];
             }
         }
+
+        // Integrasikan libur kustom wisata dari Super Admin (Feedback-9 Poin 4)
+        $customs = get_custom_holidays($year, $month);
+        foreach ($customs as $c) {
+            $result[] = $c;
+        }
+
         return $result;
+    }
+}
+
+/**
+ * Helper Pengiriman Email via Socket SMTP Mailpit (RFC 5321)
+ * Port default diarahkan ke 8001 sesuai Feedback-9 Poin 5 & 6 (dengan fallback ke port standar Mailpit 1025)
+ */
+if (!function_exists('send_smtp_email')) {
+    function send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
+        $host = get_setting('smtp_host', '127.0.0.1');
+        $primaryPort = (int)get_setting('smtp_port', 8001);
+        $portsToTry = [$primaryPort];
+        if ($primaryPort !== 1025) {
+            $portsToTry[] = 1025; // fallback ke standard Mailpit port
+        }
+        
+        $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
+        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
+        
+        $fp = false;
+        $connectedPort = null;
+        $errstr = '';
+        $errno = 0;
+        
+        foreach ($portsToTry as $p) {
+            $fp = @fsockopen($host, $p, $errno, $errstr, 2.0);
+            if ($fp) {
+                $connectedPort = $p;
+                break;
+            }
+        }
+        
+        if (!$fp) {
+            $portsStr = implode('/', $portsToTry);
+            error_log("SMTP Mailpit Connection Failed: {$host}:{$portsStr} - {$errstr} ({$errno})");
+            return [
+                'success' => false,
+                'message' => "Tidak dapat terhubung ke server SMTP Mailpit di {$host} port {$portsStr}."
+            ];
+        }
+        
+        stream_set_timeout($fp, 5);
+        
+        $readResponse = function() use ($fp) {
+            $data = '';
+            while ($line = fgets($fp, 512)) {
+                $data .= $line;
+                if (substr($line, 3, 1) === ' ') break;
+            }
+            return $data;
+        };
+        
+        $sendCommand = function($cmd) use ($fp, $readResponse) {
+            fputs($fp, $cmd . "\r\n");
+            return $readResponse();
+        };
+        
+        // 1. Baca Greeting awal server
+        $greeting = $readResponse();
+        if (substr($greeting, 0, 3) !== '220') {
+            fclose($fp);
+            return ['success' => false, 'message' => "Respon awal server SMTP tidak valid: " . trim($greeting)];
+        }
+        
+        // 2. EHLO
+        $ehlo = $sendCommand("EHLO localhost");
+        if (substr($ehlo, 0, 3) !== '250') {
+            $helo = $sendCommand("HELO localhost");
+            if (substr($helo, 0, 3) !== '250') {
+                fclose($fp);
+                return ['success' => false, 'message' => "Gagal jabat tangan SMTP (EHLO/HELO)"];
+            }
+        }
+        
+        // 3. MAIL FROM
+        $mailFrom = $sendCommand("MAIL FROM:<{$fromEmail}>");
+        if (substr($mailFrom, 0, 3) !== '250') {
+            fclose($fp);
+            return ['success' => false, 'message' => "SMTP MAIL FROM ditolak: " . trim($mailFrom)];
+        }
+        
+        // 4. RCPT TO
+        $rcptTo = $sendCommand("RCPT TO:<{$to_email}>");
+        if (substr($rcptTo, 0, 3) !== '250' && substr($rcptTo, 0, 3) !== '251') {
+            fclose($fp);
+            return ['success' => false, 'message' => "SMTP RCPT TO ditolak: " . trim($rcptTo)];
+        }
+        
+        // 5. DATA
+        $dataResp = $sendCommand("DATA");
+        if (substr($dataResp, 0, 3) !== '354') {
+            fclose($fp);
+            return ['success' => false, 'message' => "SMTP DATA ditolak: " . trim($dataResp)];
+        }
+        
+        // 6. Headers & Body
+        $dateStr = date('r');
+        $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
+        $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
+        
+        $headers = [];
+        $headers[] = "Date: {$dateStr}";
+        $headers[] = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>";
+        $headers[] = "To: =?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>";
+        $headers[] = "Subject: {$encodedSubject}";
+        $headers[] = "MIME-Version: 1.0";
+        $headers[] = "Content-Type: text/html; charset=UTF-8";
+        $headers[] = "Content-Transfer-Encoding: 8bit";
+        $headers[] = "X-Mailer: Patemon-Enterprise-Mailer/2.0 (Mailpit Port {$connectedPort})";
+        
+        $rawMessage = implode("\r\n", $headers) . "\r\n\r\n" . $html_body . "\r\n.\r\n";
+        fputs($fp, $rawMessage);
+        
+        $sendResp = $readResponse();
+        $sendCommand("QUIT");
+        fclose($fp);
+        
+        if (substr($sendResp, 0, 3) === '250') {
+            return [
+                'success' => true,
+                'message' => "Email berhasil dikirim ke {$to_email} via SMTP port {$connectedPort}."
+            ];
+        }
+        
+        return [
+            'success' => false,
+            'message' => "Pengiriman pesan ditolak oleh server SMTP: " . trim($sendResp)
+        ];
     }
 }
 
@@ -770,6 +1041,157 @@ if (!function_exists('secure_upload_image')) {
             'mime'      => $mime,
             'size'      => @filesize($destination)
         ];
+    }
+}
+
+if (!function_exists('safe_delete_media')) {
+    /**
+     * Menghapus berkas media fisik secara aman dari disk server
+     * Mencegah path traversal, LFI, dan melindungi berkas bawaan sistem.
+     *
+     * @param string $filepath Jalur absolut berkas atau nama berkas
+     * @param string|null $directory Direktori dasar jika hanya nama berkas yang diberikan
+     * @param array $extra_protected Berkas tambahan yang dilindungi
+     * @return bool
+     */
+    function safe_delete_media($filepath, $directory = null, $extra_protected = []) {
+        if (empty($filepath)) {
+            return false;
+        }
+
+        if ($directory !== null && !file_exists($filepath)) {
+            $filepath = rtrim($directory, '/\\') . DIRECTORY_SEPARATOR . ltrim($filepath, '/\\');
+        }
+
+        $filename = basename($filepath);
+
+        // Aset inti yang mutlak dilindungi
+        $protected_defaults = array_merge([
+            '', '.', '..', '.gitkeep', '.htaccess', 'web.config', 'index.php', 'index.html',
+            'default.png', 'default_avatar.png', 'sample_event_patemon.png',
+            'logo.png', 'logo2.png', 'logo-white.png', 'favicon.ico', 'favicon.png',
+            'gambar1.png', 'gambar2.png', 'gambar3.png', 'gambar4.png', 'gambar5.png',
+            'gambar6.png', 'gambar7.png', 'gambar8.png', 'gambar9.png'
+        ], $extra_protected);
+
+        if (in_array(strtolower($filename), array_map('strtolower', $protected_defaults), true)) {
+            return false;
+        }
+
+        $real_target = realpath($filepath);
+        if (!$real_target || !is_file($real_target)) {
+            return false;
+        }
+
+        // Pastikan berkas berada di dalam direktori root project
+        $root_project = realpath(__DIR__ . '/../../');
+        if (!$root_project || strpos($real_target, $root_project) !== 0) {
+            return false;
+        }
+
+        return @unlink($real_target);
+    }
+}
+
+if (!function_exists('clean_orphaned_media_storage')) {
+    /**
+     * Memindai dan membersihkan berkas sampah (orphaned media) yang tidak lagi memiliki referensi di database
+     *
+     * @param mysqli $conn
+     * @return array [deleted_count => int, freed_bytes => int, deleted_files => array]
+     */
+    function clean_orphaned_media_storage($conn) {
+        $result = [
+            'deleted_count' => 0,
+            'freed_bytes'   => 0,
+            'deleted_files' => []
+        ];
+
+        // 1. Bersihkan Bukti Pembayaran Transaksi (dist/app/payment/)
+        $payment_dir = realpath(__DIR__ . '/payment');
+        if ($payment_dir && is_dir($payment_dir)) {
+            $valid_payments = [];
+            $res = $conn->query("SELECT DISTINCT bukti_pembayaran FROM transaksi WHERE bukti_pembayaran IS NOT NULL AND bukti_pembayaran != ''");
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $valid_payments[] = strtolower(basename($row['bukti_pembayaran']));
+                }
+            }
+
+            $files = @scandir($payment_dir);
+            if ($files) {
+                foreach ($files as $f) {
+                    if (in_array($f, ['.', '..', '.gitkeep', '.htaccess'], true)) continue;
+                    if (!in_array(strtolower($f), $valid_payments, true)) {
+                        $full_path = $payment_dir . DIRECTORY_SEPARATOR . $f;
+                        $fsize = @filesize($full_path) ?: 0;
+                        if (safe_delete_media($full_path)) {
+                            $result['deleted_count']++;
+                            $result['freed_bytes'] += $fsize;
+                            $result['deleted_files'][] = 'payment/' . $f;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Bersihkan Flyer Events (public/img/events/)
+        $events_dir = realpath(__DIR__ . '/../../public/img/events');
+        if ($events_dir && is_dir($events_dir)) {
+            $valid_events = [];
+            $res = $conn->query("SELECT DISTINCT gambar FROM events WHERE gambar IS NOT NULL AND gambar != '' AND deleted_at IS NULL");
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $valid_events[] = strtolower(basename($row['gambar']));
+                }
+            }
+
+            $files = @scandir($events_dir);
+            if ($files) {
+                foreach ($files as $f) {
+                    if (in_array($f, ['.', '..', '.gitkeep', 'sample_event_patemon.png'], true)) continue;
+                    if (!in_array(strtolower($f), $valid_events, true)) {
+                        $full_path = $events_dir . DIRECTORY_SEPARATOR . $f;
+                        $fsize = @filesize($full_path) ?: 0;
+                        if (safe_delete_media($full_path)) {
+                            $result['deleted_count']++;
+                            $result['freed_bytes'] += $fsize;
+                            $result['deleted_files'][] = 'events/' . $f;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Bersihkan Avatar Pengguna Nonaktif/Terhapus (public/img/avatars/)
+        $avatar_dir = realpath(__DIR__ . '/../../public/img/avatars');
+        if ($avatar_dir && is_dir($avatar_dir)) {
+            $valid_avatars = ['default.png'];
+            $res = $conn->query("SELECT DISTINCT avatar FROM users WHERE avatar IS NOT NULL AND avatar != '' AND deleted_at IS NULL");
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $valid_avatars[] = strtolower(basename($row['avatar']));
+                }
+            }
+
+            $files = @scandir($avatar_dir);
+            if ($files) {
+                foreach ($files as $f) {
+                    if (in_array($f, ['.', '..', '.gitkeep', 'default.png'], true)) continue;
+                    if (!in_array(strtolower($f), $valid_avatars, true)) {
+                        $full_path = $avatar_dir . DIRECTORY_SEPARATOR . $f;
+                        $fsize = @filesize($full_path) ?: 0;
+                        if (safe_delete_media($full_path)) {
+                            $result['deleted_count']++;
+                            $result['freed_bytes'] += $fsize;
+                            $result['deleted_files'][] = 'avatars/' . $f;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $result;
     }
 }
 ?>

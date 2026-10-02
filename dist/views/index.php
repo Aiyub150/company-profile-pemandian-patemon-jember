@@ -297,20 +297,24 @@ if ($today_visitors < 100) {
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
             transition: all 0.3s ease;
-            padding: 0.65rem 0;
+            padding: 0.5rem 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
         }
         #mainNav.navbar-shrink {
-            padding: 0.5rem 0;
+            padding: 0.4rem 0;
             background-color: rgba(15, 23, 42, 0.98) !important;
             box-shadow: 0 4px 25px rgba(0, 0, 0, 0.35);
         }
+        #mainNav .navbar-brand {
+            margin-right: 0.75rem !important;
+            max-width: 250px;
+        }
         #mainNav .navbar-brand img {
-            height: 38px;
+            height: 36px;
         }
         #mainNav .navbar-nav .nav-item {
-            margin-right: 0.2rem !important;
+            margin-right: 0.15rem !important;
         }
         #mainNav .navbar-nav .nav-item:last-child {
             margin-right: 0 !important;
@@ -318,11 +322,11 @@ if ($today_visitors < 100) {
         #mainNav .nav-link {
             font-weight: 600;
             color: #cbd5e1 !important;
-            padding: 0.38rem 0.65rem !important;
+            padding: 0.35rem 0.5rem !important;
             border-radius: 6px;
             transition: all 0.2s ease;
-            font-size: 0.8125rem !important;
-            letter-spacing: 0.35px;
+            font-size: 0.785rem !important;
+            letter-spacing: 0.3px;
             white-space: nowrap !important;
             display: inline-block;
         }
@@ -337,9 +341,9 @@ if ($today_visitors < 100) {
             border: 1px solid rgba(251, 146, 60, 0.4);
             color: #ffffff !important;
             font-weight: 700;
-            font-size: 0.8125rem;
-            letter-spacing: 0.4px;
-            padding: 0.42rem 0.95rem;
+            font-size: 0.785rem;
+            letter-spacing: 0.3px;
+            padding: 0.38rem 0.75rem;
             border-radius: 8px;
             transition: all 0.2s ease;
             box-shadow: 0 2px 10px rgba(234, 88, 12, 0.35);
@@ -362,9 +366,9 @@ if ($today_visitors < 100) {
             border: 1px solid rgba(56, 189, 248, 0.45);
             color: #ffffff !important;
             font-weight: 700;
-            font-size: 0.8125rem;
-            letter-spacing: 0.5px;
-            padding: 0.42rem 1.05rem;
+            font-size: 0.785rem;
+            letter-spacing: 0.3px;
+            padding: 0.38rem 0.85rem;
             border-radius: 8px;
             transition: all 0.2s ease;
             box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
@@ -429,7 +433,7 @@ if ($today_visitors < 100) {
             transform: translateY(-1px);
         }
 
-        @media (max-width: 991.98px) {
+        @media (max-width: 1199.98px) {
             #navbarResponsive {
                 background: rgba(15, 23, 42, 0.98);
                 border-radius: 12px;
@@ -441,6 +445,9 @@ if ($today_visitors < 100) {
                 width: 100%;
                 text-align: center;
                 margin-bottom: 0.35rem;
+            }
+            #mainNav .navbar-nav {
+                flex-wrap: wrap !important;
             }
             #mainNav .btn-pesan-nav,
             #mainNav .btn-login-nav,
@@ -633,23 +640,26 @@ if ($today_visitors < 100) {
         }
     </style>
 </head>
+<?php 
+$todayClosure = function_exists('get_active_closure_today') ? get_active_closure_today() : null;
+?>
 <body id="page-top" data-bs-spy="scroll" data-bs-target="#mainNav" data-bs-offset="100">
 
     <!-- Navigation Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNav">
-        <div class="container-fluid px-3 px-md-4 px-xl-5">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="#page-top">
-                <img src="../../public/img/icon.png" alt="Logo Pemandian Patemon" style="height: 38px; width: auto; object-fit: contain;" />
-                <div class="d-none d-sm-flex flex-column text-start">
-                    <span class="fw-extrabold text-white lh-1" style="font-size: 1.05rem; letter-spacing: 0.5px;">PEMANDIAN PATEMON</span>
-                    <span class="text-warning small text-uppercase fw-semibold" style="font-size: 0.62rem; letter-spacing: 1.2px;">Wisata Alam Tanggul &bull; Jember</span>
+    <nav class="navbar navbar-expand-xl navbar-dark fixed-top" id="mainNav">
+        <div class="container-fluid px-2 px-sm-3 px-xl-4">
+            <a class="navbar-brand d-flex align-items-center gap-2 flex-shrink-0" href="#page-top">
+                <img src="../../public/img/icon.png" alt="Logo Pemandian Patemon" style="height: 36px; width: auto; object-fit: contain;" />
+                <div class="d-flex flex-column text-start">
+                    <span class="fw-extrabold text-white lh-1" style="font-size: 0.95rem; letter-spacing: 0.5px; white-space: nowrap;">PEMANDIAN PATEMON</span>
+                    <span class="text-warning small text-uppercase fw-semibold" style="font-size: 0.58rem; letter-spacing: 1px; white-space: nowrap;">Wisata Alam Tanggul &bull; Jember</span>
                 </div>
             </a>
             <button class="navbar-toggler border-0 p-2 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
                 <i class="fas fa-bars fs-5"></i>
             </button>
             <div class="collapse navbar-collapse" id="navbarResponsive">
-                <ul class="navbar-nav text-uppercase ms-auto py-3 py-lg-0 align-items-center">
+                <ul class="navbar-nav text-uppercase ms-auto py-2 py-xl-0 align-items-center flex-nowrap">
                     <li class="nav-item"><a class="nav-link" href="#services" data-i18n="nav_facilities">Fasilitas</a></li>
                     <li class="nav-item"><a class="nav-link" href="#portfolio" data-i18n="nav_gallery">Galeri</a></li>
                     <li class="nav-item"><a class="nav-link" href="#pricing" data-i18n="nav_pricing">Tarif Tiket</a></li>
@@ -664,9 +674,15 @@ if ($today_visitors < 100) {
                     </li>
 
                     <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                        <a class="btn btn-pesan-nav text-white" href="<?= route_url('tiket_pesan') ?>">
-                            <i class="fa-solid fa-ticket me-1"></i> <span data-i18n="btn_book_now">Pesan Tiket</span>
-                        </a>
+                        <?php if ($todayClosure): ?>
+                            <button type="button" class="btn btn-pesan-nav text-white opacity-75" onclick="showClosedNotice()" title="Pemandian Tutup Pemeliharaan Hari Ini" data-no-i18n="true">
+                                <i class="fa-solid fa-ban me-1"></i> <span data-no-i18n="true">Tutup</span>
+                            </button>
+                        <?php else: ?>
+                            <a class="btn btn-pesan-nav text-white" href="<?= route_url('tiket_pesan') ?>">
+                                <i class="fa-solid fa-ticket me-1"></i> <span>Pesan Tiket</span>
+                            </a>
+                        <?php endif; ?>
                     </li>
                     <?php if (isset($_SESSION['id_user'])): ?>
                         <?php if (isset($_SESSION['level']) && in_array((int)$_SESSION['level'], [1, 2, 3])): ?>
@@ -696,6 +712,25 @@ if ($today_visitors < 100) {
     <!-- Masthead Hero -->
     <header class="masthead-modern">
         <div class="container">
+            <?php 
+            if ($todayClosure): 
+            ?>
+            <div class="alert border-0 shadow-lg mb-4 text-start mx-auto p-3" style="max-width: 820px; border-radius: 14px; background: rgba(254, 242, 242, 0.96); border-left: 5px solid #ef4444 !important; backdrop-filter: blur(8px);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-danger" style="width: 44px; height: 44px; background: rgba(239, 68, 68, 0.15); flex-shrink: 0;">
+                        <i class="fa-solid fa-triangle-exclamation fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-danger text-uppercase" style="font-size: 0.825rem; letter-spacing: 0.5px;">Pemberitahuan Operasional Wisata Hari Ini (<?= format_tanggal_indonesia(date('Y-m-d')) ?>)</div>
+                        <div class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">
+                            <?= ($todayClosure['tipe'] === 'tutup_pemeliharaan') ? 'Wisata Sedang Tutup Pemeliharaan' : 'Wisata Sedang Libur / Tutup Operasional' ?>: <?= e($todayClosure['keterangan']) ?>
+                        </div>
+                        <small class="text-muted">Operasional loket dan pemandian ditutup sementara sesuai jadwal resmi pengelola. Harap jadwalkan kunjungan Anda pada hari berikutnya.</small>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="hero-badge">
                 <i class="fa-solid fa-water"></i> Wisata Pemandian Alami Terfavorit di Jember
             </div>
@@ -704,9 +739,15 @@ if ($today_visitors < 100) {
                 Rasakan kejernihan mata air pegunungan alami yang dingin dan menyejukkan. Destinasi rekreasi sempurna untuk kebersamaan keluarga dan sahabat.
             </p>
             <div class="d-flex justify-content-center gap-3 flex-wrap">
-                <a class="btn btn-accent btn-lg px-4 py-3" href="<?= route_url('tiket_pesan') ?>">
-                    <i class="fa-solid fa-ticket me-2"></i> Pesan Tiket Sekarang
-                </a>
+                <?php if ($todayClosure): ?>
+                    <button type="button" class="btn btn-secondary btn-lg px-4 py-3 opacity-75" onclick="showClosedNotice()">
+                        <i class="fa-solid fa-ban me-2"></i> Tiket Tidak Tersedia (Pemeliharaan)
+                    </button>
+                <?php else: ?>
+                    <a class="btn btn-accent btn-lg px-4 py-3" href="<?= route_url('tiket_pesan') ?>">
+                        <i class="fa-solid fa-ticket me-2"></i> <span data-i18n="hero_btn_book">Pesan Tiket Sekarang</span>
+                    </a>
+                <?php endif; ?>
                 <a class="btn btn-outline-light btn-lg px-4 py-3" href="#services">
                     <i class="fa-solid fa-compass me-2"></i> Jelajahi Fasilitas
                 </a>
@@ -727,11 +768,21 @@ if ($today_visitors < 100) {
                     <div class="hero-stat-label">Pengunjung Puas Per Tahun</div>
                 </div>
                 <div class="hero-stat-item" style="border-left: 2px dashed rgba(255,255,255,0.25);">
-                    <div class="hero-stat-num d-flex align-items-center justify-content-center gap-2">
-                        <span class="pulse-indicator-dot <?= ($crowd_level === 'Lengang') ? 'dot-green' : (($crowd_level === 'Ramai Lancar') ? 'dot-yellow' : 'dot-red') ?>"></span>
-                        <span style="font-size: 1.35rem; font-weight: 800;"><?= e($crowd_level) ?></span>
-                    </div>
-                    <div class="hero-stat-label">Status Kolam Hari Ini (<?= $today_visitors ?> Tiket)</div>
+                    <?php if ($todayClosure): ?>
+                        <div class="hero-stat-num d-flex align-items-center justify-content-center gap-2">
+                            <span class="pulse-indicator-dot dot-red"></span>
+                            <span style="font-size: 1.25rem; font-weight: 800; color: #fca5a5;">Tutup</span>
+                        </div>
+                        <div class="hero-stat-label text-warning fw-semibold">
+                            <i class="fa-solid fa-wrench me-1"></i> Pemeliharaan Kolam
+                        </div>
+                    <?php else: ?>
+                        <div class="hero-stat-num d-flex align-items-center justify-content-center gap-2">
+                            <span class="pulse-indicator-dot <?= ($crowd_level === 'Lengang') ? 'dot-green' : (($crowd_level === 'Ramai Lancar') ? 'dot-yellow' : 'dot-red') ?>"></span>
+                            <span style="font-size: 1.35rem; font-weight: 800;"><?= e($crowd_level) ?></span>
+                        </div>
+                        <div class="hero-stat-label">Status Kolam Hari Ini (<?= $today_visitors ?> Tiket)</div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -835,9 +886,15 @@ if ($today_visitors < 100) {
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Area Gazebo & Tempat Duduk Teduh</li>
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Parkir Aman & Terjaga</li>
                         </ul>
-                        <a href="<?= route_url('tiket_pesan') ?>" class="btn btn-brand w-100 py-3 fs-6">
-                            <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Dewasa
-                        </a>
+                        <?php if ($todayClosure): ?>
+                            <button type="button" class="btn btn-secondary w-100 py-3 fs-6 opacity-75" onclick="showClosedNotice()">
+                                <i class="fa-solid fa-ban me-1"></i> Tiket Ditutup (Pemeliharaan)
+                            </button>
+                        <?php else: ?>
+                            <a href="<?= route_url('tiket_pesan') ?>" class="btn btn-brand w-100 py-3 fs-6">
+                                <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Dewasa
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -854,9 +911,15 @@ if ($today_visitors < 100) {
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Pengawasan Lifeguard Khusus Area Anak</li>
                             <li><i class="fa-solid fa-circle-check text-success me-2"></i> Wahana Bermain Air Menyenangkan</li>
                         </ul>
-                        <a href="<?= route_url('tiket_pesan') ?>" class="btn btn-accent w-100 py-3 fs-6">
-                            <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Anak
-                        </a>
+                        <?php if ($todayClosure): ?>
+                            <button type="button" class="btn btn-secondary w-100 py-3 fs-6 opacity-75" onclick="showClosedNotice()">
+                                <i class="fa-solid fa-ban me-1"></i> Tiket Ditutup (Pemeliharaan)
+                            </button>
+                        <?php else: ?>
+                            <a href="<?= route_url('tiket_pesan') ?>" class="btn btn-accent w-100 py-3 fs-6">
+                                <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Anak
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -1340,6 +1403,29 @@ if ($today_visitors < 100) {
         updateActiveNav();
     });
     </script>
+
+    <?php if ($todayClosure): ?>
+    <script>
+    function showClosedNotice() {
+        Swal.fire({
+            icon: 'info',
+            title: 'Loket & Kolam Tutup Sementara',
+            html: `
+                <p class="text-muted mb-2">Mohon maaf, operasional pemandian dan loket tiket hari ini ditutup sementara sehubungan dengan:</p>
+                <div class="p-3 rounded-3 bg-light border border-danger-subtle text-danger fw-bold my-3">
+                    <i class="fa-solid fa-wrench me-1"></i> <?= e($todayClosure['keterangan'] ?? 'Pemeliharaan Fasilitas Kolam') ?>
+                </div>
+                <p class="small text-secondary mb-0">Tiket masuk tidak dapat dipesan untuk kunjungan hari ini. Anda dapat menjadwalkan kunjungan Anda kembali di hari berikutnya. Terima kasih atas pengertiannya!</p>
+            `,
+            confirmButtonText: 'Saya Mengerti',
+            confirmButtonColor: '#0284c7',
+            customClass: {
+                popup: 'rounded-4'
+            }
+        });
+    }
+    </script>
+    <?php endif; ?>
 
     <?php if ($review_success): ?>
     <script>

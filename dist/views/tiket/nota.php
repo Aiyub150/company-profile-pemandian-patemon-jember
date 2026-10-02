@@ -79,6 +79,7 @@ if (file_exists($logo_file)) {
     <link rel="icon" type="image/x-icon" href="<?= public_url('img/icon.png') ?>" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
     <script>
@@ -817,14 +818,24 @@ function downloadNotaImage() {
 
     const ticket = document.getElementById('ticketPrintArea');
     if (!ticket) {
-        alert('Area struk nota tidak ditemukan.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Area Nota Tidak Ditemukan',
+            text: 'Area struk nota tidak ditemukan.',
+            confirmButtonColor: '#0284c7'
+        });
         btn.disabled = false;
         btn.innerHTML = originalText;
         return;
     }
 
     if (typeof html2canvas !== 'function') {
-        alert('Modul pembuat gambar sedang dimuat atau diblokir peramban. Silakan gunakan tombol Cetak.');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Modul Belum Siap',
+            text: 'Modul pembuat gambar sedang dimuat atau diblokir peramban. Silakan gunakan tombol Cetak.',
+            confirmButtonColor: '#0284c7'
+        });
         btn.disabled = false;
         btn.innerHTML = originalText;
         return;
@@ -868,7 +879,12 @@ function downloadNotaImage() {
         }
     }).catch(function(err) {
         console.error('Error html2canvas:', err);
-        alert('Gagal membuat gambar nota. Silakan coba kembali atau gunakan tombol Cetak.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal Membuat Gambar',
+            text: 'Gagal membuat gambar nota. Silakan coba kembali atau gunakan tombol Cetak.',
+            confirmButtonColor: '#0284c7'
+        });
         btn.disabled = false;
         btn.innerHTML = originalText;
     });
@@ -887,7 +903,12 @@ function fallbackDownload(canvas, fileName, btn, originalText) {
         }, 300);
     } catch (e) {
         console.error('Fallback download error:', e);
-        alert('Peramban membatasi unduhan otomatis. Silakan gunakan tombol Cetak.');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Unduhan Dibatasi',
+            text: 'Peramban membatasi unduhan otomatis. Silakan gunakan tombol Cetak.',
+            confirmButtonColor: '#0284c7'
+        });
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;

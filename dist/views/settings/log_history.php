@@ -39,6 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($action === 'purge_transaction') {
             $trx_id = (int)($_POST['id_transaksi'] ?? 0);
             if ($trx_id > 0) {
+                // Ambil info bukti pembayaran sebelum record dihapus
+                $q_b = $conn->prepare("SELECT bukti_pembayaran FROM transaksi WHERE id_transaksi = ? AND deleted_at IS NOT NULL");
+                $q_b->bind_param("i", $trx_id);
+                $q_b->execute();
+                $trx_data = $q_b->get_result()->fetch_assoc();
+                $q_b->close();
+
                 $del_d = $conn->prepare("DELETE FROM detail_transaksi WHERE id_transaksi = ?");
                 $del_d->bind_param("i", $trx_id);
                 $del_d->execute();
@@ -47,8 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt = $conn->prepare("DELETE FROM transaksi WHERE id_transaksi = ? AND deleted_at IS NOT NULL");
                 $stmt->bind_param("i", $trx_id);
                 if ($stmt->execute() && $stmt->affected_rows > 0) {
+                    // Hapus berkas bukti pembayaran fisik
+                    if (!empty($trx_data['bukti_pembayaran'])) {
+                        safe_delete_media(__DIR__ . '/../../app/payment/' . $trx_data['bukti_pembayaran']);
+                    }
                     log_activity('PURGE', 'transaksi', "Menghapus transaksi ID #{$trx_id} secara permanen dari basis data.");
-                    $msg_success = "Transaksi ID #{$trx_id} berhasil dihapus secara permanen.";
+                    $msg_success = "Transaksi ID #{$trx_id} berhasil dihapus secara permanen beserta berkasnya.";
                 } else {
                     $msg_error = "Gagal menghapus transaksi dari tempat sampah.";
                 }
@@ -69,9 +80,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if ($tx_c > 0) {
                     $msg_error = "Pengguna tidak dapat dihapus permanen karena memiliki {$tx_c} riwayat transaksi loket/keuangan. Pengguna tetap disimpan di tempat sampah sebagai arsip audit.";
                 } else {
+                    // Ambil avatar user sebelum dihapus
+                    $q_u = $conn->prepare("SELECT avatar FROM users WHERE id_user = ? AND deleted_at IS NOT NULL");
+                    $q_u->bind_param("i", $u_id);
+                    $q_u->execute();
+                    $u_data = $q_u->get_result()->fetch_assoc();
+                    $q_u->close();
+
                     $stmt = $conn->prepare("DELETE FROM users WHERE id_user = ? AND deleted_at IS NOT NULL");
                     $stmt->bind_param("i", $u_id);
                     if ($stmt->execute() && $stmt->affected_rows > 0) {
+                        // Hapus avatar kustom jika ada
+                        if (!empty($u_data['avatar'])) {
+                            safe_delete_media(__DIR__ . '/../../../public/img/avatars/' . $u_data['avatar']);
+                        }
                         log_activity('PURGE', 'user', "Menghapus akun pengguna ID #{$u_id} secara permanen dari basis data.");
                         $msg_success = "Akun pengguna ID #{$u_id} berhasil dihapus secara permanen.";
                     } else {

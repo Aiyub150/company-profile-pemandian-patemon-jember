@@ -14,6 +14,13 @@ if (isset($_SESSION['id_user'])) {
 }
 
 $error = '';
+$flash_success = $_SESSION['flash_success'] ?? '';
+$flash_error   = $_SESSION['flash_error'] ?? '';
+unset($_SESSION['flash_success'], $_SESSION['flash_error']);
+
+if (!empty($flash_error) && empty($error)) {
+    $error = $flash_error;
+}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Validasi CSRF Token
@@ -43,57 +50,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } elseif (empty($username) || empty($password)) {
             $error = "Username dan password wajib diisi.";
         } else {
-            // Gunakan Prepared Statement
-            $stmt = $conn->prepare("SELECT id_user, nama, username, password, level FROM users WHERE username = ? OR email = ? LIMIT 1");
+            // Gunakan Prepared Statement (Feedback-9 Poin 7: Cek status is_active dan deleted_at)
+            $stmt = $conn->prepare("SELECT id_user, nama, username, password, level, is_active, deleted_at FROM users WHERE (username = ? OR email = ?) LIMIT 1");
             $stmt->bind_param("ss", $username, $username);
             $stmt->execute();
             $result = $stmt->get_result();
 
             if ($user = $result->fetch_assoc()) {
-                // Verifikasi password hash BCRYPT murni (MF-08: No Plaintext Fallback)
-                $is_password_valid = password_verify($password, $user['password']);
-
-                if ($is_password_valid) {
-                    session_regenerate_id(true);
-
-                    $_SESSION['id_user']  = (int)$user['id_user'];
-                    $_SESSION['nama']     = $user['nama'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['level']    = (int)$user['level'];
-
-                    // Bersihkan rekam kegagalan login untuk IP & akun ini
-                    $stmtDel = $conn->prepare("DELETE FROM login_attempts WHERE ip_address = ? OR username = ?");
-                    $stmtDel->bind_param("ss", $ip, $username);
-                    $stmtDel->execute();
-                    $stmtDel->close();
-
+                $is_deactivated = ($user['deleted_at'] !== null) || (isset($user['is_active']) && (int)$user['is_active'] === 0);
+                if ($is_deactivated) {
                     if (function_exists('log_activity')) {
-                        log_activity('LOGIN_SUCCESS', 'auth', "Login berhasil: {$user['username']} (Level: {$user['level']})", $user['id_user']);
+                        log_activity('LOGIN_BLOCKED', 'auth', "Percobaan login akun nonaktif/terhapus: {$user['username']}", $user['id_user']);
                     }
-
-                    $lvl = (int)$_SESSION['level'];
-                    // Feedback-5 Poin 1: Staf (level 3), Admin (2), dan Super Admin (1) diarahkan ke Dashboard
-                    if ($lvl === 1 || $lvl === 2 || $lvl === 3) {
-                        header("Location: " . route_url('dashboard'));
-                    } else {
-                        header("Location: " . route_url('home'));
-                    }
-                    exit();
+                    $error = "Akun Anda telah dinonaktifkan oleh Super Administrator. Anda tidak dapat masuk ke sistem. Silakan hubungi pihak manajemen untuk pengaktifan kembali.";
+                    $swal_deactivated = true;
                 } else {
-                    // Catat kegagalan password
-                    $now = time();
-                    $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
-                    $stmtRec->bind_param("ssi", $ip, $username, $now);
-                    $stmtRec->execute();
-                    $stmtRec->close();
+                    // Verifikasi password hash BCRYPT murni (MF-08: No Plaintext Fallback)
+                    $is_password_valid = password_verify($password, $user['password']);
 
-                    $remaining = max(0, 5 - ($attempts + 1));
-                    $error = ($remaining > 0) 
-                        ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
-                        : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
+                    if ($is_password_valid) {
+                        session_regenerate_id(true);
 
-                    if (function_exists('log_activity')) {
-                        log_activity('LOGIN_FAILED', 'auth', "Login gagal untuk username: {$username} (Password salah)");
+                        $_SESSION['id_user']  = (int)$user['id_user'];
+                        $_SESSION['nama']     = $user['nama'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['level']    = (int)$user['level'];
+
+                        // Bersihkan rekam kegagalan login untuk IP & akun ini
+                        $stmtDel = $conn->prepare("DELETE FROM login_attempts WHERE ip_address = ? OR username = ?");
+                        $stmtDel->bind_param("ss", $ip, $username);
+                        $stmtDel->execute();
+                        $stmtDel->close();
+
+                        if (function_exists('log_activity')) {
+                            log_activity('LOGIN_SUCCESS', 'auth', "Login berhasil: {$user['username']} (Level: {$user['level']})", $user['id_user']);
+                        }
+
+                        $lvl = (int)$_SESSION['level'];
+                        // Feedback-5 Poin 1: Staf (level 3), Admin (2), dan Super Admin (1) diarahkan ke Dashboard
+                        if ($lvl === 1 || $lvl === 2 || $lvl === 3) {
+                            header("Location: " . route_url('dashboard'));
+                        } else {
+                            header("Location: " . route_url('home'));
+                        }
+                        exit();
+                    } else {
+                        // Catat kegagalan password
+                        $now = time();
+                        $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
+                        $stmtRec->bind_param("ssi", $ip, $username, $now);
+                        $stmtRec->execute();
+                        $stmtRec->close();
+
+                        $remaining = max(0, 5 - ($attempts + 1));
+                        $error = ($remaining > 0) 
+                            ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
+                            : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
+
+                        if (function_exists('log_activity')) {
+                            log_activity('LOGIN_FAILED', 'auth', "Login gagal untuk username: {$username} (Password salah)");
+                        }
                     }
                 }
             } else {
@@ -377,9 +393,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <p data-i18n="login_desc">Masukkan akun Anda untuk masuk ke sistem loket kasir.</p>
         </div>
 
+        <?php if (!empty($flash_success)): ?>
+            <div class="alert alert-success border-0 shadow-sm d-flex align-items-center gap-2 p-3 mb-4" style="border-radius: 12px; background: rgba(16, 185, 129, 0.12); color: #065f46; font-size: 0.875rem;">
+                <i class="fa-solid fa-circle-check fs-5 flex-shrink-0"></i>
+                <div><?= e($flash_success) ?></div>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($error)): ?>
             <div class="alert-custom">
-                <i class="fa-solid fa-circle-exclamation fs-5"></i>
+                <i class="fa-solid fa-circle-exclamation fs-5 flex-shrink-0"></i>
                 <div><?= e($error) ?></div>
             </div>
         <?php endif; ?>
@@ -483,5 +506,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
     });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<?php if (!empty($swal_deactivated)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Swal.fire({
+        icon: 'error',
+        title: 'Akun Dinonaktifkan',
+        text: 'Akun Anda telah dinonaktifkan oleh Super Administrator. Anda tidak dapat masuk ke sistem. Silakan hubungi pihak manajemen untuk pengaktifan kembali.',
+        confirmButtonColor: '#0284c7',
+        confirmButtonText: 'Tutup'
+    });
+});
+</script>
+<?php endif; ?>
 </body>
 </html>

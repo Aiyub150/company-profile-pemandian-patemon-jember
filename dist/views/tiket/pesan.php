@@ -11,6 +11,10 @@ $id_user = (int)$_SESSION['id_user'];
 $user_nama = $_SESSION['nama'] ?? $_SESSION['username'] ?? 'Pengunjung';
 $error_msg = '';
 
+// Periksa apakah operasional kolam ditutup hari ini karena pemeliharaan oleh Super Admin
+$is_closed_maintenance = function_exists('is_pool_closed_today') && is_pool_closed_today();
+$today_closure = $is_closed_maintenance ? get_active_closure_today() : null;
+
 // Ambil seluruh daftar kategori tiket dari database secara dinamis
 $daftar_tiket = [];
 $res_t = $conn->query("SELECT * FROM tiket ORDER BY id_tiket ASC");
@@ -26,7 +30,9 @@ if ($res_t) {
 }
 
 if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
-    if (!validate_csrf($_POST['csrf_token'] ?? '')) {
+    if ($is_closed_maintenance) {
+        $error_msg = "Pemesanan tiket hari ini ditutup sementara karena ada pemeliharaan fasilitas kolam: " . ($today_closure['keterangan'] ?? 'Pemeliharaan Operasional');
+    } elseif (!validate_csrf($_POST['csrf_token'] ?? '')) {
         $error_msg = "Token keamanan sesi kedaluwarsa. Silakan muat ulang halaman.";
     } else {
         // Ambil jumlah tiket yang dipesan (mendukung array tickets[$id] maupun input legacy)
@@ -269,6 +275,67 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
             font-size: 1rem;
         }
 
+        /* Maintenance Alert Styling (Theme Adaptive) */
+        .maintenance-alert {
+            border-radius: 16px;
+            background: #fef2f2;
+            border-left: 6px solid #ef4444 !important;
+            border: 1px solid #fee2e2;
+            transition: all 0.3s ease;
+        }
+        .maintenance-alert-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(239, 68, 68, 0.15);
+            color: #dc2626;
+            flex-shrink: 0;
+        }
+        .maintenance-alert-title {
+            color: #b91c1c;
+        }
+        .maintenance-alert-desc {
+            color: #1e293b;
+        }
+        .maintenance-alert-badge {
+            background: #ffffff;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+        .maintenance-alert-note {
+            color: #64748b;
+        }
+
+        /* Dark Theme Support for Maintenance Alert */
+        body.theme-dark .maintenance-alert,
+        html.theme-dark .maintenance-alert,
+        .theme-dark .maintenance-alert {
+            background: rgba(127, 29, 29, 0.3) !important;
+            border-color: rgba(239, 68, 68, 0.4) !important;
+            border-left: 6px solid #ef4444 !important;
+        }
+        body.theme-dark .maintenance-alert-title,
+        html.theme-dark .maintenance-alert-title {
+            color: #fca5a5 !important;
+        }
+        body.theme-dark .maintenance-alert-desc,
+        html.theme-dark .maintenance-alert-desc {
+            color: #e2e8f0 !important;
+        }
+        body.theme-dark .maintenance-alert-badge,
+        html.theme-dark .maintenance-alert-badge {
+            background: #1e293b !important;
+            color: #f87171 !important;
+            border-color: #7f1d1d !important;
+        }
+        body.theme-dark .maintenance-alert-note,
+        html.theme-dark .maintenance-alert-note {
+            color: #94a3b8 !important;
+        }
+
         .pay-method-pill label {
             cursor: pointer;
             border: 2px solid #e2e8f0;
@@ -357,6 +424,28 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
 </div>
 
 <div class="booking-container">
+    <?php if ($is_closed_maintenance): ?>
+        <div class="maintenance-alert mb-4 p-4 text-start">
+            <div class="d-flex align-items-start gap-3">
+                <div class="maintenance-alert-icon">
+                    <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-1 maintenance-alert-title">Pemesanan Tiket Ditutup Sementara</h5>
+                    <p class="mb-2 maintenance-alert-desc" style="font-size: 0.975rem;">
+                        Mohon maaf, operasional kolam dan loket tiket hari ini (<strong><?= format_tanggal_indonesia(date('Y-m-d')) ?></strong>) ditutup sementara oleh pengelola karena:
+                    </p>
+                    <div class="p-2 px-3 rounded-3 fw-bold d-inline-block mb-2 maintenance-alert-badge">
+                        <i class="fa-solid fa-wrench me-1"></i> <?= e($today_closure['keterangan'] ?? 'Pemeliharaan Fasilitas Kolam') ?>
+                    </div>
+                    <p class="maintenance-alert-note small mb-0">
+                        Pemesanan tiket masuk tidak dapat diproses untuk kunjungan hari ini. Anda dapat menjadwalkan kunjungan Anda kembali pada hari berikutnya. Terima kasih atas pengertiannya.
+                    </p>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($error_msg)): ?>
         <div class="alert alert-danger d-flex align-items-center gap-2 mb-4 shadow-sm">
             <i class="fa-solid fa-circle-exclamation fs-5"></i>
@@ -414,9 +503,9 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div class="fw-extrabold text-primary fs-5"><?= format_rupiah($tkt['harga']) ?></div>
                                                 <div class="qty-stepper">
-                                                    <button type="button" onclick="adjustQty(<?= $tkt['id'] ?>, -1)"><i class="fa-solid fa-minus"></i></button>
-                                                    <input type="number" id="qty_<?= $tkt['id'] ?>" name="tickets[<?= $tkt['id'] ?>]" data-price="<?= $tkt['harga'] ?>" data-name="<?= e($tkt['nama']) ?>" value="0" min="0" readonly>
-                                                    <button type="button" onclick="adjustQty(<?= $tkt['id'] ?>, 1)"><i class="fa-solid fa-plus"></i></button>
+                                                    <button type="button" onclick="adjustQty(<?= $tkt['id'] ?>, -1)" <?= $is_closed_maintenance ? 'disabled' : '' ?>><i class="fa-solid fa-minus"></i></button>
+                                                    <input type="number" id="qty_<?= $tkt['id'] ?>" name="tickets[<?= $tkt['id'] ?>]" data-price="<?= $tkt['harga'] ?>" data-name="<?= e($tkt['nama']) ?>" value="0" min="0" readonly <?= $is_closed_maintenance ? 'disabled' : '' ?>>
+                                                    <button type="button" onclick="adjustQty(<?= $tkt['id'] ?>, 1)" <?= $is_closed_maintenance ? 'disabled' : '' ?>><i class="fa-solid fa-plus"></i></button>
                                                 </div>
                                             </div>
                                             <div class="text-end text-muted small mt-2">
@@ -558,9 +647,15 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-brand w-100 py-3 fw-bold fs-6 shadow-sm" id="btnSubmitOrder" disabled>
-                            <i class="fa-solid fa-lock me-1"></i> Konfirmasi & Pesan Tiket
-                        </button>
+                        <?php if ($is_closed_maintenance): ?>
+                            <button type="button" class="btn btn-secondary w-100 py-3 fw-bold fs-6 shadow-sm" disabled>
+                                <i class="fa-solid fa-ban me-1"></i> Pemesanan Tiket Ditutup (Pemeliharaan)
+                            </button>
+                        <?php else: ?>
+                            <button type="submit" class="btn btn-brand w-100 py-3 fw-bold fs-6 shadow-sm" id="btnSubmitOrder" disabled>
+                                <i class="fa-solid fa-lock me-1"></i> Konfirmasi & Pesan Tiket
+                            </button>
+                        <?php endif; ?>
 
                         <div class="text-center text-muted small mt-3">
                             <i class="fa-solid fa-shield-halved text-success me-1"></i> Transaksi Anda aman & terverifikasi resmi oleh UPTD Disparbud Jember.
@@ -576,7 +671,10 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
 <script>
 const ticketsData = <?= json_encode($daftar_tiket) ?>;
 
+const isMaintenanceClosed = <?= $is_closed_maintenance ? 'true' : 'false' ?>;
+
 function adjustQty(id, delta) {
+    if (isMaintenanceClosed) return;
     const input = document.getElementById('qty_' + id);
     if (!input) return;
 

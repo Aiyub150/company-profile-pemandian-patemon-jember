@@ -75,6 +75,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt_u = $conn->prepare("UPDATE `gallery` SET judul=?, deskripsi_card=?, deskripsi_popup=?, gambar_card=?, gambar_popup=? WHERE id_gallery=?");
                     $stmt_u->bind_param('sssssi', $judul, $deskripsi_card, $deskripsi_popup, $gambar_card, $gambar_popup, $id_gallery);
                     if ($stmt_u->execute()) {
+                        // Hapus berkas lama jika digantikan dengan unggahan baru
+                        if (!empty($upload_card['success']) && !empty($_POST['gambar_card_current']) && $_POST['gambar_card_current'] !== $gambar_card) {
+                            safe_delete_media($gallery_dir . $_POST['gambar_card_current']);
+                        }
+                        if (!empty($upload_pop['success']) && !empty($_POST['gambar_popup_current']) && $_POST['gambar_popup_current'] !== $gambar_popup) {
+                            safe_delete_media($gallery_dir . $_POST['gambar_popup_current']);
+                        }
+
                         $success_msg = 'Konten galeri #' . $id_gallery . ' berhasil diperbarui.';
                         if (function_exists('log_activity')) {
                             log_activity('UPDATE', 'gallery', "Memperbarui konten galeri #{$id_gallery} ('{$judul}')");

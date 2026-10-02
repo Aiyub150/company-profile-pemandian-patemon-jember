@@ -1,8 +1,8 @@
 <?php
 require '../../app/config.php';
 
-// Hak Akses: Super Admin (1) & Admin (2) - Feedback-5 Poin 4
-check_auth([1, 2]);
+// Hak Akses: Khusus Super Admin (Level 1)
+check_auth([1], route_url('dashboard'));
 
 $curr_login_lvl = (int)($_SESSION['level'] ?? 0);
 
@@ -84,7 +84,7 @@ $stmt_check->fetch();
 $stmt_check->close();
 
 // Soft Delete Akun Pengguna untuk Menjamin Kepatuhan Audit (Feedback-7 Poin 1)
-$stmtSoft = $conn->prepare("UPDATE users SET deleted_at = NOW() WHERE id_user = ?");
+$stmtSoft = $conn->prepare("UPDATE users SET deleted_at = NOW(), is_active = 0 WHERE id_user = ?");
 $stmtSoft->bind_param("i", $id_user);
 $stmtSoft->execute();
 $stmtSoft->close();

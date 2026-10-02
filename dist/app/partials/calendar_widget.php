@@ -101,6 +101,12 @@ foreach ($holidays as $h) {
     border-color: #f59e0b !important;
     cursor: help;
 }
+.cal-cell.custom-holiday {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border-color: #10b981 !important;
+    cursor: help;
+}
 
 /* Dark mode overrides for calendar */
 body.theme-dark .cal-cell,
@@ -176,6 +182,8 @@ html.theme-dark .calendar-loading-overlay {
             if ($isHoliday) {
                 if (!empty($holidayData['is_cuti'])) {
                     $classes[] = 'cuti';
+                } elseif (!empty($holidayData['is_custom'])) {
+                    $classes[] = 'custom-holiday';
                 } else {
                     $classes[] = 'holiday';
                 }
@@ -198,9 +206,60 @@ html.theme-dark .calendar-loading-overlay {
             <div style="width:12px; height:12px;" class="bg-danger rounded me-2"></div>
             <span class="text-muted">Libur Nasional</span>
         </div>
-        <div class="d-flex align-items-center">
+        <div class="d-flex align-items-center mb-1">
             <div style="width:12px; height:12px; font-size:8px; display:flex; align-items:center; justify-content:center;" class="bg-warning rounded me-2 text-dark">📌</div>
             <span class="text-muted">Cuti Bersama</span>
         </div>
+        <div class="d-flex align-items-center">
+            <div style="width:12px; height:12px;" class="bg-success rounded me-2"></div>
+            <span class="text-muted">Libur/Tutup Khusus Pengelola</span>
+        </div>
     </div>
 </div>
+
+<script>
+window.loadCalendar = function(year, month) {
+    var loading = document.getElementById("calendar-loading");
+    if (loading) {
+        loading.classList.remove("d-none");
+    }
+    
+    var baseUrl = (typeof DASHBOARD_URL !== "undefined" && DASHBOARD_URL) ? DASHBOARD_URL : window.location.href.split("?")[0];
+    var sep = baseUrl.indexOf("?") !== -1 ? "&" : "?";
+    var fetchUrl = baseUrl + sep + "cal_year=" + year + "&cal_month=" + month + "&ajax_calendar=1";
+    
+    fetch(fetchUrl, {
+        headers: {
+            "X-Requested-With": "XMLHttpRequest"
+        }
+    })
+    .then(function(res) {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.text();
+    })
+    .then(function(html) {
+        var container = document.getElementById("admin-calendar-container");
+        if (container) {
+            container.innerHTML = html;
+        } else {
+            var widget = document.querySelector(".calendar-widget");
+            if (widget && widget.parentElement) {
+                widget.parentElement.innerHTML = html;
+            }
+        }
+        if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function(tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    })
+    .catch(function(err) {
+        console.error("Gagal memuat kalender via AJAX:", err);
+        var loadingEl = document.getElementById("calendar-loading");
+        if (loadingEl) {
+            loadingEl.classList.add("d-none");
+        }
+    });
+};
+</script>

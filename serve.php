@@ -89,7 +89,94 @@ try {
     $dbStatus = "Error: " . $e->getMessage();
 }
 
-// 4. Detect LAN IP Addresses
+// 4. Inisialisasi & Verifikasi Port 8001 (SMTP Mailpit / Mock Mailer)
+if (!function_exists('is_port_listening')) {
+    function is_port_listening($host, $port, $timeout = 0.4) {
+        $fp = @fsockopen($host, $port, $errno, $errstr, $timeout);
+        if ($fp) {
+            fclose($fp);
+            return true;
+        }
+        return false;
+    }
+}
+
+$mailpitStartedByServe = false;
+$mailStatus = "Tidak aktif";
+$mailWebUrl = "";
+$mailSmtpPort = 8001;
+$mailWebPort = 8025;
+
+if (is_port_listening('127.0.0.1', $mailSmtpPort)) {
+    $mailStatus = "Aktif di 127.0.0.1:{$mailSmtpPort} (Sudah berjalan di sistem)";
+    if (is_port_listening('127.0.0.1', $mailWebPort)) {
+        $mailWebUrl = "http://localhost:{$mailWebPort}/";
+    }
+} else {
+    // Cari binary mailpit di tools/mailpit atau sistem
+    $mailpitBin = null;
+    $possiblePaths = [
+        __DIR__ . '/tools/mailpit/mailpit.exe',
+        __DIR__ . '/tools/mailpit/mailpit',
+    ];
+    foreach ($possiblePaths as $path) {
+        if (file_exists($path) && is_file($path)) {
+            $mailpitBin = realpath($path);
+            break;
+        }
+    }
+
+    if ($mailpitBin) {
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $winBin = str_replace('/', '\\', $mailpitBin);
+            $cmd = 'powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath \'' . $winBin . '\' -ArgumentList \'--smtp 0.0.0.0:' . $mailSmtpPort . ' --listen 0.0.0.0:' . $mailWebPort . '\' -WindowStyle Hidden"';
+            @shell_exec($cmd);
+        } else {
+            exec('"' . $mailpitBin . '" --smtp 0.0.0.0:' . $mailSmtpPort . ' --listen 0.0.0.0:' . $mailWebPort . ' > /dev/null 2>&1 &');
+        }
+        $mailpitStartedByServe = true;
+        for ($i = 0; $i < 15; $i++) {
+            usleep(150000);
+            if (is_port_listening('127.0.0.1', $mailSmtpPort)) break;
+        }
+        if (is_port_listening('127.0.0.1', $mailSmtpPort)) {
+            $mailStatus = "Mailpit Aktif di 127.0.0.1:{$mailSmtpPort}";
+            $mailWebUrl = "http://localhost:{$mailWebPort}/";
+        }
+    } else {
+        // Fallback: jalankan built-in PHP SMTP mock server
+        $smtpScript = __DIR__ . '/dist/app/smtp_server.php';
+        if (file_exists($smtpScript)) {
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $winScript = str_replace('/', '\\', $smtpScript);
+                $cmd = 'powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath \'php\' -ArgumentList \'\'' . $winScript . '\'\' -WindowStyle Hidden"';
+                @shell_exec($cmd);
+            } else {
+                exec('php "' . $smtpScript . '" > /dev/null 2>&1 &');
+            }
+            for ($i = 0; $i < 10; $i++) {
+                usleep(150000);
+                if (is_port_listening('127.0.0.1', $mailSmtpPort)) break;
+            }
+            if (is_port_listening('127.0.0.1', $mailSmtpPort)) {
+                $mailStatus = "Patemon Standalone SMTP Aktif di 127.0.0.1:{$mailSmtpPort}";
+            }
+        }
+    }
+}
+
+// Cleanup Mailpit saat serve.php dihentikan
+register_shutdown_function(function() use ($mailpitStartedByServe) {
+    if ($mailpitStartedByServe) {
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            @shell_exec('cmd.exe /c "taskkill /F /IM mailpit.exe 2>nul"');
+        } else {
+            @shell_exec('pkill -f mailpit 2>/dev/null');
+        }
+    }
+});
+
+// 5. Detect LAN IP Addresses
 $lanIps = [];
 $hostname = gethostname();
 $hostIps = @gethostbynamel($hostname);
@@ -101,27 +188,36 @@ if (is_array($hostIps)) {
     }
 }
 
-// 5. Display Banner
+// 6. Display Banner
 echo "\n";
 echo "====================================================================\n";
 echo "    COMPANY PROFILE & APLIKASI KASIR PEMANDIAN PATEMON              \n";
 echo "====================================================================\n";
-echo " [Database] : " . $dbStatus . "\n";
+echo " [Database]    : " . $dbStatus . "\n";
+echo " [Mailpit SMTP]: Port {$mailSmtpPort} -> " . $mailStatus . "\n";
+if (!empty($mailWebUrl)) {
+    echo " [Mailpit Web] : Port {$mailWebPort} -> {$mailWebUrl} (Web UI Inbox Email)\n";
+    if ($host === '0.0.0.0' && !empty($lanIps)) {
+        foreach ($lanIps as $lanIp) {
+            echo "                 http://{$lanIp}:{$mailWebPort}/ (Akses Web UI dari HP/Laptop)\n";
+        }
+    }
+}
 echo "--------------------------------------------------------------------\n";
-echo " [Server]   : PHP Built-in Server Berjalan!\n";
-echo " - Local    : http://localhost:{$port}/\n";
+echo " [Web Server]  : Port {$port} (PHP Built-in Server Berjalan!)\n";
+echo " - Local URL   : http://localhost:{$port}/\n";
 if ($host === '0.0.0.0' && !empty($lanIps)) {
     foreach ($lanIps as $lanIp) {
-        echo " - Network  : http://{$lanIp}:{$port}/ (Bisa diakses dari HP/Laptop lain)\n";
+        echo " - Network URL : http://{$lanIp}:{$port}/ (Bisa diakses dari HP/Laptop lain)\n";
     }
 } elseif ($host !== '127.0.0.1' && $host !== '0.0.0.0') {
-    echo " - Network  : http://{$host}:{$port}/\n";
+    echo " - Network URL : http://{$host}:{$port}/\n";
 }
-echo " [Keamanan] : Kredensial akun dilindungi (SEC-02). Gunakan akun terdaftar untuk masuk.\n";
+echo " [Keamanan]    : Kredensial akun dilindungi (SEC-02). Gunakan akun terdaftar untuk masuk.\n";
 echo " Tekan Ctrl + C di terminal ini untuk mematikan server.\n";
 echo "====================================================================\n\n";
 
-// 6. Launch Server
+// 7. Launch Server
 $command = sprintf(
     'php -S %s:%d router.php',
     escapeshellarg($host),

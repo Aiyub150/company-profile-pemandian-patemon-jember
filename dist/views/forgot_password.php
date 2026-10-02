@@ -87,14 +87,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     $msg = "Silakan masukkan username atau alamat email akun Anda.";
                     $msg_type = 'danger';
                 } else {
-                    // Cari user berdasarkan username ATAU email
-                    $stmtUser = $conn->prepare("SELECT id_user, nama, username, email FROM users WHERE (username = ? OR email = ?) AND (deleted_at IS NULL) LIMIT 1");
+                    // Cari user berdasarkan username ATAU email (Feedback-9 Poin 7)
+                    $stmtUser = $conn->prepare("SELECT id_user, nama, username, email, is_active, deleted_at FROM users WHERE (username = ? OR email = ?) LIMIT 1");
                     $stmtUser->bind_param("ss", $identity, $identity);
                     $stmtUser->execute();
                     $user = $stmtUser->get_result()->fetch_assoc();
                     $stmtUser->close();
 
-                    if ($user) {
+                    if ($user && ($user['deleted_at'] !== null || (isset($user['is_active']) && (int)$user['is_active'] === 0))) {
+                        $msg = "Akun Anda telah dinonaktifkan.";
+                        $msg_type = 'danger';
+                        $swal_deactivated = true;
+                    } elseif ($user && !empty($user['email'])) {
                         // Buat token CSPRNG aman (32 bytes = 64 karakter hex)
                         $raw_token   = bin2hex(random_bytes(32));
                         $token_hash  = hash('sha256', $raw_token);
@@ -112,31 +116,56 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $stmtIns->execute();
                         $stmtIns->close();
 
-                        if (function_exists('log_activity')) {
-                            log_activity('PW_RESET_REQ', 'auth', "Permintaan reset kata sandi untuk akun {$user['username']}", $user['id_user']);
+                        // Gunakan Absolute URL ke Port Web Aplikasi Utama (bukan origin Webmail)
+                        $reset_link = route_url('forgot_password', ['token' => $raw_token], true);
+                        $subject = "🔒 [Pemandian Patemon] Permintaan Reset Kata Sandi (@{$user['username']})";
+                        $htmlBody = '
+                        <div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+                            <div style="text-align: center; margin-bottom: 24px;">
+                                <h2 style="color: #0284c7; margin: 0; font-size: 22px;">Wisata Pemandian Patemon</h2>
+                                <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Layanan Keamanan Akun & Sistem Kasir</p>
+                            </div>
+                            <p style="font-size: 15px; color: #1e293b;">Halo, <strong>' . htmlspecialchars($user['nama'] ?: $user['username']) . '</strong>!</p>
+                            <p style="font-size: 14px; color: #475569; line-height: 1.6;">
+                                Kami menerima permohonan untuk menyetel ulang kata sandi akun Anda (<strong>@' . htmlspecialchars($user['username']) . '</strong>). Tautan ini bersifat rahasia, sekali pakai, dan kedaluwarsa dalam waktu <strong>15 menit</strong>.
+                            </p>
+                            <div style="text-align: center; margin: 28px 0;">
+                                <a href="' . $reset_link . '" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 14px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">Atur Ulang Kata Sandi Saya</a>
+                            </div>
+                            <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+                                Apabila tombol di atas tidak dapat diklik, buka tautan langsung berikut di browser Anda:<br>
+                                <a href="' . $reset_link . '" style="color: #0284c7; word-break: break-all;">' . $reset_link . '</a>
+                            </p>
+                            <p style="font-size: 12px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+                                Jika Anda tidak merasa mengajukan permintaan ini, Anda dapat mengabaikan email ini. Akun Anda tetap aman terlindungi.
+                            </p>
+                        </div>';
+
+                        $plainBody = "Halo " . ($user['nama'] ?: $user['username']) . ",\n\n"
+                                   . "Permintaan reset kata sandi untuk akun @" . $user['username'] . ".\n"
+                                   . "Buka tautan ini dalam 15 menit:\n" . $reset_link . "\n\n"
+                                   . "Jika Anda tidak meminta ini, abaikan email ini.";
+
+                        // Kirim email via SMTP ke Mailpit port 8001 (Feedback-9 Poin 5)
+                        $toName = $user['nama'] ?: $user['username'];
+                        $smtpResult = send_smtp_email($user['email'], $toName, $subject, $htmlBody, $plainBody);
+
+                        if ($smtpResult['success']) {
+                            if (function_exists('log_activity')) {
+                                log_activity('PW_RESET_REQ', 'auth', "Email reset kata sandi terkirim ke {$user['email']} via Mailpit", $user['id_user']);
+                            }
+                            $_SESSION['flash_success'] = 'Tautan pemulihan kata sandi berhasil dikirim ke email Anda! Silakan periksa inbox (Mailpit) dan gunakan tautan tersebut untuk mengatur ulang kata sandi.';
+                            header('Location: ' . route_url('login'));
+                            exit;
+                        } else {
+                            $msg = 'Email pemulihan kata sandi gagal terkirim (' . ($smtpResult['error'] ?? 'koneksi SMTP terputus') . '). Pastikan server Mailpit port 8001 aktif.';
+                            $msg_type = 'danger';
                         }
-
-                        $simulated_link = route_url('forgot_password') . '?token=' . $raw_token;
-                        $simulated_mail = [
-                            'found'    => true,
-                            'nama'     => $user['nama'],
-                            'username' => $user['username'],
-                            'email'    => $user['email'],
-                            'link'     => $simulated_link,
-                            'token'    => $raw_token,
-                            'time'     => date('d M Y, H:i:s') . ' WIB'
-                        ];
                     } else {
-                        $simulated_mail = [
-                            'found'    => false,
-                            'identity' => $identity,
-                            'time'     => date('d M Y, H:i:s') . ' WIB'
-                        ];
+                        // Feedback-9: jika email belum terkirim berikan notif email gagal terkirim
+                        $msg = "Email pemulihan kata sandi gagal terkirim: Akun tidak ditemukan atau belum memiliki alamat email yang valid.";
+                        $msg_type = 'danger';
                     }
-
-                    // Pesan generik profesional (mencegah account enumeration secara publik)
-                    $msg = "Jika akun terdaftar dalam sistem, tautan pemulihan kata sandi dengan masa berlaku 15 menit telah diproses.";
-                    $msg_type = 'success';
                 }
             }
         } elseif ($action === 'submit_new_password') {
@@ -651,82 +680,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($simulated_mail !== null): ?>
-            <!-- Mailpit / Mailbox Interactive Simulator (Feedback-7 Poin 5) -->
-            <div class="mailpit-card">
-                <div class="mailpit-header">
-                    <div class="mailpit-brand">
-                        <i class="fa-solid fa-inbox text-info"></i>
-                        <span>Mailpit Webmail Simulator</span>
-                    </div>
-                    <?php if ($simulated_mail['found']): ?>
-                        <div class="mailpit-status text-success" style="background: rgba(34, 197, 94, 0.2);">
-                            <i class="fa-solid fa-check-double"></i> 1 Pesan Diterima
-                        </div>
-                    <?php else: ?>
-                        <div class="mailpit-status text-warning" style="background: rgba(245, 158, 11, 0.2);">
-                            <i class="fa-solid fa-ban"></i> 0 Pesan Terkirim
-                        </div>
-                    <?php endif; ?>
-                </div>
-
-                <div class="mailpit-body">
-                    <?php if ($simulated_mail['found']): ?>
-                        <div class="mailpit-meta">
-                            <div class="mailpit-meta-row">
-                                <span class="mailpit-meta-label">Dari:</span>
-                                <span class="mailpit-meta-val">Keamanan Akun Pemandian Patemon &lt;no-reply@pemandianpatemon.id&gt;</span>
-                            </div>
-                            <div class="mailpit-meta-row">
-                                <span class="mailpit-meta-label">Kepada:</span>
-                                <span class="mailpit-meta-val"><strong><?= e($simulated_mail['nama']) ?></strong> &lt;<?= e($simulated_mail['email']) ?>&gt;</span>
-                            </div>
-                            <div class="mailpit-meta-row">
-                                <span class="mailpit-meta-label">Subjek:</span>
-                                <span class="mailpit-meta-val fw-bold text-primary">🔒 [Pemulihan Akun] Permintaan Reset Kata Sandi (@<?= e($simulated_mail['username']) ?>)</span>
-                            </div>
-                            <div class="mailpit-meta-row">
-                                <span class="mailpit-meta-label">Waktu:</span>
-                                <span class="mailpit-meta-val text-muted"><?= e($simulated_mail['time']) ?></span>
-                            </div>
-                        </div>
-
-                        <div class="mailpit-content-box">
-                            <h5>Halo, <?= e($simulated_mail['nama'] ?: $simulated_mail['username']) ?>!</h5>
-                            <p style="font-size: 0.92rem; line-height: 1.6; margin-bottom: 0.85rem;">
-                                Kami menerima permintaan untuk mereset kata sandi akun Anda (<strong>@<?= e($simulated_mail['username']) ?></strong>). Tautan ini dilindungi token kriptografis berstandar SHA-256 sekali pakai (<em>single-use</em>) dan berlaku selama <strong>15 menit</strong>.
-                            </p>
-                            <p style="font-size: 0.92rem; line-height: 1.6; margin-bottom: 0;">
-                                Silakan klik tombol di bawah untuk membuat kata sandi baru akun Anda:
-                            </p>
-                            <a href="<?= e($simulated_mail['link']) ?>" class="mailpit-btn-cta">
-                                <i class="fa-solid fa-key"></i> Buka Tautan Reset Kata Sandi
-                            </a>
-                            <div class="text-center mt-3">
-                                <small class="text-muted" style="font-size: 0.775rem;">
-                                    Jika Anda tidak merasa mengajukan permohonan ini, akun Anda tetap aman dan email ini dapat diabaikan.
-                                </small>
-                            </div>
-                        </div>
-                    <?php else: ?>
-                        <div class="mailpit-empty">
-                            <div class="mailpit-empty-icon">
-                                <i class="fa-regular fa-envelope-open"></i>
-                            </div>
-                            <h6 class="fw-bold mb-2 text-dark">Simulasi: Tidak Ada Email Terkirim</h6>
-                            <p style="font-size: 0.875rem; line-height: 1.5; max-width: 440px; margin: 0 auto 1.25rem;">
-                                Identitas akun <strong>"<?= e($simulated_mail['identity']) ?>"</strong> tidak ditemukan dalam database pengguna aktif. Sistem secara otomatis menolak proses pengiriman email demi keamanan pangkalan data.
-                            </p>
-                            <a href="<?= route_url('forgot_password') ?>" class="btn btn-sm btn-outline-primary fw-semibold" style="border-radius: 8px;">
-                                <i class="fa-solid fa-arrow-rotate-left me-1"></i> Coba Username atau Email Lain
-                            </a>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        <?php endif; ?>
-
-        <?php if ($step === 1 && $simulated_mail === null): ?>
+        <?php if ($step === 1): ?>
             <!-- STEP 1: Minta Tautan Reset Kata Sandi -->
             <div class="text-center mb-4">
                 <span class="step-pill bg-light text-primary border">
@@ -913,5 +867,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
     });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<?php if (!empty($swal_deactivated)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Swal.fire({
+        icon: 'error',
+        title: 'Akun Dinonaktifkan',
+        text: 'Akun Anda telah dinonaktifkan.',
+        confirmButtonColor: '#0284c7',
+        confirmButtonText: 'Tutup'
+    });
+});
+</script>
+<?php endif; ?>
 </body>
 </html>

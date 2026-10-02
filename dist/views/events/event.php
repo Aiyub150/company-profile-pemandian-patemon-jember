@@ -163,26 +163,48 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                                 </p>
                             </div>
 
-                            <div class="pt-2 border-top d-flex align-items-center justify-content-between gap-2">
-                                <!-- Toggle Active Status Form -->
-                                <form method="POST" action="<?= route_url('events_toggle') ?>" class="m-0">
-                                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                    <input type="hidden" name="id_event" value="<?= (int)$evt['id_event'] ?>">
-                                    <?php if ($isActive): ?>
-                                        <button type="submit" class="btn btn-outline-warning btn-sm rounded-pill px-3" title="Nonaktifkan dari pop-up">
-                                            <i class="fa-solid fa-pause me-1"></i> Nonaktifkan
+                            <div class="pt-2 border-top d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                <!-- Reorder Buttons (Feedback-9 Poin 3) -->
+                                <div class="d-flex align-items-center gap-1" title="Ubah urutan prioritas slider">
+                                    <form method="POST" action="<?= route_url('events_reorder') ?>" class="m-0 d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                        <input type="hidden" name="id_event" value="<?= (int)$evt['id_event'] ?>">
+                                        <input type="hidden" name="direction" value="up">
+                                        <button type="submit" class="btn btn-outline-primary btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs" style="width:28px; height:28px;" title="Naikkan Urutan">
+                                            <i class="fa-solid fa-arrow-up" style="font-size:0.75rem;"></i>
                                         </button>
-                                    <?php else: ?>
-                                        <button type="submit" class="btn btn-outline-success btn-sm rounded-pill px-3" <?= ($active_events_count >= 5) ? 'disabled title="Batas maksimal 5 event aktif tercapai"' : 'title="Aktifkan di pop-up beranda"' ?>>
-                                            <i class="fa-solid fa-play me-1"></i> Aktifkan
+                                    </form>
+                                    <form method="POST" action="<?= route_url('events_reorder') ?>" class="m-0 d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                        <input type="hidden" name="id_event" value="<?= (int)$evt['id_event'] ?>">
+                                        <input type="hidden" name="direction" value="down">
+                                        <button type="submit" class="btn btn-outline-primary btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center shadow-xs" style="width:28px; height:28px;" title="Turunkan Urutan">
+                                            <i class="fa-solid fa-arrow-down" style="font-size:0.75rem;"></i>
                                         </button>
-                                    <?php endif; ?>
-                                </form>
+                                    </form>
+                                </div>
 
-                                <!-- Delete Event Form with Confirmation -->
-                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2.5" onclick="confirmDeleteEvent(<?= (int)$evt['id_event'] ?>, '<?= e(addslashes($evt['judul'])) ?>')" title="Hapus Event">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
+                                <div class="d-flex align-items-center gap-1">
+                                    <!-- Toggle Active Status Form -->
+                                    <form method="POST" action="<?= route_url('events_toggle') ?>" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                        <input type="hidden" name="id_event" value="<?= (int)$evt['id_event'] ?>">
+                                        <?php if ($isActive): ?>
+                                            <button type="submit" class="btn btn-outline-warning btn-sm rounded-pill px-2.5 py-1" style="font-size:0.8rem;" title="Nonaktifkan dari pop-up">
+                                                <i class="fa-solid fa-pause me-1"></i> Jeda
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="submit" class="btn btn-outline-success btn-sm rounded-pill px-2.5 py-1" style="font-size:0.8rem;" <?= ($active_events_count >= 5) ? 'disabled title="Batas maksimal 5 event aktif tercapai"' : 'title="Aktifkan di pop-up beranda"' ?>>
+                                                <i class="fa-solid fa-play me-1"></i> Aktifkan
+                                            </button>
+                                        <?php endif; ?>
+                                    </form>
+
+                                    <!-- Delete Event Form with Confirmation -->
+                                    <button type="button" class="btn btn-outline-danger btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center" style="width:28px; height:28px;" onclick="confirmDeleteEvent(<?= (int)$evt['id_event'] ?>, '<?= e(addslashes($evt['judul'])) ?>')" title="Hapus Event">
+                                        <i class="fa-solid fa-trash-can" style="font-size:0.75rem;"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -319,10 +341,8 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                 }
             });
         } else {
-            if (confirm(`Apakah Anda yakin ingin menghapus event "${judul}"?`)) {
-                document.getElementById('delete_id_event').value = idEvent;
-                document.getElementById('formDeleteEvent').submit();
-            }
+            document.getElementById('delete_id_event').value = idEvent;
+            document.getElementById('formDeleteEvent').submit();
         }
     }
 </script>

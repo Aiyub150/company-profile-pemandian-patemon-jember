@@ -155,9 +155,9 @@ if (!function_exists('public_url')) {
                 </li>
 
                 <?php if ($is_admin_or_super): ?>
-                <!-- Administrator Settings Dropdown (Feedback-5 Poin 4) -->
+                <!-- Administrator Settings Dropdown (Feedback-5 Poin 4 & Feedback-9 Poin 4) -->
                 <?php 
-                $is_admin_settings_active = in_array($current_page, ['user', 'gallery', 'events', 'settings_toxic', 'settings_server_log', 'settings_history_log'], true);
+                $is_admin_settings_active = in_array($current_page, ['user', 'gallery', 'events', 'settings_toxic', 'settings_server_log', 'settings_history_log', 'calendar', 'settings_calendar'], true);
                 ?>
                 <li class="sidebar-item has-sub <?= $is_admin_settings_active ? 'active open' : '' ?>">
                     <a href="javascript:void(0)" class="sidebar-link sidebar-dropdown-toggle" style="border-radius: 10px; display: flex; align-items: center; justify-content: space-between;">
@@ -168,7 +168,7 @@ if (!function_exists('public_url')) {
                         <i class="fa-solid fa-chevron-down submenu-chevron" style="font-size: 0.725rem; transition: transform 0.25s ease;"></i>
                     </a>
                     <ul class="submenu" style="list-style: none; padding-left: 1.5rem; margin-top: 0.35rem; display: <?= $is_admin_settings_active ? 'block' : 'none' ?>;">
-                        <?php if ($is_admin_or_super): ?>
+                        <?php if ($user_level === 1): ?>
                         <li class="submenu-item <?= ($current_page === 'user') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('users') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-users-gear" style="font-size: 0.8rem;"></i>
@@ -201,6 +201,12 @@ if (!function_exists('public_url')) {
                         <?php endif; ?>
 
                         <?php if ($user_level === 1): ?>
+                        <li class="submenu-item <?= in_array($current_page, ['calendar', 'settings_calendar'], true) ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
+                            <a href="<?= route_url('settings_calendar') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
+                                <i class="fa-solid fa-calendar-day" style="font-size: 0.8rem; color: #10b981;"></i>
+                                <span>Kelola Kalender Libur</span>
+                            </a>
+                        </li>
                         <li class="submenu-item <?= ($current_page === 'settings_server_log') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('settings_server_log') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-server" style="font-size: 0.8rem; color: #0284c7;"></i>
@@ -303,9 +309,7 @@ function confirmPatemonLogout() {
             }
         });
     } else {
-        if (confirm('Apakah Anda yakin ingin keluar dari akun ini?')) {
-            doSubmit();
-        }
+        doSubmit();
     }
 }
 </script>

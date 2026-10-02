@@ -117,6 +117,49 @@ Berikut adalah rincian fitur utama beserta pustaka (library) dan kutipan kode (*
   }
   ```
 
+### G. Layanan Email, Aktivasi Staf Baru & Mailpit Web UI (Port 8001 & Port 8025)
+* **Fungsi:** Pengiriman email aktivasi akun staf baru berformat HTML modern, reset kata sandi, dan notifikasi sistem secara instan menggunakan socket RFC 5321 tanpa memerlukan konfigurasi email eksternal (Google/SendGrid). Dilengkapi antarmuka web interaktif untuk membaca kotak masuk email secara lokal.
+* **Layanan & Port:**
+  * **Socket SMTP Server:** `127.0.0.1:8001` (Port 8001)
+  * **Mailpit Web UI (Kotak Masuk Email):** `http://localhost:8025/` (Port 8025)
+* **Pustaka & Driver:** Native PHP Stream Socket (`fsockopen`/`stream_socket_client`) & binary terintegrasi Mailpit.
+* **Kutipan Kode (SMTP Socket Dispatcher):**
+  ```php
+  // Mengirim email HTML melalui socket SMTP port 8001
+  $socket = @fsockopen('127.0.0.1', 8001, $errno, $errstr, 5);
+  if ($socket) {
+      fputs($socket, "EHLO localhost\r\n");
+      fputs($socket, "MAIL FROM:<no-reply@patemon.jemberkab.go.id>\r\n");
+      fputs($socket, "RCPT TO:<" . $to_email . ">\r\n");
+      fputs($socket, "DATA\r\n");
+      fputs($socket, "Subject: " . $subject . "\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n" . $html_body . "\r\n.\r\n");
+      fputs($socket, "QUIT\r\n");
+      fclose($socket);
+  }
+  ```
+
+### H. Kalender Operasional, Hari Libur Nasional & Penutupan Pemeliharaan Kolam
+* **Fungsi:** Tata kelola jadwal operasional harian terintegrasi API Kalender Libur Nasional Indonesia (dengan sistem local cache JSON). Sistem secara cerdas membedakan:
+  * **Hari Libur Nasional & Cuti Bersama:** Pemesanan tiket **TETAP BUKA** secara normal untuk memaksimalkan potensi kunjungan wisatawan di hari libur.
+  * **Pemeliharaan / Penutupan Kolam (`tutup_pemeliharaan`):** Ditetapkan secara khusus oleh Super Admin (misal: kuras kolam berkala atau perbaikan wahana). Sistem secara otomatis mengunci loket pemesanan tiket, menampilkan indikator status **Tutup** dan banner pengumuman pemeliharaan di landing page secara publik (tanpa harus login), serta memblokade transaksi di sisi backend.
+* **Tabel Basis Data:** `calendar_holidays` (kolom: `tanggal`, `keterangan`, `tipe`, `created_by`, `created_at`).
+* **Kutipan Kode (Logika Pengecekan Penutupan):**
+  ```php
+  // Memeriksa penutupan kolam khusus oleh Super Admin
+  function get_active_closure_today() {
+      global $conn;
+      $today = date('Y-m-d');
+      $stmt = $conn->prepare("SELECT id, tanggal, keterangan, tipe FROM calendar_holidays WHERE tanggal = ? AND tipe IN ('tutup_pemeliharaan', 'libur') LIMIT 1");
+      $stmt->bind_param("s", $today);
+      $stmt->execute();
+      return $stmt->get_result()->fetch_assoc() ?: null;
+  }
+  ```
+
+### I. Notifikasi Modern & Konfirmasi Interaktif SweetAlert2
+* **Fungsi:** Menggantikan seluruh dialog native peramban (`alert`, `confirm`, `prompt`) dengan SweetAlert2 bermotif modern yang selaras tema sistem, mencakup flash toast notification saat operasi database, konfirmasi hapus data / soft delete, serta modal info operasional saat kolam ditutup pemeliharaan.
+* **Pustaka:** `SweetAlert2` library (`Swal.fire`).
+
 ---
 
 ## 📐 3. Pola Arsitektur Sistem
@@ -172,6 +215,7 @@ erDiagram
     TRANSAKSI ||--|{ DETAIL_TRANSAKSI : "memiliki"
     TIKET ||--o{ DETAIL_TRANSAKSI : "dikategorikan"
     USERS ||--o{ ACTIVITY_LOGS : "mencatat_audit"
+    USERS ||--o{ CALENDAR_HOLIDAYS : "menetapkan_jadwal"
     
     USERS {
         int id_user PK
@@ -206,6 +250,15 @@ erDiagram
         int id_tiket FK
         int jumlah
         int subtotal
+    }
+
+    CALENDAR_HOLIDAYS {
+        int id PK
+        date tanggal UK
+        string keterangan
+        string tipe "libur, tutup_pemeliharaan, cuti"
+        int created_by FK
+        datetime created_at
     }
 ```
 
@@ -251,12 +304,20 @@ erDiagram
      $port = 3306;
      ```
 
-4. **Menjalankan Server Pengembangan Lokal:**
-   Gunakan skrip server yang telah dioptimasi dengan routing engine bawaan:
+4. **Menjalankan Server Pengembangan Lokal Terpadu:**
+   Jalankan launcher server terpadu yang secara otomatis mengaktifkan server web PHP, socket server SMTP, dan Webmail Mailpit:
    ```bash
    php serve.php
    ```
-   Aplikasi siap diakses melalui peramban web pada alamat: **`http://127.0.0.1:8000`**
+   Setelah perintah dijalankan, seluruh port layanan pengujian akan aktif secara simultan:
+   
+   | Layanan / Modul | Port | URL / Alamat Akses | Keterangan & Fungsi |
+   | :--- | :---: | :--- | :--- |
+   | **Aplikasi Kasir & Tiket** | `8000` | `http://localhost:8000/` | Website utama, landing page, kasir POS loket, dan panel manajemen admin. |
+   | **Mailpit Web UI (Webmail)** | `8025` | `http://localhost:8025/` | Antarmuka browser untuk membaca seluruh email masuk (aktivasi staf, reset password, struk). |
+   | **Mailpit SMTP Server** | `8001` | `127.0.0.1:8001` | Socket pengiriman email lokal berbasis RFC 5321 (otomatis digunakan sistem). |
+   
+   > **Catatan Pengujian Email:** Ketika Super Admin menambah staf baru atau pengguna meminta reset password, email tidak dikirim ke internet publik melainkan langsung masuk ke **Mailpit Web UI** pada port **8025**. Buka `http://localhost:8025` pada browser untuk melihat dan mengeklik tautan aktivasi.
 
 ---
 

@@ -165,6 +165,8 @@ $cleanRoutes = [
     '/admin/users/tambah'    => 'dist/views/user/tambah.php',
     '/admin/users/update'    => 'dist/views/user/update.php',
     '/admin/users/delete'    => 'dist/views/user/delete.php',
+    '/admin/users/toggle'    => 'dist/views/user/toggle.php',
+    '/admin/users/resend-activation' => 'dist/views/user/resend_activation.php',
 
     '/admin/gallery'         => 'dist/views/gallery/gallery.php',
     '/gallery'               => 'dist/views/gallery/gallery.php',
@@ -172,15 +174,22 @@ $cleanRoutes = [
     '/admin/settings/toxic'      => 'dist/views/settings/toxic_filter.php',
     '/admin/settings/server-log' => 'dist/views/settings/server_log.php',
     '/admin/settings/history-log'=> 'dist/views/settings/log_history.php',
+    '/admin/settings/calendar'   => 'dist/views/settings/calendar.php',
+    '/settings/calendar'         => 'dist/views/settings/calendar.php',
     '/admin/transaksi/restore'   => 'dist/views/transaksi/restore.php',
     '/admin/users/restore'       => 'dist/views/user/restore.php',
     '/admin/ulasan/restore'      => 'dist/views/ulasan/restore.php',
+    '/admin/users/resend-activation' => 'dist/views/user/resend_activation.php',
 
     '/admin/events'              => 'dist/views/events/event.php',
     '/admin/event'               => 'dist/views/events/event.php',
     '/admin/events/tambah'       => 'dist/views/events/tambah.php',
     '/admin/events/delete'       => 'dist/views/events/delete.php',
     '/admin/events/toggle'       => 'dist/views/events/toggle.php',
+    '/admin/events/reorder'      => 'dist/views/events/reorder.php',
+
+    '/activate'                  => 'dist/views/user/activate.php',
+    '/user/activate'             => 'dist/views/user/activate.php',
 
     '/profile'               => 'dist/views/profile/profile.php',
     '/guide'                 => 'dist/views/settings/guide.php',

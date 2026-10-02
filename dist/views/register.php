@@ -40,14 +40,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 log_activity('TOXIC_BLOCKED', 'register', "Pendaftaran ditolak karena kata terlarang: " . implode(', ', array_unique($toxicHits)));
             }
         } else {
-            // Pengecekan apakah username atau email sudah digunakan
-            $check_stmt = $conn->prepare("SELECT id_user FROM users WHERE username = ? OR email = ? LIMIT 1");
+            // Pengecekan apakah username atau email sudah digunakan (Feedback-9 Poin 7)
+            $check_stmt = $conn->prepare("SELECT id_user, is_active, deleted_at FROM users WHERE username = ? OR email = ? LIMIT 1");
             $check_stmt->bind_param("ss", $username, $email);
             $check_stmt->execute();
-            $check_result = $check_stmt->get_result();
+            $check_res = $check_stmt->get_result()->fetch_assoc();
+            $check_stmt->close();
 
-            if ($check_result->num_rows > 0) {
-                $error = "Username atau email ini sudah pernah terdaftar. Silakan gunakan yang lain.";
+            if ($check_res) {
+                if ($check_res['deleted_at'] !== null || (isset($check_res['is_active']) && (int)$check_res['is_active'] === 0)) {
+                    $error = "Akun Anda telah dinonaktifkan.";
+                    $swal_deactivated = true;
+                } else {
+                    $error = "Username atau email ini sudah pernah terdaftar. Silakan gunakan yang lain.";
+                }
             } else {
                 // Enkripsi password menggunakan BCRYPT
                 $hashed_password = password_hash($password, PASSWORD_BCRYPT);
@@ -69,7 +75,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 }
                 $stmt->close();
             }
-            $check_stmt->close();
         }
     }
 }
@@ -479,5 +484,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
     });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<?php if (!empty($swal_deactivated)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Swal.fire({
+        icon: 'error',
+        title: 'Akun Dinonaktifkan',
+        text: 'Akun Anda telah dinonaktifkan.',
+        confirmButtonColor: '#0284c7',
+        confirmButtonText: 'Tutup'
+    });
+});
+</script>
+<?php elseif (!empty($error)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Pendaftaran Gagal',
+        text: <?= json_encode($error) ?>,
+        confirmButtonColor: '#0284c7',
+        confirmButtonText: 'Mengerti'
+    });
+});
+</script>
+<?php endif; ?>
 </body>
 </html>

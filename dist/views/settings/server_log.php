@@ -17,13 +17,18 @@ $msg_success = '';
 $msg_error   = '';
 
 // Handle Clear Logs
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $msg_error = 'Token keamanan tidak valid atau telah kadaluarsa.';
-    } else {
+    } elseif ($_POST['action'] === 'clear') {
         $conn->query("TRUNCATE TABLE server_logs");
         log_activity('server_logs', 'hapus', "Membersihkan seluruh riwayat log server.");
         $msg_success = 'Seluruh riwayat log server berhasil dibersihkan.';
+    } elseif ($_POST['action'] === 'clean_orphans') {
+        $clean_res = clean_orphaned_media_storage($conn);
+        $freed_kb = round($clean_res['freed_bytes'] / 1024, 2);
+        log_activity('server_logs', 'cleanup', "Membersihkan {$clean_res['deleted_count']} berkas media sampah fisik (membebaskan {$freed_kb} KB penyimpanan).");
+        $msg_success = "Pembersihan selesai! {$clean_res['deleted_count']} berkas sampah berhasil dihapus dari server (membebaskan {$freed_kb} KB ruang penyimpanan).";
     }
 }
 
@@ -122,7 +127,13 @@ $stmt_d->execute();
 $logs_result = $stmt_d->get_result();
 
 $header_actions = '
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+        <a href="http://localhost:8025" target="_blank" class="btn btn-outline-info" style="border-radius: 10px;" title="Buka Mailpit Web UI (Port 8025)">
+            <i class="fa-solid fa-envelope-open-text me-1"></i> Mailpit Web (Port 8025)
+        </a>
+        <button type="button" class="btn btn-outline-warning" style="border-radius: 10px;" onclick="confirmCleanOrphans()">
+            <i class="fa-solid fa-trash-can me-1"></i> Bersihkan Berkas Sampah
+        </button>
         <a href="' . route_url('settings_server_log') . '" class="btn btn-outline-primary" style="border-radius: 10px;" title="Refresh Log">
             <i class="fa-solid fa-arrows-rotate me-1"></i> Refresh
         </a>
@@ -188,6 +199,24 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
             </div>
         </div>
     </div>
+</div>
+
+<!-- Mailpit Server & Web UI Info -->
+<div class="alert alert-info border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle p-2 bg-info-subtle text-info d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i class="fa-solid fa-envelope-open-text fs-5"></i>
+        </div>
+        <div>
+            <div class="fw-bold text-dark">Layanan Email Pengujian &amp; Aktivasi (Mailpit)</div>
+            <div class="small text-muted">
+                Socket SMTP: <code>127.0.0.1:8001</code> &bull; Webmail Inbox UI: <code>http://localhost:8025/</code>
+            </div>
+        </div>
+    </div>
+    <a href="http://localhost:8025" target="_blank" class="btn btn-sm btn-info text-white fw-semibold px-3 py-2" style="border-radius: 8px;">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Webmail (Port 8025)
+    </a>
 </div>
 
 <?php if (!empty($msg_success)): ?>
@@ -366,9 +395,33 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     <input type="hidden" name="action" value="clear">
 </form>
 
+<!-- Clean Orphan Files Form -->
+<form id="cleanOrphanForm" action="" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="<?= e($csrf_token) ?>">
+    <input type="hidden" name="action" value="clean_orphans">
+</form>
+
 <?php
 $extra_js = '
 <script>
+function confirmCleanOrphans() {
+    Swal.fire({
+        title: "Bersihkan Berkas Sampah?",
+        text: "Sistem akan memindai folder server dan menghapus berkas flyer/bukti bayar yang datanya sudah tidak ada di database.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#f59e0b",
+        cancelButtonColor: "#64748b",
+        confirmButtonText: "Ya, Bersihkan!",
+        cancelButtonText: "Batal",
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById("cleanOrphanForm").submit();
+        }
+    });
+}
+
 function confirmClearLogs() {
     Swal.fire({
         title: "Bersihkan Seluruh Log Server?",

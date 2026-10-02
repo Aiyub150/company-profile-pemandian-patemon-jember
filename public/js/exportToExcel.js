@@ -60,7 +60,14 @@ function exportToExcel(tableId, filename = 'Laporan') {
     const tableSelect = document.getElementById(tableId);
     if (!tableSelect) {
         console.error('Tabel dengan ID ' + tableId + ' tidak ditemukan.');
-        alert('Tabel laporan tidak ditemukan untuk diekspor.');
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Tidak Ditemukan',
+                text: 'Tabel laporan tidak ditemukan untuk diekspor.',
+                confirmButtonColor: '#0284c7'
+            });
+        }
         return;
     }
 

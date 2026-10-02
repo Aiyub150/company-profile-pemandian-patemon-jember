@@ -140,6 +140,50 @@
     });
     </script>
     <script src="<?= public_url('js/searchable-select.js') ?>"></script>
+    <?php
+    $swal_toast_type = null;
+    $swal_toast_msg = null;
+    if (isset($_SESSION['flash_success'])) {
+        $swal_toast_type = 'success';
+        $swal_toast_msg = $_SESSION['flash_success'];
+        unset($_SESSION['flash_success']);
+    } elseif (isset($_SESSION['flash_error'])) {
+        $swal_toast_type = 'error';
+        $swal_toast_msg = $_SESSION['flash_error'];
+        unset($_SESSION['flash_error']);
+    } elseif (isset($_SESSION['flash_warning'])) {
+        $swal_toast_type = 'warning';
+        $swal_toast_msg = $_SESSION['flash_warning'];
+        unset($_SESSION['flash_warning']);
+    } elseif (isset($_SESSION['flash_info'])) {
+        $swal_toast_type = 'info';
+        $swal_toast_msg = $_SESSION['flash_info'];
+        unset($_SESSION['flash_info']);
+    }
+    if ($swal_toast_type && $swal_toast_msg):
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof Swal !== 'undefined') {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3500,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
+                }
+            });
+            Toast.fire({
+                icon: '<?= $swal_toast_type ?>',
+                title: <?= json_encode($swal_toast_msg) ?>
+            });
+        }
+    });
+    </script>
+    <?php endif; ?>
     <?php if (isset($extra_js)) echo $extra_js; ?>
 </body>
 </html>

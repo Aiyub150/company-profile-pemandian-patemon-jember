@@ -29,6 +29,8 @@ Feedback/
 # Logs & temp
 *.log
 scratch/
+tools/
+mailpit.exe
 
 # Vulnerabilities (internal use)
 Vulnerabilities/

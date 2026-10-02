@@ -56,17 +56,35 @@ if (!$upload_res['success']) {
 
 $safe_filename = $upload_res['filename'];
 
+// Feedback-9 Poin 3: Otomatis geser urutan event yang sudah ada agar tidak bentrok/duplikat
+if ($urutan < 1) $urutan = 1;
+$conn->query("UPDATE events SET urutan = urutan + 1 WHERE urutan >= {$urutan} AND deleted_at IS NULL");
+
 // Simpan ke Database
 $stmt = $conn->prepare("INSERT INTO events (judul, gambar, is_active, urutan, created_at) VALUES (?, ?, ?, ?, NOW())");
 $stmt->bind_param("ssii", $judul, $safe_filename, $is_active, $urutan);
 
 if ($stmt->execute()) {
     $newEventId = $stmt->insert_id;
+
+    // Normalisasi ulang sequence urutan agar terurut rapi 1, 2, 3...
+    $resSeq = $conn->query("SELECT id_event FROM events WHERE deleted_at IS NULL ORDER BY urutan ASC, created_at DESC");
+    if ($resSeq) {
+        $seqIndex = 1;
+        $stmtSeq = $conn->prepare("UPDATE events SET urutan = ? WHERE id_event = ?");
+        while ($rowSeq = $resSeq->fetch_assoc()) {
+            $stmtSeq->bind_param("ii", $seqIndex, $rowSeq['id_event']);
+            $stmtSeq->execute();
+            $seqIndex++;
+        }
+        $stmtSeq->close();
+    }
+
     if (function_exists('log_activity')) {
-        log_activity('EVENT_CREATE', 'events', "Menambahkan event baru '{$judul}' (#{$newEventId})", $_SESSION['user_id'] ?? null);
+        log_activity('EVENT_CREATE', 'events', "Menambahkan event baru '{$judul}' (#{$newEventId}) pada urutan {$urutan}", $_SESSION['id_user'] ?? null);
     }
     if (empty($_SESSION['flash_error'])) {
-        $_SESSION['flash_success'] = 'Event "' . $judul . '" berhasil ditambahkan dan siap ditampilkan!';
+        $_SESSION['flash_success'] = 'Event "' . $judul . '" berhasil ditambahkan dan urutan otomatis disinkronkan!';
     }
 } else {
     $_SESSION['flash_error'] = 'Terjadi kesalahan basis data saat menyimpan event: ' . $conn->error;

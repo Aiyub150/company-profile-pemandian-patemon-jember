@@ -26,7 +26,7 @@ if ($id_event <= 0) {
 }
 
 // Cek data event
-$stmt = $conn->prepare("SELECT id_event, judul FROM events WHERE id_event = ? AND deleted_at IS NULL LIMIT 1");
+$stmt = $conn->prepare("SELECT id_event, judul, gambar FROM events WHERE id_event = ? AND deleted_at IS NULL LIMIT 1");
 $stmt->bind_param("i", $id_event);
 $stmt->execute();
 $event = $stmt->get_result()->fetch_assoc();
@@ -42,7 +42,12 @@ if (!$event) {
 $stmtDel = $conn->prepare("UPDATE events SET deleted_at = NOW(), is_active = 0 WHERE id_event = ?");
 $stmtDel->bind_param("i", $id_event);
 if ($stmtDel->execute()) {
-    $_SESSION['flash_success'] = "Event '{$event['judul']}' berhasil dihapus (soft-delete).";
+    // Hapus berkas gambar fisik dari server agar tidak menjadi file sampah
+    if (!empty($event['gambar'])) {
+        $event_img_path = __DIR__ . '/../../../public/img/events/' . $event['gambar'];
+        safe_delete_media($event_img_path, null, ['sample_event_patemon.png']);
+    }
+    $_SESSION['flash_success'] = "Event '{$event['judul']}' berhasil dihapus.";
     if (function_exists('log_activity')) {
         log_activity('EVENT_DELETE', 'events', "Menghapus event '{$event['judul']}' (#{$id_event})", $_SESSION['user_id'] ?? null);
     }
