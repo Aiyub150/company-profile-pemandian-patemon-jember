@@ -1089,6 +1089,31 @@ if (!function_exists('safe_delete_media')) {
             return false;
         }
 
+        // Whitelist direktori media yang sah (hanya berkas di dalam direktori ini yang diizinkan untuk dihapus)
+        $allowed_media_dirs = [
+            realpath(__DIR__ . '/../../public/img'),
+            realpath(__DIR__ . '/../../dist/app/payment')
+        ];
+
+        $is_inside_allowed_media = false;
+        foreach ($allowed_media_dirs as $allowed_dir) {
+            if ($allowed_dir && (strpos($real_target, $allowed_dir) === 0)) {
+                $is_inside_allowed_media = true;
+                break;
+            }
+        }
+
+        if (!$is_inside_allowed_media) {
+            return false;
+        }
+
+        // Pastikan hanya berkas media yang dapat dihapus (bukan berkas skrip kode .php, .env, dll)
+        $allowed_exts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'pdf'];
+        $ext = strtolower(pathinfo($real_target, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed_exts, true)) {
+            return false;
+        }
+
         return @unlink($real_target);
     }
 }

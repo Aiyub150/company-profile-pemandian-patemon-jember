@@ -36,9 +36,9 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                 </p>
             </div>
             <div class="d-flex gap-2 flex-wrap">
-                <a id="btnPdfPreview" href="<?= route_url('guide_preview_pdf', ['lang' => $cur_lang]) ?>" class="btn btn-light text-primary fw-bold" target="_blank">
-                    <i class="fa-solid fa-file-pdf me-1"></i> <span id="btnPdfLabel">Buka Dokumen PDF Panduan</span>
-                </a>
+                <button type="button" class="btn btn-light text-primary fw-bold" onclick="showGuidePrintLangModal()">
+                    <i class="fa-solid fa-print me-1"></i> <span id="btnPrintGuideLabel">Cetak Pedoman (PDF)</span>
+                </button>
             </div>
         </div>
     </div>
@@ -214,6 +214,38 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
 const FLAG_ID_SVG = `<svg viewBox="0 0 640 480" width="28" height="19" style="border-radius:3px; vertical-align:middle; box-shadow:0 1px 3px rgba(0,0,0,0.25); flex-shrink:0;"><g fill-rule="evenodd"><path fill="#e70011" d="M0 0h640v240H0z"/><path fill="#ffffff" d="M0 240h640v240H0z"/></g></svg>`;
 const FLAG_EN_SVG = `<svg viewBox="0 0 640 480" width="28" height="19" style="border-radius:3px; vertical-align:middle; box-shadow:0 1px 3px rgba(0,0,0,0.25); flex-shrink:0;"><path fill="#012169" d="M0 0h640v480H0z"/><path fill="#FFF" d="m75 0 244 181L562 0h78v62L400 241l240 178v61h-80L320 301 81 480H0v-60l239-179L0 64V0h75z"/><path fill="#C8102E" d="m424 288 216 159v33h-44L368 333l56-45zM640 0v10L456 146l42 35L640 46V0zm-392 334L32 480H0v-10l190-141-42-35L0 435v-11zm-96-188L0 23V0h44l228 170-56 45z"/><path fill="#FFF" d="M240 0h160v480H240zM0 160h640v160H0z"/><path fill="#C8102E" d="M280 0h80v480h-80zM0 200h640v80H0z"/></svg>`;
 
+function showGuidePrintLangModal() {
+    const isEn = (localStorage.getItem('patemon_lang') === 'en');
+    Swal.fire({
+        title: `<span style="font-size:1.25rem; font-weight:700;">${isEn ? 'Select Guide Document Language to Print' : 'Pilih Bahasa Dokumen Cetak Pedoman'}</span>`,
+        html: `
+            <p class="guide-modal-desc mb-3" style="font-size:0.92rem; line-height:1.5;">
+                ${isEn ? 'Choose which language version of the User Operations Manual you wish to generate and print as PDF:' : 'Silakan tentukan versi bahasa buku pedoman operasional yang ingin dicetak / dibuka sebagai dokumen resmi PDF:'}
+            </p>
+            <div class="d-grid gap-2 text-start">
+                <a href="<?= route_url('guide_preview_pdf') ?>?lang=id" target="_blank" onclick="Swal.close()" class="btn p-3 d-flex align-items-center gap-3 text-start text-decoration-none guide-lang-btn" style="border-radius:12px; border:2px solid #0284c7; background:rgba(2,132,199,0.08); transition:all 0.2s;">
+                    ${FLAG_ID_SVG}
+                    <div>
+                        <div class="fw-bold guide-lang-title" style="font-size:0.98rem; color:#0284c7;">Dokumen Bahasa Indonesia (Standar)</div>
+                        <small class="guide-lang-sub" style="font-size:0.83rem; color:#64748b;">Format resmi SOP Bahasa Indonesia standar Dinas Pariwisata Jember.</small>
+                    </div>
+                </a>
+                <a href="<?= route_url('guide_preview_pdf') ?>?lang=en" target="_blank" onclick="Swal.close()" class="btn p-3 d-flex align-items-center gap-3 text-start text-decoration-none guide-lang-btn" style="border-radius:12px; border:2px solid #38bdf8; background:rgba(56,189,248,0.08); transition:all 0.2s;">
+                    ${FLAG_EN_SVG}
+                    <div>
+                        <div class="fw-bold guide-lang-title" style="font-size:0.98rem; color:#0284c7;">English Version Document (Standard)</div>
+                        <small class="guide-lang-sub" style="font-size:0.83rem; color:#64748b;">Official standard English SOP document for tourism management.</small>
+                    </div>
+                </a>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCancelButton: true,
+        cancelButtonText: '<i class="fa-solid fa-xmark me-1"></i> Tutup / Close',
+        cancelButtonColor: '#64748b'
+    });
+}
+
 function showGuideLangPickerModal() {
     Swal.fire({
         title: '<span style="font-size:1.25rem; font-weight:700;">Pilih Bahasa Dokumen Panduan</span>',
@@ -222,18 +254,18 @@ function showGuideLangPickerModal() {
                 Silakan tentukan bahasa buku panduan yang ingin dibaca. Pilihan ini juga akan menyesuaikan bahasa menu navigasi (sidebar & topbar):
             </p>
             <div class="d-grid gap-2 text-start">
-                <button type="button" id="swalBtnLangID" class="btn btn-outline-primary p-3 d-flex align-items-center gap-3" style="border-radius:12px; transition:all 0.2s;">
+                <button type="button" id="swalBtnLangID" class="btn p-3 d-flex align-items-center gap-3 text-start" style="border-radius:12px; border:2px solid #0284c7; background:rgba(2,132,199,0.06); transition:all 0.2s;">
                     ${FLAG_ID_SVG}
                     <div>
-                        <div class="fw-bold text-dark" style="font-size:0.98rem;">Bahasa Indonesia (Standar)</div>
-                        <small class="text-muted">Gunakan bahasa Indonesia untuk dokumen dan antarmuka.</small>
+                        <div class="fw-bold" style="font-size:0.98rem; color:#0284c7;">Bahasa Indonesia (Standar)</div>
+                        <small style="font-size:0.83rem; color:#64748b;">Gunakan bahasa Indonesia untuk dokumen dan antarmuka.</small>
                     </div>
                 </button>
-                <button type="button" id="swalBtnLangEN" class="btn btn-outline-secondary p-3 d-flex align-items-center gap-3" style="border-radius:12px; transition:all 0.2s;">
+                <button type="button" id="swalBtnLangEN" class="btn p-3 d-flex align-items-center gap-3 text-start" style="border-radius:12px; border:2px solid #475569; background:rgba(71,85,105,0.06); transition:all 0.2s;">
                     ${FLAG_EN_SVG}
                     <div>
-                        <div class="fw-bold text-dark" style="font-size:0.98rem;">English Version (Standard)</div>
-                        <small class="text-muted">Use English language for document manual and interface.</small>
+                        <div class="fw-bold" style="font-size:0.98rem; color:#334155;">English Version (Standard)</div>
+                        <small style="font-size:0.83rem; color:#64748b;">Use English language for document manual and interface.</small>
                     </div>
                 </button>
             </div>
@@ -282,20 +314,19 @@ function setGuideLanguage(lang) {
     const btnPdf = document.getElementById('btnPdfPreview');
     const btnPdfLabel = document.getElementById('btnPdfLabel');
 
+    const btnPrintGuideLabel = document.getElementById('btnPrintGuideLabel');
     if (lang === 'en') {
         if (secID) secID.style.display = 'none';
         if (secEN) secEN.style.display = 'block';
         if (bannerTitle) bannerTitle.textContent = 'Patemon Tourism System Operations & User Manual';
         if (bannerSub) bannerSub.textContent = 'Standardized operating procedures (SOP) for administrators, cashiers, and visitors.';
-        if (btnPdf) btnPdf.href = '<?= route_url('guide_preview_pdf') ?>?lang=en';
-        if (btnPdfLabel) btnPdfLabel.textContent = 'Open English PDF Document';
+        if (btnPrintGuideLabel) btnPrintGuideLabel.textContent = 'Print Guide Manual (PDF)';
     } else {
         if (secID) secID.style.display = 'block';
         if (secEN) secEN.style.display = 'none';
         if (bannerTitle) bannerTitle.textContent = 'Panduan Pengoperasian Wisata Pemandian Patemon';
         if (bannerSub) bannerSub.textContent = 'Dokumentasi alur kerja terpadu untuk pengelola, staf loket, dan pengunjung.';
-        if (btnPdf) btnPdf.href = '<?= route_url('guide_preview_pdf') ?>?lang=id';
-        if (btnPdfLabel) btnPdfLabel.textContent = 'Buka Dokumen PDF Panduan';
+        if (btnPrintGuideLabel) btnPrintGuideLabel.textContent = 'Cetak Pedoman (PDF)';
     }
 }
 
@@ -312,9 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedLang = paramLang || localStorage.getItem('patemon_lang') || localStorage.getItem('patemon_guide_lang') || 'id';
 
     setGuideLanguage(savedLang);
-
-    // Feedback-9: Tampilkan popup notifikasi pemilihan bahasa setiap kali membuka pedoman
-    setTimeout(showGuideLangPickerModal, 300);
+    // Popup pemilihan bahasa hanya muncul saat tombol cetak pedoman ditekan, bukan saat awal buka halaman
 });
 </script>
 

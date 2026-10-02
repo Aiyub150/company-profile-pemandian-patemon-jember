@@ -162,9 +162,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             $msg_type = 'danger';
                         }
                     } else {
-                        // Feedback-9: jika email belum terkirim berikan notif email gagal terkirim
-                        $msg = "Email pemulihan kata sandi gagal terkirim: Akun tidak ditemukan atau belum memiliki alamat email yang valid.";
-                        $msg_type = 'danger';
+                        // Anti-User Enumeration: Berikan respon netral agar penyerang tidak dapat membedakan akun terdaftar atau tidak
+                        $_SESSION['flash_success'] = 'Jika username atau alamat email Anda terdaftar di sistem, tautan pemulihan kata sandi telah dikirimkan ke kotak masuk email Anda.';
+                        header('Location: ' . route_url('login'));
+                        exit;
                     }
                 }
             }

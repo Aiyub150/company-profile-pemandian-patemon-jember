@@ -179,7 +179,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     <!-- Form Tambah Hari Libur / Tutup -->
     <div class="col-12 col-lg-4">
         <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
-            <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
                 <h5 class="fw-bold text-dark mb-1">
                     <i class="fa-solid fa-calendar-plus text-primary me-2"></i> Tambah Jadwal Libur/Tutup
                 </h5>
@@ -222,7 +222,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     <!-- Tabel Daftar Hari Libur / Tutup Khusus -->
     <div class="col-12 col-lg-8">
         <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
-            <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
                 <div>
                     <h5 class="fw-bold text-dark mb-1">
                         <i class="fa-solid fa-list-check text-success me-2"></i> Daftar Jadwal Khusus Super Admin

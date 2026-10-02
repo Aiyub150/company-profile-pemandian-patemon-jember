@@ -28,6 +28,9 @@ Feedback/
 
 # Logs & temp
 *.log
+*.tmp
+*.bak
+cookies.txt
 scratch/
 tools/
 mailpit.exe

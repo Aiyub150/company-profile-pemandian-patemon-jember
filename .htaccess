@@ -16,8 +16,9 @@ Options -Indexes
     # Blokir akses ke file sensitif
     RewriteRule ^\.env - [F,L,NC]
     RewriteRule ^\.git - [F,L,NC]
-    RewriteRule \.sql$ - [F,L,NC]
+    RewriteRule \.(sql|log|bak|backup|txt|ini|sh|bat)$ - [F,L,NC]
     RewriteRule composer\.(json|lock)$ - [F,L,NC]
+    RewriteRule package\.(json|lock)$ - [F,L,NC]
     RewriteRule \.md$ - [F,L,NC]
     RewriteRule ^database/ - [F,L,NC]
 

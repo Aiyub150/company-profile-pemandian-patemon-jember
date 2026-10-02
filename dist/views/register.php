@@ -33,6 +33,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit).";
         } elseif (strlen($password) < 6) {
             $error = "Password minimal terdiri dari 6 karakter.";
+        } elseif ($password !== $password_confirm) {
+            $error = "Konfirmasi password tidak cocok. Pastikan kedua kolom kata sandi sama.";
         } elseif (has_toxic_words($nama) || has_toxic_words($username)) {
             $toxicHits = array_merge(find_toxic_words($nama), find_toxic_words($username));
             $error = "Pendaftaran ditolak: Nama atau username memuat kata yang dilarang (" . e(implode(', ', array_unique($toxicHits))) . "). Harap gunakan bahasa yang sopan.";

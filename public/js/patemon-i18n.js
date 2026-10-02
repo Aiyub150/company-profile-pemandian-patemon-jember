@@ -995,7 +995,56 @@
         "Super Admin": "Super Admin",
         "Admin": "Admin",
         "Staf Kasir": "Cashier Staff",
-        "Pengunjung": "Visitor"
+        "Pengunjung": "Visitor",
+
+        // --- SIDEBAR & CALENDAR MODULE (EN TRANSLATIONS) ---
+        "Kelola Event": "Manage Events",
+        "Kelola Kalender Libur": "Manage Holiday Calendar",
+        "Kelola Kalender Hari Libur & Penutupan Wisata": "Manage Holiday Calendar & Tourism Closures",
+        "Atur jadwal libur khusus pengelola, cuti bersama, dan penutupan operasional pemandian.": "Manage special operator holidays, collective leave, and bath operational closures.",
+        "TOTAL JADWAL KHUSUS": "TOTAL SPECIAL SCHEDULES",
+        "Tercatat di kalender wisata": "Recorded in tourism calendar",
+        "TUTUP / LIBUR": "CLOSED / HOLIDAY",
+        "TUTUP / LIBUR:": "CLOSED / HOLIDAY:",
+        "BUKA NORMAL SESUAI JADWAL": "OPEN NORMALLY ON SCHEDULE",
+        "Tidak ada jadwal penutupan khusus yang terdaftar untuk hari ini.": "No special closure schedule registered for today.",
+        "Banner peringatan penutupan otomatis aktif di beranda pengunjung.": "Closure warning banner is automatically active on the visitor homepage.",
+        "Cek Dashboard": "Check Dashboard",
+        "Tambah Jadwal Libur/Tutup": "Add Holiday/Closure Schedule",
+        "Entri tanggal libur khusus atau penutupan operasional pemandian.": "Entry for special holiday dates or bath operational closures.",
+        "Tanggal Libur / Penutupan": "Holiday / Closure Date",
+        "Pilih tanggal spesifik pelaksanaan.": "Select specific implementation date.",
+        "Kategori Jadwal": "Schedule Category",
+        "Libur Khusus Pengelola": "Special Operator Holiday",
+        "Tutup Pemeliharaan / Renovasi": "Closed for Maintenance / Renovation",
+        "Cuti Bersama Wisata": "Tourism Collective Leave",
+        "Keterangan / Alasan": "Description / Reason",
+        "Contoh: Pembersihan rutin kolam renang utama...": "Example: Routine cleaning of main pool...",
+        "Keterangan akan tampil di kalender dashboard dan banner beranda.": "Description will appear on dashboard calendar and homepage banner.",
+        "Simpan Jadwal Kalender": "Save Calendar Schedule",
+        "Daftar Jadwal Khusus Super Admin": "Super Admin Special Schedule List",
+        "Jadwal yang dikelola langsung terintegrasi secara dinamis.": "Directly managed schedules are integrated dynamically.",
+        "Belum Ada Jadwal Libur Khusus": "No Special Holiday Schedules Yet",
+        "Tambahkan jadwal libur atau renovasi fasilitas melalui formulir di samping.": "Add holiday or facility renovation schedules via the form on the side.",
+        "Tanggal": "Date",
+        "Keterangan": "Description",
+        "Kategori": "Category",
+        "Dibuat Oleh": "Created By",
+        "Aksi": "Action",
+        "Hari Ini": "Today",
+        "Lewat": "Passed",
+        "Tutup Pemeliharaan": "Closed for Maintenance",
+        "Cuti Bersama": "Collective Leave",
+        "Libur Pengelola": "Operator Holiday",
+        "Hapus Jadwal": "Delete Schedule",
+
+        // --- PUBLIC LANDING & TICKET CLOSURE STRINGS ---
+        "Tiket Ditutup (Pemeliharaan)": "Ticket Closed (Maintenance)",
+        "Tiket Tidak Tersedia (Pemeliharaan)": "Tickets Unavailable (Maintenance)",
+        "Pemeliharaan Kolam": "Pool Maintenance",
+        "Wisata Sedang Tutup Pemeliharaan": "Attraction Closed for Maintenance",
+        "Wisata Sedang Libur / Tutup Operasional": "Attraction is on Holiday / Operationally Closed",
+        "Operasional loket dan pemandian ditutup sementara sesuai jadwal resmi pengelola. Harap jadwalkan kunjungan Anda pada hari berikutnya.": "Ticket counter and bathing operations are temporarily closed according to the official schedule. Please plan your visit for the next day."
     });
 
     /**
@@ -1241,6 +1290,23 @@
                 el.innerHTML = origHtml;
             }
         });
+
+        // 5b. Update tema switcher text sesuai bahasa aktif
+        updateThemeSwitcherText(isEnglish);
+    }
+
+    /**
+     * Update label tema Dark / Light sesuai bahasa aktif
+     */
+    function updateThemeSwitcherText(isEnglish) {
+        const isDark = document.body && (document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark'));
+        document.querySelectorAll('#themeLabelText').forEach(label => {
+            if (isDark) {
+                label.textContent = isEnglish ? 'Dark' : 'Gelap';
+            } else {
+                label.textContent = isEnglish ? 'Light' : 'Terang';
+            }
+        });
     }
 
     /**
@@ -1334,7 +1400,14 @@
             applyLanguage('en');
         } else {
             updateLanguageSwitcherButtons('id');
+            updateThemeSwitcherText(false);
         }
+    });
+
+    // Dengarkan perubahan tema agar label theme switcher segera terupdate
+    window.addEventListener('patemon_theme_changed', function() {
+        const currentLang = localStorage.getItem('patemon_lang') || 'id';
+        updateThemeSwitcherText(currentLang === 'en');
     });
 
     // Handle Bootstrap modal jika konten dinamis dibuka

@@ -23,37 +23,64 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_ulasan'])) {
         $ulasan       = mb_substr($ulasan, 0, 500);
         $tgl_ulasan   = date("Y-m-d");
 
-        if (empty($username) || empty($ulasan)) {
-            $review_error = 'Nama Anda dan isi ulasan wajib diisi.';
-        } elseif (mb_strlen($raw_username) > 50) {
-            $review_error = 'Panjang nama pengirim maksimal 50 karakter.';
-        } elseif (!preg_match("/^[a-zA-Z\s\.\']+$/", $raw_username)) {
-            $review_error = 'Nama pengirim hanya boleh berisi huruf, spasi, titik, atau tanda petik.';
-        } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $review_error = 'Format alamat email tidak valid.';
-        } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
-            $review_error = 'Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka).';
-        } elseif (has_toxic_words($raw_username) || has_toxic_words($raw_ulasan)) {
-            $toxicHits = array_merge(find_toxic_words($raw_username), find_toxic_words($raw_ulasan));
-            $review_error = 'Ulasan ditolak: Mengandung kata yang tidak pantas (' . e(implode(', ', array_unique($toxicHits))) . '). Mohon gunakan bahasa yang santun.';
-            if (function_exists('log_activity')) {
-                log_activity('TOXIC_BLOCKED', 'ulasan', "Kritik & saran publik diblokir karena kata terlarang: " . implode(', ', array_unique($toxicHits)));
-            }
+        // Proteksi Anti-Spam / Rate Limiting (Maksimal 1 ulasan per 2 menit per IP dan per sesi)
+        $now = time();
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $two_mins_ago = $now - 120;
+
+        $last_review_session = $_SESSION['last_review_time'] ?? 0;
+        if (($now - $last_review_session) < 120) {
+            $sisa = 120 - ($now - $last_review_session);
+            $review_error = "Anda baru saja mengirim ulasan. Mohon tunggu {$sisa} detik sebelum mengirim ulasan kembali.";
         } else {
-            $stmt = $conn->prepare("INSERT INTO ulasan (username, email, no_telepon, ulasan, tgl_ulasan) VALUES (?, ?, ?, ?, ?)");
-            if ($stmt) {
-                $stmt->bind_param("sssss", $username, $email, $no_telepon, $ulasan, $tgl_ulasan);
-                if ($stmt->execute()) {
-                    $review_success = true;
-                    if (function_exists('log_activity')) {
-                        log_activity('TAMBAH', 'ulasan', "Ulasan publik baru dari {$username}");
-                    }
-                } else {
-                    $review_error = 'Terjadi kesalahan sistem saat menyimpan ulasan.';
+            $stmtSpam = $conn->prepare("SELECT COUNT(*) as cnt FROM login_attempts WHERE ip_address = ? AND username = 'review_spam' AND attempt_time > ?");
+            $stmtSpam->bind_param("si", $ip, $two_mins_ago);
+            $stmtSpam->execute();
+            $recent_reviews = (int)($stmtSpam->get_result()->fetch_assoc()['cnt'] ?? 0);
+            $stmtSpam->close();
+
+            if ($recent_reviews > 0) {
+                $review_error = "Terlalu banyak permintaan ulasan dari perangkat Anda. Mohon tunggu 2 menit sebelum mengirim ulasan kembali.";
+            } elseif (empty($username) || empty($ulasan)) {
+                $review_error = 'Nama Anda dan isi ulasan wajib diisi.';
+            } elseif (mb_strlen($raw_username) > 50) {
+                $review_error = 'Panjang nama pengirim maksimal 50 karakter.';
+            } elseif (!preg_match("/^[a-zA-Z\s\.\']+$/", $raw_username)) {
+                $review_error = 'Nama pengirim hanya boleh berisi huruf, spasi, titik, atau tanda petik.';
+            } elseif (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $review_error = 'Format alamat email tidak valid.';
+            } elseif (!empty($no_telepon) && !preg_match('/^0[0-9]{8,14}$/', $no_telepon)) {
+                $review_error = 'Nomor telepon / WhatsApp tidak valid. Gunakan format angka diawali angka 0 (9–15 digit angka).';
+            } elseif (has_toxic_words($raw_username) || has_toxic_words($raw_ulasan)) {
+                $toxicHits = array_merge(find_toxic_words($raw_username), find_toxic_words($raw_ulasan));
+                $review_error = 'Ulasan ditolak: Mengandung kata yang tidak pantas (' . e(implode(', ', array_unique($toxicHits))) . '). Mohon gunakan bahasa yang santun.';
+                if (function_exists('log_activity')) {
+                    log_activity('TOXIC_BLOCKED', 'ulasan', "Kritik & saran publik diblokir karena kata terlarang: " . implode(', ', array_unique($toxicHits)));
                 }
-                $stmt->close();
             } else {
-                $review_error = 'Gagal menyiapkan query database.';
+                $stmt = $conn->prepare("INSERT INTO ulasan (username, email, no_telepon, ulasan, tgl_ulasan) VALUES (?, ?, ?, ?, ?)");
+                if ($stmt) {
+                    $stmt->bind_param("sssss", $username, $email, $no_telepon, $ulasan, $tgl_ulasan);
+                    if ($stmt->execute()) {
+                        $review_success = true;
+                        $_SESSION['last_review_time'] = $now;
+
+                        // Catat attempt untuk rate limiting IP
+                        $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, 'review_spam', ?)");
+                        $stmtRec->bind_param("si", $ip, $now);
+                        $stmtRec->execute();
+                        $stmtRec->close();
+
+                        if (function_exists('log_activity')) {
+                            log_activity('TAMBAH', 'ulasan', "Ulasan publik baru dari {$username}");
+                        }
+                    } else {
+                        $review_error = 'Terjadi kesalahan sistem saat menyimpan ulasan.';
+                    }
+                    $stmt->close();
+                } else {
+                    $review_error = 'Gagal menyiapkan query database.';
+                }
             }
         }
     }

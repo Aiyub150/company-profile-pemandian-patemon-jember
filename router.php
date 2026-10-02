@@ -38,7 +38,9 @@ $blockedPatterns = [
     '/\.env/i',
     '/\.git/i',
     '/\.sql$/i',
+    '/\.(txt|log|bak|backup|ini|sh|bat)$/i',
     '/composer\.(json|lock)$/i',
+    '/package\.(json|lock)$/i',
     '/\.md$/i',
     '/database\//i'
 ];

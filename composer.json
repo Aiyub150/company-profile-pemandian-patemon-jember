@@ -7,6 +7,9 @@
         "picqer/php-barcode-generator": "^2.4",
         "dompdf/dompdf": "^3.0"
     },
+    "scripts": {
+        "test": "php tests/run_all.php"
+    },
     "config": {
         "allow-plugins": {}
     }
