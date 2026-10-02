@@ -11,9 +11,17 @@ local.pub
 *.pem
 *.pub
 
-# Uploaded testing files in payment (keep directory structure)
+# Uploaded testing files in payment & events (keep directory structure)
 dist/app/payment/*
 !dist/app/payment/.gitkeep
+public/img/events/*
+!public/img/events/.gitkeep
+
+# Uploaded test wahana / testing images in public/img
+public/img/63e65d5e5d08672ec87b8ef406526475.webp
+public/img/6d3b467491ead78c513664437c2237f1.jpg
+public/img/9bf92621cecb41779f3a87793b660059.jpg
+public/img/a5da67ed6ed7d4a8352507bdb00d217f.webp
 
 # Feedback folder (internal use)
 Feedback/
@@ -25,3 +33,4 @@ scratch/
 # Vulnerabilities (internal use)
 Vulnerabilities/
 AGENTS.md
+.hermes
