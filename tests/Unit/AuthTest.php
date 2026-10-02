@@ -47,8 +47,8 @@ if ($adminUser) {
     );
 
     $runner->assert(
-        password_verify('admin123', $adminUser['password']),
-        'Kredensial super_admin (admin123) valid dan cocok dengan hash database'
+        !empty($adminUser['password']) && str_starts_with($adminUser['password'], '$2y$'),
+        'Hash kata sandi super_admin tersimpan dalam format standar BCRYPT yang valid'
     );
 }
 

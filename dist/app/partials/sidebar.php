@@ -198,15 +198,15 @@ if (!function_exists('public_url')) {
                                 <span>Filter Kata Kasar</span>
                             </a>
                         </li>
-                        <?php endif; ?>
-
-                        <?php if ($user_level === 1): ?>
                         <li class="submenu-item <?= in_array($current_page, ['calendar', 'settings_calendar'], true) ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('settings_calendar') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-calendar-day" style="font-size: 0.8rem; color: #10b981;"></i>
                                 <span>Kelola Kalender Libur</span>
                             </a>
                         </li>
+                        <?php endif; ?>
+
+                        <?php if ($user_level === 1): ?>
                         <li class="submenu-item <?= ($current_page === 'settings_server_log') ? 'active' : '' ?>" style="margin-bottom: 0.25rem;">
                             <a href="<?= route_url('settings_server_log') ?>" class="submenu-link" style="font-size: 0.85rem; padding: 0.4rem 0.5rem; display: flex; align-items: center; gap: 0.5rem; border-radius: 8px;">
                                 <i class="fa-solid fa-server" style="font-size: 0.8rem; color: #0284c7;"></i>

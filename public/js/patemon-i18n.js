@@ -1022,6 +1022,7 @@
         "Contoh: Pembersihan rutin kolam renang utama...": "Example: Routine cleaning of main pool...",
         "Keterangan akan tampil di kalender dashboard dan banner beranda.": "Description will appear on dashboard calendar and homepage banner.",
         "Simpan Jadwal Kalender": "Save Calendar Schedule",
+        "Daftar Jadwal Khusus Pengelola": "Manager Special Schedule List",
         "Daftar Jadwal Khusus Super Admin": "Super Admin Special Schedule List",
         "Jadwal yang dikelola langsung terintegrasi secara dinamis.": "Directly managed schedules are integrated dynamically.",
         "Belum Ada Jadwal Libur Khusus": "No Special Holiday Schedules Yet",

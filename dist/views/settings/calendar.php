@@ -5,8 +5,8 @@
  */
 require_once __DIR__ . '/../../app/config.php';
 
-// Hak akses mutlak: Hanya Super Admin (Level 1)
-check_auth([1]);
+// Hak akses: Super Admin (Level 1) & Admin (Level 2)
+check_auth([1, 2]);
 
 $active_menu     = 'settings_calendar';
 $page_title      = 'Kelola Kalender Libur - Wisata Pemandian Patemon';
@@ -225,7 +225,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
             <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
                 <div>
                     <h5 class="fw-bold text-dark mb-1">
-                        <i class="fa-solid fa-list-check text-success me-2"></i> Daftar Jadwal Khusus Super Admin
+                        <i class="fa-solid fa-list-check text-success me-2"></i> Daftar Jadwal Khusus Pengelola
                     </h5>
                     <p class="text-muted small mb-0">Jadwal yang dikelola langsung terintegrasi secara dinamis.</p>
                 </div>

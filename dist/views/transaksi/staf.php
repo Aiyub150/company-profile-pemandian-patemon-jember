@@ -28,10 +28,13 @@ $header_actions = '
 
 $search = trim($_GET['search'] ?? ($_GET['id_transaksi'] ?? ''));
 
-// Feedback-7 Poin 4: Staf Kasir (Level 3) hanya melihat data transaksi yang diinputkannya sendiri
+// Tampilkan transaksi aktif:
+// Kasir Loket (Level 3) dapat melihat transaksi yang diinputnya sendiri SERTA transaksi online mandiri pengunjung
+// sehingga kasir loket dapat memvalidasi dan memproses tiket pesanan pengunjung yang datang ke loket.
 $staff_filter_sql = "";
 if ($user_level === 3) {
-    $staff_filter_sql = " AND (transaksi.kasir_id = {$user_id} OR (transaksi.kasir_id IS NULL AND transaksi.id_user = {$user_id}))";
+    // Tampilkan transaksi milik kasir ini ATAU transaksi pesanan online mandiri pengunjung (kasir_id IS NULL dan id_user bukan staf kasir lain)
+    $staff_filter_sql = " AND (transaksi.kasir_id = {$user_id} OR (transaksi.kasir_id IS NULL AND users.level = 0))";
 }
 
 // Query Transaksi
@@ -42,15 +45,14 @@ if (!empty($search)) {
     }
     $search_like = "%" . $search . "%";
 
-    // Jika staf memindai barcode / mencari spesifik ID tiket, izinkan verifikasi tiket pengunjung; 
-    // jika pencarian teks umum, terapkan batasan akun staf jika level 3
+    // Jika pencarian teks umum pada akun kasir level 3
     if ($user_level === 3 && $id_search === 0) {
         $stmt = $conn->prepare("
             SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
             WHERE transaksi.deleted_at IS NULL 
-              AND (transaksi.kasir_id = ? OR (transaksi.kasir_id IS NULL AND transaksi.id_user = ?))
+              AND (transaksi.kasir_id = ? OR (transaksi.kasir_id IS NULL AND users.level = 0))
               AND (users.nama LIKE ? 
                OR transaksi.nama_pemesan LIKE ?
                OR transaksi.metode_pembayaran LIKE ? 
@@ -58,7 +60,7 @@ if (!empty($search)) {
                OR transaksi.tgl_pemesanan LIKE ?)
             ORDER BY tgl_pemesanan DESC, id_transaksi DESC
         ");
-        $stmt->bind_param("iisssss", $user_id, $user_id, $search_like, $search_like, $search_like, $search_like, $search_like);
+        $stmt->bind_param("isssss", $user_id, $search_like, $search_like, $search_like, $search_like, $search_like);
     } else {
         $stmt = $conn->prepare("
             SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
@@ -79,7 +81,7 @@ if (!empty($search)) {
     $result = $stmt->get_result();
     $stmt->close();
 } else {
-    // Tampilkan transaksi aktif (staf level 3 hanya data yang dia inputkan)
+    // Tampilkan transaksi aktif
     $sql = "SELECT transaksi.*, users.nama, users.no_telepon as user_telp 
             FROM transaksi 
             INNER JOIN users ON transaksi.id_user = users.id_user 
@@ -89,24 +91,25 @@ if (!empty($search)) {
     $result = $conn->query($sql);
 }
 
-// Rekap Omzet Hari Ini (Staf hanya melihat total omzet yang dia kumpulkan)
+// Rekap Omzet Hari Ini Khusus Kasir Ini (hanya transaksi yang diproses/diinput kasir bersangkutan)
 $today_omzet = 0;
 $today_tickets = 0;
-$recap_sql = "SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL {$staff_filter_sql}";
+$recap_kasir_sql = " AND (transaksi.kasir_id = {$user_id} OR (transaksi.kasir_id IS NULL AND transaksi.id_user = {$user_id}))";
+$recap_sql = "SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL " . ($user_level === 3 ? $recap_kasir_sql : "");
 $recap = $conn->query($recap_sql);
 if ($recap && $rc = $recap->fetch_assoc()) {
     $today_omzet = (float)($rc['omzet'] ?? 0);
     $today_tickets = (int)$rc['cnt'];
 }
 
-// Rekap Rincian Tunai vs Non-Tunai Shift Kasir (Feedback UX: Balancing Kasir)
-$cash_sql = "SELECT SUM(total_harga) as cash_omzet, COUNT(*) as cash_cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL AND (metode_pembayaran = 'Tunai' OR metode_pembayaran IS NULL) {$staff_filter_sql}";
+// Rekap Rincian Tunai vs Non-Tunai Shift Kasir (Balancing Kasir)
+$cash_sql = "SELECT SUM(total_harga) as cash_omzet, COUNT(*) as cash_cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL AND (metode_pembayaran = 'Tunai' OR metode_pembayaran IS NULL) " . ($user_level === 3 ? $recap_kasir_sql : "");
 $cash_res = $conn->query($cash_sql);
 $cash_rc = $cash_res ? $cash_res->fetch_assoc() : [];
 $shift_cash_omzet = (float)($cash_rc['cash_omzet'] ?? 0);
 $shift_cash_cnt = (int)($cash_rc['cash_cnt'] ?? 0);
 
-$noncash_sql = "SELECT SUM(total_harga) as noncash_omzet, COUNT(*) as noncash_cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL AND (metode_pembayaran != 'Tunai' AND metode_pembayaran IS NOT NULL) {$staff_filter_sql}";
+$noncash_sql = "SELECT SUM(total_harga) as noncash_omzet, COUNT(*) as noncash_cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL AND (metode_pembayaran != 'Tunai' AND metode_pembayaran IS NOT NULL) " . ($user_level === 3 ? $recap_kasir_sql : "");
 $noncash_res = $conn->query($noncash_sql);
 $noncash_rc = $noncash_res ? $noncash_res->fetch_assoc() : [];
 $shift_noncash_omzet = (float)($noncash_rc['noncash_omzet'] ?? 0);
@@ -121,7 +124,7 @@ $tkt_sql = "SELECT tiket.nama_tiket, tiket.harga, SUM(detail_transaksi.jumlah) a
             WHERE DATE(transaksi.tgl_pemesanan) = CURDATE()
               AND transaksi.status = 'done'
               AND transaksi.deleted_at IS NULL
-              {$staff_filter_sql}
+              " . ($user_level === 3 ? $recap_kasir_sql : "") . "
             GROUP BY tiket.id_tiket
             ORDER BY total_lembar DESC";
 $tkt_res = $conn->query($tkt_sql);
@@ -189,7 +192,7 @@ require '../../app/layouts/admin_header.php';
             </form>
             <div>
                 <button class="btn btn-soft-primary" type="button" data-bs-toggle="collapse" data-bs-target="#scannerCollapse">
-                    <i class="fa-solid fa-qrcode me-1"></i> Scan Barcode Nota
+                    <i class="fa-solid fa-qrcode me-1"></i> Scan QR Code Nota
                 </button>
             </div>
         </div>
@@ -197,12 +200,83 @@ require '../../app/layouts/admin_header.php';
         <!-- Barcode Scanner Collapse Area -->
         <div class="collapse p-4 border-bottom bg-white" id="scannerCollapse">
             <div class="text-center" style="max-width: 500px; margin: auto;">
-                <h5 class="fw-bold mb-2">Pindai Barcode / QR Code Nota</h5>
-                <p class="text-muted small mb-3">Arahkan barcode nota struk ke kamera untuk verifikasi tiket masuk.</p>
+                <h5 class="fw-bold mb-2">Pindai QR Code Nota</h5>
+                <p class="text-muted small mb-3">Arahkan kamera smartphone ke QR Code nota struk untuk verifikasi tiket masuk.</p>
+                
+                <div id="camera-insecure-warning" class="alert alert-warning text-start d-none" style="font-size: 0.82rem; border-radius: 10px;">
+                    <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Kamera Tidak Dapat Diakses (HTTP / Non-HTTPS)</div>
+                    <div>Browser smartphone (Chrome/Safari) secara standar keamanan memblokir akses kamera jika dibuka melalui IP (HTTP <code>http://10.20.110.168:8000</code>).</div>
+                    <div class="mt-2 fw-semibold">Solusi mudah tanpa perlu VPS:</div>
+                    <ol class="mb-1 ps-3">
+                        <li>Buka Chrome di HP, ketik di address bar: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code></li>
+                        <li>Masukkan URL: <code>http://10.20.110.168:8000</code> lalu pilih <b>Enabled</b> dan <b>Relaunch</b>.</li>
+                        <li>Atau gunakan terowongan HTTPS lokal otomatis (ngrok / Cloudflare tunnel).</li>
+                    </ol>
+                </div>
+
                 <div id="my-qr-reader" class="rounded-3 overflow-hidden shadow-sm border"></div>
                 <div id="your-qr-result" class="mt-3 text-success fw-bold"></div>
             </div>
         </div>
+
+        <style>
+            /* Styling Scanner HTML5-QRCode agar responsif dan tombol tidak overflow di smartphone */
+            #my-qr-reader {
+                width: 100% !important;
+                max-width: 100% !important;
+                border: 1px solid var(--border-color, #e2e8f0) !important;
+                background: #f8fafc;
+                margin: 0 auto !important;
+                box-sizing: border-box;
+            }
+            #my-qr-reader img[alt="Info icon"] {
+                display: none !important;
+            }
+            #my-qr-reader button {
+                background: #0284c7 !important;
+                color: #ffffff !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 8px 16px !important;
+                font-size: 0.85rem !important;
+                font-weight: 600 !important;
+                margin: 6px 4px !important;
+                cursor: pointer !important;
+                max-width: 90% !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                display: inline-block !important;
+                box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2) !important;
+            }
+            #my-qr-reader button:hover {
+                background: #0369a1 !important;
+            }
+            #my-qr-reader select {
+                padding: 6px 12px !important;
+                border-radius: 8px !important;
+                border: 1px solid #cbd5e1 !important;
+                font-size: 0.85rem !important;
+                max-width: 90% !important;
+                margin: 6px auto !important;
+            }
+            #my-qr-reader__scan_region {
+                background: #000000;
+            }
+            #my-qr-reader__dashboard_section_csr button {
+                white-space: normal !important;
+            }
+            [data-bs-theme="dark"] #scannerCollapse,
+            [data-theme="dark"] #scannerCollapse {
+                background-color: var(--card-bg, #1e293b) !important;
+                color: var(--text-primary, #f1f5f9) !important;
+            }
+            [data-bs-theme="dark"] #my-qr-reader,
+            [data-theme="dark"] #my-qr-reader {
+                background: #0f172a !important;
+                border-color: #334155 !important;
+                color: #f1f5f9 !important;
+            }
+        </style>
 
         <!-- Table Data -->
         <div class="table-responsive">
@@ -564,6 +638,13 @@ function cetakStrukShift() {
 // HTML5 QR & Barcode Scanner Otomatis
 let html5QrcodeScanner;
 document.addEventListener("DOMContentLoaded", () => {
+    // Deteksi apakah konteks aman (HTTPS atau localhost)
+    const isSecure = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const warningEl = document.getElementById("camera-insecure-warning");
+    if (!isSecure && warningEl) {
+        warningEl.classList.remove("d-none");
+    }
+
     const collapseElem = document.getElementById("scannerCollapse");
     collapseElem.addEventListener("shown.bs.collapse", () => {
         if (!html5QrcodeScanner) {
@@ -571,31 +652,35 @@ document.addEventListener("DOMContentLoaded", () => {
                 "my-qr-reader", 
                 { 
                     fps: 20, 
-                    qrbox: (vfWidth, vfHeight) => ({
-                        width: Math.min(Math.floor(vfWidth * 0.92), 480),
-                        height: Math.min(Math.floor(vfHeight * 0.65), 240)
-                    }),
-                    aspectRatio: 1.777778,
+                    qrbox: (vfWidth, vfHeight) => {
+                        const minEdge = Math.min(vfWidth, vfHeight);
+                        const edge = Math.max(Math.floor(minEdge * 0.75), 200);
+                        return { width: edge, height: edge };
+                    },
+                    aspectRatio: 1.0,
+                    showTorchButtonIfSupported: true,
                     experimentalFeatures: { useBarCodeDetectorIfSupported: true },
                     formatsToSupport: [
-                        Html5QrcodeSupportedFormats.CODE_128,
                         Html5QrcodeSupportedFormats.QR_CODE,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.UPC_A
+                        Html5QrcodeSupportedFormats.CODE_128
                     ]
                 },
                 false
             );
-            html5QrcodeScanner.render((decodedText) => {
-                const resEl = document.getElementById("your-qr-result");
-                if (resEl) {
-                    resEl.innerHTML = \'<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: \' + decodedText + \'</span>\';
+            html5QrcodeScanner.render(
+                (decodedText) => {
+                    const resEl = document.getElementById("your-qr-result");
+                    if (resEl) {
+                        resEl.innerHTML = '<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: ' + decodedText + '</span>';
+                    }
+                    setTimeout(() => {
+                        window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);
+                    }, 600);
+                },
+                (errorMessage) => {
+                    // Ignore transient frame scan errors
                 }
-                setTimeout(() => {
-                    window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);
-                }, 700);
-            });
+            );
         }
     });
 });

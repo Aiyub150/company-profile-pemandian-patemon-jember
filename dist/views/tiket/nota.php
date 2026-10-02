@@ -188,7 +188,6 @@ if (file_exists($logo_file)) {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.65rem;
             margin: 0.5rem auto 0.75rem auto;
         }
 
@@ -205,27 +204,6 @@ if (file_exists($logo_file)) {
         }
 
         .qr-code-box img, .qr-code-box canvas {
-            display: block;
-            margin: 0 auto;
-        }
-
-        .barcode-wrapper {
-            width: 100%;
-            max-width: 320px;
-            margin: 0 auto;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #ffffff;
-            padding: 6px 12px;
-            box-sizing: border-box;
-            border-radius: 8px;
-        }
-
-        .barcode-wrapper svg {
-            width: 100% !important;
-            height: 52px !important;
             display: block;
             margin: 0 auto;
         }
@@ -578,15 +556,8 @@ if (file_exists($logo_file)) {
                 border: 1px solid #cbd5e1 !important;
             }
             .qr-code-box img, .qr-code-box canvas {
-                width: 90px !important;
-                height: 90px !important;
-            }
-            .barcode-wrapper {
-                max-width: 220px !important;
-                padding: 2px !important;
-            }
-            .barcode-wrapper svg {
-                height: 38px !important;
+                width: 120px !important;
+                height: 120px !important;
             }
             .barcode-note {
                 font-size: 8.5px !important;
@@ -652,11 +623,8 @@ if (file_exists($logo_file)) {
                 <!-- QR Code untuk Kamera Webcam / HP Kasir -->
                 <div class="qr-code-box" id="qrcode"></div>
                 <!-- 1D Barcode untuk Barcode Scanner Garis Loket -->
-                <div class="barcode-wrapper">
-                    <?= $barcodeSVG ?>
-                </div>
-            </div>
-            <div class="barcode-note">Tunjukkan QR Code / Barcode ini kepada petugas loket untuk verifikasi tiket masuk</div>
+                            </div>
+            <div class="barcode-note">Tunjukkan QR Code ini kepada petugas loket untuk verifikasi tiket masuk</div>
         </div>
 
         <!-- Detail Pemesanan -->
