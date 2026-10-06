@@ -356,23 +356,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="auth-banner">
         <div>
             <div class="auth-banner-badge">
-                <i class="fa-solid fa-water"></i> Pemandian Patemon
+                <i class="fa-solid fa-water"></i> Wisata Pemandian Patemon
             </div>
-            <h2>Destinasi Wisata Pemandian Alami</h2>
-            <p>Sistem manajemen loket kasir terintegrasi, pemesanan tiket online instan, serta pelaporan pendapatan yang transparan.</p>
+            <h2>Pesona Kesegaran Mata Air Alami</h2>
+            <p>Nikmati kejernihan mata air pegunungan yang sejuk dan menyegarkan di jantung Jember. Destinasi rekreasi sempurna untuk melepas penat dan bersantai bersama keluarga tercinta.</p>
             
             <div class="feature-pills">
                 <div class="feature-pill-item">
                     <i class="fa-solid fa-circle-check"></i>
-                    <span>Sistem POS Loket Kasir Cepat & Otomatis</span>
+                    <span>100% Sumber Air Alami Pegunungan Tanpa Kaporit</span>
                 </div>
                 <div class="feature-pill-item">
                     <i class="fa-solid fa-circle-check"></i>
-                    <span>Cetak Nota & Barcode Struk Transaksi</span>
+                    <span>Kolam Bersih Ramah Anak, Remaja, & Dewasa</span>
                 </div>
                 <div class="feature-pill-item">
                     <i class="fa-solid fa-circle-check"></i>
-                    <span>Laporan Analitik Penjualan Real-time</span>
+                    <span>Suasana Asri, Sejuk, & Rindang Khas Alam Patemon</span>
                 </div>
             </div>
         </div>

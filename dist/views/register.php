@@ -167,6 +167,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-bottom: 2rem;
         }
 
+        .feature-pills {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .feature-pill-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #f1f5f9;
+        }
+
+        .feature-pill-item i {
+            color: #38bdf8;
+            font-size: 1.1rem;
+        }
+
         .auth-form-section {
             flex: 1.2;
             padding: 3rem;
@@ -291,10 +311,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="auth-banner">
         <div>
             <div class="auth-banner-badge">
-                <i class="fa-solid fa-water"></i> Pemandian Patemon
+                <i class="fa-solid fa-compass"></i> Wisata Alam Patemon
             </div>
-            <h2>Bergabung Bersama Kami</h2>
-            <p>Daftarkan akun Anda sekarang untuk memesan tiket wisata secara online, menikmati kemudahan reservasi, dan riwayat pesanan.</p>
+            <h2>Liburan Sejuk & Menyenangkan</h2>
+            <p>Daftarkan akun Anda untuk kemudahan pemesanan tiket wisata secara online, nikmati akses promo khusus, dan rasakan kesegaran berenang di pemandian alam legendaris Jember.</p>
+            
+            <div class="feature-pills">
+                <div class="feature-pill-item">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Pesan Tiket Mudah & Masuk Wisata Cepat Tanpa Antre</span>
+                </div>
+                <div class="feature-pill-item">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Fasilitas Lengkap: Gazebo Santai, Kamar Bilas, & Kuliner</span>
+                </div>
+                <div class="feature-pill-item">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Wahana Bermain Air Aman & Terjaga untuk Seluruh Keluarga</span>
+                </div>
+            </div>
         </div>
         
         <div style="font-size: 0.85rem; color: #94a3b8;">
