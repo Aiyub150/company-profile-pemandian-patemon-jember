@@ -1,0 +1,28 @@
+name: Auto Deploy to VPS NAT
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy ke VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /var/www/pemandian-patemon
+            git fetch origin master
+            git reset --hard origin/master
+            chown -R www-data:www-data /var/www/pemandian-patemon
+            chmod -R 755 /var/www/pemandian-patemon
+            chmod -R 775 /var/www/pemandian-patemon/dist/app/payment
+            chmod -R 775 /var/www/pemandian-patemon/public/img/avatars
+            service php8.3-fpm restart
+            echo "Auto Deploy Berhasil!"
