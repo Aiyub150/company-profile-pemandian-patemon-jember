@@ -17,16 +17,18 @@ $conn = @mysqli_connect($host, $username, $password, $database);
 if (!$conn) {
     // SEC-07: Log internal error tanpa membocorkan kredensial atau host ke frontend
     error_log("Database connection failed: " . mysqli_connect_error());
-    http_response_code(500);
-    die("<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; padding: 35px 25px; background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 16px; max-width: 520px; margin: 60px auto; box-shadow: 0 10px 25px rgba(0,0,0,0.06); text-align: center;'>
-        <div style='font-size: 42px; margin-bottom: 12px;'>⚠️</div>
-        <h3 style='margin: 0 0 10px; color: #0f172a; font-size: 1.25rem;'>Layanan Database Belum Tersedia</h3>
-        <p style='color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 20px;'>Sistem mengalami kendala saat menghubungkan ke database server. Pastikan layanan database telah aktif atau hubungi administrator sistem.</p>
-        <a href='javascript:location.reload()' style='display:inline-block; padding: 10px 22px; background: #0284c7; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 13px;'>Muat Ulang Halaman</a>
-    </div>");
+    if (php_sapi_name() !== 'cli' || !defined('TEST_ENV')) {
+        http_response_code(500);
+        die("<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; padding: 35px 25px; background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 16px; max-width: 520px; margin: 60px auto; box-shadow: 0 10px 25px rgba(0,0,0,0.06); text-align: center;'>
+            <div style='font-size: 42px; margin-bottom: 12px;'>⚠️</div>
+            <h3 style='margin: 0 0 10px; color: #0f172a; font-size: 1.25rem;'>Layanan Database Belum Tersedia</h3>
+            <p style='color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 20px;'>Sistem mengalami kendala saat menghubungkan ke database server. Pastikan layanan database telah aktif atau hubungi administrator sistem.</p>
+            <a href='javascript:location.reload()' style='display:inline-block; padding: 10px 22px; background: #0284c7; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 13px;'>Muat Ulang Halaman</a>
+        </div>");
+    }
+} else {
+    mysqli_set_charset($conn, "utf8mb4");
 }
-
-mysqli_set_charset($conn, "utf8mb4");
 
 // Start session secara aman jika belum aktif (SEC-06 & MF-04 Hardened)
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
@@ -64,6 +66,49 @@ if (!headers_sent()) {
 if (!function_exists('e')) {
     function e($data) {
         return htmlspecialchars((string)($data ?? ''), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+/**
+ * Helper Mendapatkan IP Address Pengunjung Asli
+ * Mendukung Cloudflare Tunnel (CF-Connecting-IP), Reverse Proxy (X-Forwarded-For / X-Real-IP), dan Koneksi Langsung.
+ */
+if (!function_exists('get_client_ip')) {
+    function get_client_ip() {
+        // 1. Cloudflare Tunnel / Cloudflare CDN
+        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            $cfIp = trim($_SERVER['HTTP_CF_CONNECTING_IP']);
+            if (filter_var($cfIp, FILTER_VALIDATE_IP)) {
+                return $cfIp;
+            }
+        }
+
+        // 2. X-Real-IP (Nginx / Caddy / reverse proxy)
+        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            $realIp = trim($_SERVER['HTTP_X_REAL_IP']);
+            if (filter_var($realIp, FILTER_VALIDATE_IP)) {
+                return $realIp;
+            }
+        }
+
+        // 3. X-Forwarded-For (Ambil IP client pertama yang valid)
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $forwardedIps = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            foreach ($forwardedIps as $fIp) {
+                $cleanIp = trim($fIp);
+                if (filter_var($cleanIp, FILTER_VALIDATE_IP)) {
+                    return $cleanIp;
+                }
+            }
+        }
+
+        // 4. Remote Addr biasa
+        $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        // Normalisasi IPv6 localhost ::1 agar lebih ramah dibaca dan konsisten
+        if ($remote === '::1') {
+            return '127.0.0.1';
+        }
+        return $remote;
     }
 }
 
@@ -332,7 +377,13 @@ if (!function_exists('app_url')) {
      * @return string URL absolut lengkap (contoh: http://localhost:8000/activate)
      */
     function app_url($path = '') {
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $scheme = 'http';
+        if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+            (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+            (!empty($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], 'https')) ||
+            (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)) {
+            $scheme = 'https';
+        }
         
         $host = $_SERVER['HTTP_HOST'] ?? '';
         if (empty($host)) {
@@ -341,10 +392,12 @@ if (!function_exists('app_url')) {
             $host = $server_name . ($port && !in_array($port, ['80', '443']) ? ':' . $port : '');
         }
 
-        // Jika host localhost/127.0.0.1 tanpa port, tambahkan default port web 8000
+        // Jika host murni localhost/127.0.0.1 tanpa port, tambahkan default port web 8000
         if ($host === 'localhost' || $host === '127.0.0.1') {
             $port = $_SERVER['SERVER_PORT'] ?? '8000';
-            $host .= ':' . $port;
+            if ($port && !in_array($port, ['80', '443'])) {
+                $host .= ':' . $port;
+            }
         }
 
         $base = base_url($path);
@@ -679,8 +732,8 @@ if (!function_exists('get_month_holidays')) {
  */
 if (!function_exists('send_smtp_email')) {
     function send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        $host = get_setting('smtp_host', '127.0.0.1');
-        $primaryPort = (int)get_setting('smtp_port', 8001);
+        $host = getenv('SMTP_HOST') ?: get_setting('smtp_host', '127.0.0.1');
+        $primaryPort = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 8001));
         $portsToTry = [$primaryPort];
         if ($primaryPort !== 1025) {
             $portsToTry[] = 1025; // fallback ke standard Mailpit port
@@ -811,7 +864,7 @@ if (!function_exists('log_activity')) {
         
         $userId = $id_user ?: ($_SESSION['id_user'] ?? null);
         $username = $_SESSION['username'] ?? ($userId ? 'User #' . $userId : 'Guest/System');
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ip = function_exists('get_client_ip') ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
         $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
         
         $stmt = $conn->prepare("INSERT INTO activity_logs (id_user, username, action, module, description, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -887,7 +940,7 @@ if (!function_exists('record_server_log')) {
         if (!$conn) return false;
         
         $userId = $id_user ?: ($_SESSION['id_user'] ?? null);
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ip = function_exists('get_client_ip') ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
         $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
         $cleanPath = substr((string)$path, 0, 255);
         $method = strtoupper(substr((string)$method, 0, 10));

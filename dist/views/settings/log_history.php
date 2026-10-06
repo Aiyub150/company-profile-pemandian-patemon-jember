@@ -395,7 +395,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                                         </div>
                                     </td>
                                     <td class="pe-4 text-end text-muted small font-monospace">
-                                        <?= e($log['ip_address']) ?>
+                                        <?= e($log['ip_address'] === '::1' ? '127.0.0.1' : $log['ip_address']) ?>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>

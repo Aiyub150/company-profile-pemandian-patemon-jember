@@ -12,7 +12,7 @@ $step = 1; // 1 = Minta Tautan, 2 = Form Kata Sandi Baru, 3 = Sukses Penuh
 $simulated_mail = null;
 $token_user = null;
 
-$ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+$ip = function_exists('get_client_ip') ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
 $fifteen_mins_ago = time() - (15 * 60);
 
 // Bersihkan rekam login/recovery attempts lama (> 24 jam)

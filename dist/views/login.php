@@ -29,7 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ip = function_exists('get_client_ip') ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
 
         // SEC-05: Bersihkan log percobaan lebih dari 15 menit
         $timeWindow = time() - 900;

@@ -126,10 +126,15 @@ $stmt_d->bind_param($data_types, ...$data_params);
 $stmt_d->execute();
 $logs_result = $stmt_d->get_result();
 
+$mailpit_web_url = getenv('MAILPIT_WEB_URL') ?: 'http://localhost:8025';
+$smtp_host_cfg = getenv('SMTP_HOST') ?: get_setting('smtp_host', '127.0.0.1');
+$smtp_port_cfg = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 8001));
+$is_remote_env = !in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:8000']);
+
 $header_actions = '
     <div class="d-flex flex-wrap gap-2">
-        <a href="http://localhost:8025" target="_blank" class="btn btn-outline-info" style="border-radius: 10px;" title="Buka Mailpit Web UI (Port 8025)">
-            <i class="fa-solid fa-envelope-open-text me-1"></i> Mailpit Web (Port 8025)
+        <a href="' . htmlspecialchars($mailpit_web_url) . '" target="_blank" class="btn btn-outline-info" style="border-radius: 10px;" title="Buka Mailpit Web UI">
+            <i class="fa-solid fa-envelope-open-text me-1"></i> Mailpit Web
         </a>
         <button type="button" class="btn btn-outline-warning" style="border-radius: 10px;" onclick="confirmCleanOrphans()">
             <i class="fa-solid fa-trash-can me-1"></i> Bersihkan Berkas Sampah
@@ -208,14 +213,25 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
             <i class="fa-solid fa-envelope-open-text fs-5"></i>
         </div>
         <div>
-            <div class="fw-bold text-dark">Layanan Email Pengujian &amp; Aktivasi (Mailpit)</div>
+            <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                <span>Layanan Email Pengujian &amp; Aktivasi (Mailpit)</span>
+                <?php if ($is_remote_env): ?>
+                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Server Host / VPS</span>
+                <?php endif; ?>
+            </div>
             <div class="small text-muted">
-                Socket SMTP: <code>127.0.0.1:8001</code> &bull; Webmail Inbox UI: <code>http://localhost:8025/</code>
+                Socket SMTP: <code><?= htmlspecialchars($smtp_host_cfg . ':' . $smtp_port_cfg) ?></code> &bull; 
+                Webmail: <code><?= htmlspecialchars($mailpit_web_url) ?></code>
+                <?php if ($is_remote_env && strpos($mailpit_web_url, 'localhost') !== false): ?>
+                    <span class="text-warning-emphasis d-block d-sm-inline ms-sm-1">
+                        <i class="fa-solid fa-circle-info me-1"></i>(Gunakan SSH port forwarding atau tunnel port 8025 untuk akses eksternal)
+                    </span>
+                <?php endif; ?>
             </div>
         </div>
     </div>
-    <a href="http://localhost:8025" target="_blank" class="btn btn-sm btn-info text-white fw-semibold px-3 py-2" style="border-radius: 8px;">
-        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Webmail (Port 8025)
+    <a href="<?= htmlspecialchars($mailpit_web_url) ?>" target="_blank" class="btn btn-sm btn-info text-white fw-semibold px-3 py-2" style="border-radius: 8px;">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Webmail
     </a>
 </div>
 
@@ -332,7 +348,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                             </td>
                             <td>
                                 <span class="font-monospace small text-muted">
-                                    <i class="fa-solid fa-network-wired me-1 opacity-50"></i> <?= e($log['ip_address']) ?>
+                                    <i class="fa-solid fa-network-wired me-1 opacity-50"></i> <?= e($log['ip_address'] === '::1' ? '127.0.0.1' : $log['ip_address']) ?>
                                 </span>
                             </td>
                             <td>

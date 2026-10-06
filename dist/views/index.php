@@ -25,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_ulasan'])) {
 
         // Proteksi Anti-Spam / Rate Limiting (Maksimal 1 ulasan per 2 menit per IP dan per sesi)
         $now = time();
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ip = function_exists('get_client_ip') ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
         $two_mins_ago = $now - 120;
 
         $last_review_session = $_SESSION['last_review_time'] ?? 0;
