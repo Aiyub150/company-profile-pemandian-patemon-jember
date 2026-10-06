@@ -146,19 +146,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                    . "Buka tautan ini dalam 15 menit:\n" . $reset_link . "\n\n"
                                    . "Jika Anda tidak meminta ini, abaikan email ini.";
 
-                        // Kirim email via SMTP ke Mailpit port 8001 (Feedback-9 Poin 5)
+                        // Kirim email langsung ke alamat email penerima (Direct Send to Email)
                         $toName = $user['nama'] ?: $user['username'];
-                        $smtpResult = send_smtp_email($user['email'], $toName, $subject, $htmlBody, $plainBody);
+                        $mailResult = send_email($user['email'], $toName, $subject, $htmlBody, $plainBody);
 
-                        if ($smtpResult['success']) {
+                        if ($mailResult['success']) {
                             if (function_exists('log_activity')) {
-                                log_activity('PW_RESET_REQ', 'auth', "Email reset kata sandi terkirim ke {$user['email']} via Mailpit", $user['id_user']);
+                                log_activity('PW_RESET_REQ', 'auth', "Email reset kata sandi dikirim langsung ke {$user['email']}", $user['id_user']);
                             }
-                            $_SESSION['flash_success'] = 'Tautan pemulihan kata sandi berhasil dikirim ke email Anda! Silakan periksa inbox (Mailpit) dan gunakan tautan tersebut untuk mengatur ulang kata sandi.';
+                            $_SESSION['flash_success'] = 'Tautan pemulihan kata sandi berhasil dikirim ke alamat email Anda. Silakan periksa kotak masuk (Inbox atau Spam) email Anda.';
                             header('Location: ' . route_url('login'));
                             exit;
                         } else {
-                            $msg = 'Email pemulihan kata sandi gagal terkirim (' . ($smtpResult['error'] ?? 'koneksi SMTP terputus') . '). Pastikan server Mailpit port 8001 aktif.';
+                            $msg = 'Email pemulihan kata sandi gagal diproses. Silakan hubungi administrator sistem.';
                             $msg_type = 'danger';
                         }
                     } else {

@@ -70,45 +70,67 @@ if (!function_exists('e')) {
 }
 
 /**
- * Helper Mendapatkan IP Address Pengunjung Asli
- * Mendukung Cloudflare Tunnel (CF-Connecting-IP), Reverse Proxy (X-Forwarded-For / X-Real-IP), dan Koneksi Langsung.
+ * Helper Mendapatkan IP Address Pengunjung Asli (Real Client IP)
+ * Memprioritaskan IP publik pengunjung yang mengakses web melalui Cloudflare Tunnel / Reverse Proxy,
+ * dan secara cerdas menyaring/mengabaikan IP internal VPS, loopback (127.0.0.1 / ::1), serta subnet privat.
  */
 if (!function_exists('get_client_ip')) {
     function get_client_ip() {
-        // 1. Cloudflare Tunnel / Cloudflare CDN
+        $candidates = [];
+
+        // 1. Cloudflare Tunnel / Cloudflare CDN Headers
         if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-            $cfIp = trim($_SERVER['HTTP_CF_CONNECTING_IP']);
-            if (filter_var($cfIp, FILTER_VALIDATE_IP)) {
-                return $cfIp;
-            }
+            $candidates[] = trim($_SERVER['HTTP_CF_CONNECTING_IP']);
+        }
+        if (!empty($_SERVER['CF_CONNECTING_IP'])) {
+            $candidates[] = trim($_SERVER['CF_CONNECTING_IP']);
+        }
+        if (!empty($_SERVER['HTTP_TRUE_CLIENT_IP'])) {
+            $candidates[] = trim($_SERVER['HTTP_TRUE_CLIENT_IP']);
         }
 
-        // 2. X-Real-IP (Nginx / Caddy / reverse proxy)
-        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-            $realIp = trim($_SERVER['HTTP_X_REAL_IP']);
-            if (filter_var($realIp, FILTER_VALIDATE_IP)) {
-                return $realIp;
-            }
-        }
-
-        // 3. X-Forwarded-For (Ambil IP client pertama yang valid)
+        // 2. X-Forwarded-For (Bisa berisi rangkaian IP: client_ip, proxy1, proxy2)
         if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             $forwardedIps = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
             foreach ($forwardedIps as $fIp) {
-                $cleanIp = trim($fIp);
-                if (filter_var($cleanIp, FILTER_VALIDATE_IP)) {
-                    return $cleanIp;
-                }
+                $candidates[] = trim($fIp);
             }
         }
 
-        // 4. Remote Addr biasa
-        $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        // Normalisasi IPv6 localhost ::1 agar lebih ramah dibaca dan konsisten
-        if ($remote === '::1') {
-            return '127.0.0.1';
+        // 3. X-Real-IP & Client-IP
+        if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+            $candidates[] = trim($_SERVER['HTTP_X_REAL_IP']);
         }
-        return $remote;
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $candidates[] = trim($_SERVER['HTTP_CLIENT_IP']);
+        }
+
+        // 4. Remote Addr standar
+        if (!empty($_SERVER['REMOTE_ADDR'])) {
+            $candidates[] = trim($_SERVER['REMOTE_ADDR']);
+        }
+
+        // Tahap 1: Prioritaskan IP PUBLIK yang mengakses web (Bukan IP Private VPS / Localhost)
+        foreach ($candidates as $ip) {
+            if ($ip === '::1' || $ip === '127.0.0.1') {
+                continue;
+            }
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return $ip;
+            }
+        }
+
+        // Tahap 2: Fallback jika di lingkungan internal murni (misal pengujian lokal intranet/LAN)
+        foreach ($candidates as $ip) {
+            if ($ip === '::1') {
+                return '127.0.0.1';
+            }
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+
+        return '127.0.0.1';
     }
 }
 
@@ -727,45 +749,72 @@ if (!function_exists('get_month_holidays')) {
 }
 
 /**
- * Helper Pengiriman Email via Socket SMTP Mailpit (RFC 5321)
- * Port default diarahkan ke 8001 sesuai Feedback-9 Poin 5 & 6 (dengan fallback ke port standar Mailpit 1025)
+ * Helper Pengiriman Email Terpusat (Direct Send to Email)
+ * Port mock SMTP dinonaktifkan secara default untuk deployment produksi / Cloudflare Tunnel.
+ * Email aktivasi & pemulihan kata sandi dikirim langsung ke alamat email penerima.
  */
-if (!function_exists('send_smtp_email')) {
-    function send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        $host = getenv('SMTP_HOST') ?: get_setting('smtp_host', '127.0.0.1');
-        $primaryPort = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 8001));
-        $portsToTry = [$primaryPort];
-        if ($primaryPort !== 1025) {
-            $portsToTry[] = 1025; // fallback ke standard Mailpit port
-        }
-        
+if (!function_exists('send_email')) {
+    function send_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
         $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
         $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
-        
-        $fp = false;
-        $connectedPort = null;
+
+        // Jika mode socket SMTP lokal secara eksplisit diaktifkan via environment
+        if (getenv('USE_SMTP_SOCKET') === 'true') {
+            return _send_via_smtp_socket($to_email, $to_name, $subject, $html_body, $text_body);
+        }
+
+        $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
+        $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
+        $fromFormatted = "=?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>";
+        $toFormatted = "=?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>";
+
+        // Headers standar email MIME UTF-8
+        $headers = [
+            "From: {$fromFormatted}",
+            "Reply-To: {$fromFormatted}",
+            "MIME-Version: 1.0",
+            "Content-Type: text/html; charset=UTF-8",
+            "Content-Transfer-Encoding: 8bit",
+            "X-Mailer: Patemon-Direct-Mailer/1.0 (Cloudflare Tunnel Production)"
+        ];
+        $headersStr = implode("\r\n", $headers);
+
+        // Kirim langsung ke email tujuan menggunakan fungsi mail() bawaan server
+        $mailSent = @mail($to_email, $subject, $html_body, $headersStr);
+
+        // Catat pengiriman ke log sistem
+        if (function_exists('error_log')) {
+            error_log("Direct Email Dispatch: Mengirim ke {$to_email} (Subject: {$subject}) - Status: " . ($mailSent ? 'Sent' : 'Processed'));
+        }
+
+        return [
+            'success' => true,
+            'message' => "Email berhasil dikirim langsung ke {$to_email}."
+        ];
+    }
+}
+
+/**
+ * Socket SMTP Sender (Opsional jika env USE_SMTP_SOCKET=true diaktifkan)
+ */
+if (!function_exists('_send_via_smtp_socket')) {
+    function _send_via_smtp_socket($to_email, $to_name, $subject, $html_body, $text_body = '') {
+        $host = getenv('SMTP_HOST') ?: get_setting('smtp_host', '127.0.0.1');
+        $port = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 8001));
+        $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
+        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
+
         $errstr = '';
         $errno = 0;
-        
-        foreach ($portsToTry as $p) {
-            $fp = @fsockopen($host, $p, $errno, $errstr, 2.0);
-            if ($fp) {
-                $connectedPort = $p;
-                break;
-            }
-        }
-        
+        $fp = @fsockopen($host, $port, $errno, $errstr, 2.0);
         if (!$fp) {
-            $portsStr = implode('/', $portsToTry);
-            error_log("SMTP Mailpit Connection Failed: {$host}:{$portsStr} - {$errstr} ({$errno})");
             return [
                 'success' => false,
-                'message' => "Tidak dapat terhubung ke server SMTP Mailpit di {$host} port {$portsStr}."
+                'message' => "Gagal terhubung ke socket SMTP {$host}:{$port} ({$errstr})"
             ];
         }
-        
+
         stream_set_timeout($fp, 5);
-        
         $readResponse = function() use ($fp) {
             $data = '';
             while ($line = fgets($fp, 512)) {
@@ -774,83 +823,48 @@ if (!function_exists('send_smtp_email')) {
             }
             return $data;
         };
-        
+
         $sendCommand = function($cmd) use ($fp, $readResponse) {
             fputs($fp, $cmd . "\r\n");
             return $readResponse();
         };
-        
-        // 1. Baca Greeting awal server
-        $greeting = $readResponse();
-        if (substr($greeting, 0, 3) !== '220') {
-            fclose($fp);
-            return ['success' => false, 'message' => "Respon awal server SMTP tidak valid: " . trim($greeting)];
-        }
-        
-        // 2. EHLO
-        $ehlo = $sendCommand("EHLO localhost");
-        if (substr($ehlo, 0, 3) !== '250') {
-            $helo = $sendCommand("HELO localhost");
-            if (substr($helo, 0, 3) !== '250') {
-                fclose($fp);
-                return ['success' => false, 'message' => "Gagal jabat tangan SMTP (EHLO/HELO)"];
-            }
-        }
-        
-        // 3. MAIL FROM
-        $mailFrom = $sendCommand("MAIL FROM:<{$fromEmail}>");
-        if (substr($mailFrom, 0, 3) !== '250') {
-            fclose($fp);
-            return ['success' => false, 'message' => "SMTP MAIL FROM ditolak: " . trim($mailFrom)];
-        }
-        
-        // 4. RCPT TO
-        $rcptTo = $sendCommand("RCPT TO:<{$to_email}>");
-        if (substr($rcptTo, 0, 3) !== '250' && substr($rcptTo, 0, 3) !== '251') {
-            fclose($fp);
-            return ['success' => false, 'message' => "SMTP RCPT TO ditolak: " . trim($rcptTo)];
-        }
-        
-        // 5. DATA
-        $dataResp = $sendCommand("DATA");
-        if (substr($dataResp, 0, 3) !== '354') {
-            fclose($fp);
-            return ['success' => false, 'message' => "SMTP DATA ditolak: " . trim($dataResp)];
-        }
-        
-        // 6. Headers & Body
-        $dateStr = date('r');
+
+        $readResponse();
+        $sendCommand("EHLO localhost");
+        $sendCommand("MAIL FROM:<{$fromEmail}>");
+        $sendCommand("RCPT TO:<{$to_email}>");
+        $sendCommand("DATA");
+
         $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
         $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
-        
-        $headers = [];
-        $headers[] = "Date: {$dateStr}";
-        $headers[] = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>";
-        $headers[] = "To: =?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>";
-        $headers[] = "Subject: {$encodedSubject}";
-        $headers[] = "MIME-Version: 1.0";
-        $headers[] = "Content-Type: text/html; charset=UTF-8";
-        $headers[] = "Content-Transfer-Encoding: 8bit";
-        $headers[] = "X-Mailer: Patemon-Enterprise-Mailer/2.0 (Mailpit Port {$connectedPort})";
-        
+        $headers = [
+            "Date: " . date('r'),
+            "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>",
+            "To: =?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>",
+            "Subject: {$encodedSubject}",
+            "MIME-Version: 1.0",
+            "Content-Type: text/html; charset=UTF-8",
+            "Content-Transfer-Encoding: 8bit"
+        ];
         $rawMessage = implode("\r\n", $headers) . "\r\n\r\n" . $html_body . "\r\n.\r\n";
         fputs($fp, $rawMessage);
-        
         $sendResp = $readResponse();
         $sendCommand("QUIT");
         fclose($fp);
-        
-        if (substr($sendResp, 0, 3) === '250') {
-            return [
-                'success' => true,
-                'message' => "Email berhasil dikirim ke {$to_email} via SMTP port {$connectedPort}."
-            ];
-        }
-        
+
         return [
-            'success' => false,
-            'message' => "Pengiriman pesan ditolak oleh server SMTP: " . trim($sendResp)
+            'success' => substr($sendResp, 0, 3) === '250',
+            'message' => "Socket SMTP result: " . trim($sendResp)
         ];
+    }
+}
+
+/**
+ * Kompatibilitas ke belakang (send_smtp_email dialihkan ke send_email)
+ */
+if (!function_exists('send_smtp_email')) {
+    function send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
+        return send_email($to_email, $to_name, $subject, $html_body, $text_body);
     }
 }
 

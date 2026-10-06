@@ -115,11 +115,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         . $activation_url . "\n\n"
                         . "Tautan berlaku hingga: " . date('d M Y H:i', strtotime($activation_expires_at)) . " WIB.\n";
 
-                    $mailRes = send_smtp_email($email, $nama ?: $username, $subject, $htmlBody, $plainBody);
+                    $mailRes = send_email($email, $nama ?: $username, $subject, $htmlBody, $plainBody);
                     if ($mailRes['success']) {
-                        $_SESSION['flash_success'] = "Pengguna baru <strong>@" . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . "</strong> berhasil ditambahkan dan email aktivasi telah dikirimkan ke <strong>" . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . "</strong>.";
+                        $_SESSION['flash_success'] = "Pengguna baru <strong>@" . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . "</strong> berhasil ditambahkan dan email aktivasi telah dikirimkan langsung ke <strong>" . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . "</strong>.";
                     } else {
-                        $_SESSION['flash_warning'] = "Pengguna baru <strong>@" . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . "</strong> berhasil ditambahkan (Belum Aktif), namun email aktivasi gagal terkirim (" . htmlspecialchars($mailRes['error'] ?? 'koneksi SMTP terputus', ENT_QUOTES, 'UTF-8') . "). Anda dapat mengirim ulang email aktivasi dari tabel pengguna.";
+                        $_SESSION['flash_warning'] = "Pengguna baru <strong>@" . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . "</strong> berhasil ditambahkan (Belum Aktif). Anda dapat mengirim ulang email aktivasi dari tabel pengguna.";
                     }
 
                     header("Location: " . route_url('users'));

@@ -133,9 +133,6 @@ $is_remote_env = !in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1
 
 $header_actions = '
     <div class="d-flex flex-wrap gap-2">
-        <a href="' . htmlspecialchars($mailpit_web_url) . '" target="_blank" class="btn btn-outline-info" style="border-radius: 10px;" title="Buka Mailpit Web UI">
-            <i class="fa-solid fa-envelope-open-text me-1"></i> Mailpit Web
-        </a>
         <button type="button" class="btn btn-outline-warning" style="border-radius: 10px;" onclick="confirmCleanOrphans()">
             <i class="fa-solid fa-trash-can me-1"></i> Bersihkan Berkas Sampah
         </button>
@@ -206,33 +203,23 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     </div>
 </div>
 
-<!-- Mailpit Server & Web UI Info -->
-<div class="alert alert-info border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
+<!-- Email Service Status Banner -->
+<div class="alert alert-primary border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
     <div class="d-flex align-items-center gap-3">
-        <div class="rounded-circle p-2 bg-info-subtle text-info d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
-            <i class="fa-solid fa-envelope-open-text fs-5"></i>
+        <div class="rounded-circle p-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i class="fa-solid fa-paper-plane fs-5"></i>
         </div>
         <div>
             <div class="fw-bold text-dark d-flex align-items-center gap-2">
-                <span>Layanan Email Pengujian &amp; Aktivasi (Mailpit)</span>
-                <?php if ($is_remote_env): ?>
-                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Server Host / VPS</span>
-                <?php endif; ?>
+                <span>Layanan Email: Pengiriman Langsung (Direct Send)</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Direct Mail Aktif</span>
+                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Socket Mock SMTP Nonaktif</span>
             </div>
             <div class="small text-muted">
-                Socket SMTP: <code><?= htmlspecialchars($smtp_host_cfg . ':' . $smtp_port_cfg) ?></code> &bull; 
-                Webmail: <code><?= htmlspecialchars($mailpit_web_url) ?></code>
-                <?php if ($is_remote_env && strpos($mailpit_web_url, 'localhost') !== false): ?>
-                    <span class="text-warning-emphasis d-block d-sm-inline ms-sm-1">
-                        <i class="fa-solid fa-circle-info me-1"></i>(Gunakan SSH port forwarding atau tunnel port 8025 untuk akses eksternal)
-                    </span>
-                <?php endif; ?>
+                Email aktivasi staf &amp; pemulihan kata sandi dikirim langsung ke alamat email penerima.
             </div>
         </div>
     </div>
-    <a href="<?= htmlspecialchars($mailpit_web_url) ?>" target="_blank" class="btn btn-sm btn-info text-white fw-semibold px-3 py-2" style="border-radius: 8px;">
-        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Webmail
-    </a>
 </div>
 
 <?php if (!empty($msg_success)): ?>
