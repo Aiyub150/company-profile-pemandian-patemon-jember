@@ -124,6 +124,13 @@
         "Pengawasan Lifeguard Khusus Area Anak": "Dedicated Lifeguard Supervision for Kids Area",
         "Wahana Bermain Air Menyenangkan": "Fun Water Play Amenities",
         "Pesan Tiket Anak": "Book Children Tickets",
+        "Khusus Mahasiswa": "Special for Students",
+        "Promo Mahasiswa": "Student Promo Ticket",
+        "Khusus pelajar & mahasiswa aktif": "For active students & scholars",
+        "Akses Seluruh Kolam Renang Alam": "Access to All Natural Pools",
+        "Diskon Khusus Mahasiswa & Pelajar": "Special Discount for Students",
+        "Wajib Tunjukkan KTM / Kartu Pelajar": "Student ID Card Required",
+        "Pesan Tiket Mahasiswa": "Book Student Tickets",
 
         // --- REGIONAL LEADERS / PIMPINAN DAERAH ---
         "Pimpinan Daerah": "Regional Leaders",

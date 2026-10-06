@@ -96,6 +96,7 @@ if ($res_t) {
 }
 $harga_dewasa = $harga_tiket['Dewasa'] ?? 10000;
 $harga_anak   = $harga_tiket['Anak-Anak'] ?? 5000;
+$harga_mahasiswa = $harga_tiket['Mahasiswa'] ?? 8000;
 
 // Ambil item galeri dari database (dengan fallback ke default)
 $gallery_items_pub = [];
@@ -901,7 +902,7 @@ $todayClosure = function_exists('get_active_closure_today') ? get_active_closure
 
             <div class="row g-4 justify-content-center">
                 <!-- Tiket Dewasa -->
-                <div class="col-12 col-md-6 col-lg-5">
+                <div class="col-12 col-md-6 col-lg-4">
                     <div class="pricing-card-modern featured">
                         <span class="badge badge-modern-primary mb-3">Kategori Terpopuler</span>
                         <h3 class="fw-bold text-dark mb-1">Tiket Dewasa</h3>
@@ -925,8 +926,33 @@ $todayClosure = function_exists('get_active_closure_today') ? get_active_closure
                     </div>
                 </div>
 
+                <!-- Promo Mahasiswa -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="pricing-card-modern" style="border-color: #10b981;">
+                        <span class="badge badge-modern-success mb-3">Khusus Mahasiswa</span>
+                        <h3 class="fw-bold text-dark mb-1">Promo Mahasiswa</h3>
+                        <p class="text-muted small">Khusus pelajar & mahasiswa aktif</p>
+                        <div class="pricing-price" style="color: #059669;"><?= format_rupiah($harga_mahasiswa) ?> <small style="font-size: 1rem; color: #64748b; font-weight: 500;">/ orang</small></div>
+                        <ul class="list-unstyled text-start my-4 d-flex flex-column gap-2" style="font-size: 0.95rem; color: #334155;">
+                            <li><i class="fa-solid fa-circle-check text-success me-2"></i> Akses Seluruh Kolam Renang Alam</li>
+                            <li><i class="fa-solid fa-circle-check text-success me-2"></i> Diskon Khusus Mahasiswa & Pelajar</li>
+                            <li><i class="fa-solid fa-circle-check text-success me-2"></i> Wajib Tunjukkan KTM / Kartu Pelajar</li>
+                            <li><i class="fa-solid fa-circle-check text-success me-2"></i> Kamar Mandi & Ruang Bilas Bersih</li>
+                        </ul>
+                        <?php if ($todayClosure): ?>
+                            <button type="button" class="btn btn-secondary w-100 py-3 fs-6 opacity-75" onclick="showClosedNotice()">
+                                <i class="fa-solid fa-ban me-1"></i> Tiket Ditutup (Pemeliharaan)
+                            </button>
+                        <?php else: ?>
+                            <a href="<?= route_url('tiket_pesan') ?>" class="btn w-100 py-3 fs-6 text-white" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                                <i class="fa-solid fa-cart-shopping me-1"></i> Pesan Tiket Mahasiswa
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- Tiket Anak-Anak -->
-                <div class="col-12 col-md-6 col-lg-5">
+                <div class="col-12 col-md-6 col-lg-4">
                     <div class="pricing-card-modern">
                         <span class="badge badge-modern-warning mb-3">Khusus Anak-Anak</span>
                         <h3 class="fw-bold text-dark mb-1">Tiket Anak-Anak</h3>
