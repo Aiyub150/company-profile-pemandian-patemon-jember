@@ -321,6 +321,33 @@ $cur_pass     = getenv('SMTP_PASS') ?: get_setting('smtp_pass', '');
 $has_pass     = !empty($cur_pass);
 ?>
 
+<style>
+.nat-callout-card {
+    background: #e0f2fe !important;
+    border: 1px solid #7dd3fc !important;
+    border-radius: 12px;
+    color: #0c4a6e !important;
+}
+.nat-callout-card .nat-callout-title {
+    color: #0369a1 !important;
+}
+.nat-callout-card .nat-callout-text {
+    color: #075985 !important;
+    line-height: 1.6;
+}
+body.theme-dark .nat-callout-card {
+    background: rgba(14, 165, 233, 0.14) !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+    color: #e0f2fe !important;
+}
+body.theme-dark .nat-callout-card .nat-callout-title {
+    color: #38bdf8 !important;
+}
+body.theme-dark .nat-callout-card .nat-callout-text {
+    color: #bae6fd !important;
+}
+</style>
+
 <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
     <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
@@ -338,11 +365,11 @@ $has_pass     = !empty($cur_pass);
         </div>
     </div>
     <div class="card-body px-4 pb-4">
-        <!-- Alert Rekomendasi VPS NAT -->
-        <div class="alert alert-info border-0 d-flex align-items-start gap-3 p-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08);">
-            <i class="fa-solid fa-circle-info text-primary fs-5 mt-1"></i>
-            <div class="small">
-                <strong>Catatan Khusus VPS NAT:</strong> Pada VPS NAT, seluruh port SMTP (25, 465, 587) diblokir permanen oleh router hosting untuk mencegah spam IP bersama. 
+        <!-- Callout Rekomendasi VPS NAT (Kontras Tinggi Mode Terang & Gelap) -->
+        <div class="d-flex align-items-start gap-3 p-3 mb-4 nat-callout-card">
+            <i class="fa-solid fa-circle-info fs-5 mt-1 text-primary flex-shrink-0"></i>
+            <div class="small nat-callout-text">
+                <strong class="nat-callout-title">Catatan Khusus VPS NAT:</strong> Pada VPS NAT, seluruh port SMTP (25, 465, 587) diblokir permanen oleh router hosting untuk mencegah spam IP bersama. 
                 Gunakan <strong>Metode HTTPS API (Port 443)</strong> menggunakan <strong>Brevo</strong> (gratis 300 email/hari) atau <strong>Resend</strong> (gratis 3.000 email/bln). Lalu lintas HTTPS dijamin 100% tembus tanpa pernah terkena <em>connection timed out</em>.
             </div>
         </div>
@@ -391,28 +418,28 @@ $has_pass     = !empty($cur_pass);
 
             <!-- Bagian Cadangan SMTP Klasik (Dapat dibuka jika diperlukan) -->
             <div class="col-12">
-                <div class="p-3 bg-light rounded-3 border">
+                <div class="p-3 rounded-3 border" style="background: rgba(148, 163, 184, 0.06);">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold text-secondary"><i class="fa-solid fa-sliders me-1"></i> Opsi Cadangan SMTP Socket (Jika Menggunakan Port SMTP)</span>
+                        <span class="small fw-bold text-body-secondary"><i class="fa-solid fa-sliders me-1"></i> Opsi Cadangan SMTP Socket (Jika Menggunakan Port SMTP)</span>
                     </div>
                     <div class="row g-2">
                         <div class="col-12 col-md-3">
-                            <label class="form-label small text-muted mb-1">SMTP Host</label>
+                            <label class="form-label small text-body-secondary mb-1">SMTP Host</label>
                             <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e(get_setting('smtp_host', 'smtp.gmail.com')) ?>" placeholder="smtp.gmail.com">
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label small text-muted mb-1">Port &amp; Enkripsi</label>
+                            <label class="form-label small text-body-secondary mb-1">Port &amp; Enkripsi</label>
                             <select name="smtp_port" class="form-select form-select-sm">
                                 <option value="465" <?= (string)get_setting('smtp_port', '465') === '465' ? 'selected' : '' ?>>465 (SSL)</option>
                                 <option value="587" <?= (string)get_setting('smtp_port', '465') === '587' ? 'selected' : '' ?>>587 (TLS)</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label small text-muted mb-1">Akun Gmail SMTP</label>
+                            <label class="form-label small text-body-secondary mb-1">Akun Gmail SMTP</label>
                             <input type="email" name="smtp_user" class="form-control form-control-sm" value="<?= e(get_setting('smtp_user', 'aiyubheriyanto150@gmail.com')) ?>" placeholder="email@gmail.com">
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label small text-muted mb-1">Google App Password</label>
+                            <label class="form-label small text-body-secondary mb-1">Google App Password</label>
                             <input type="text" name="smtp_pass" class="form-control form-control-sm" placeholder="<?= $has_pass ? '••••••••••••••••' : 'App Password 16 Huruf' ?>">
                         </div>
                     </div>
