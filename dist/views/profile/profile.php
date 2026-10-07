@@ -59,12 +59,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_update_profile
             if ($chk->get_result()->fetch_assoc()) {
                 $error_msg = 'Alamat email tersebut sudah digunakan oleh akun lain.';
             } else {
-                // Handle Avatar Upload jika ada file yang diunggah
+                // Handle Avatar Upload: Utamakan foto hasil crop (base64) atau fallback ke $_FILES
                 $new_avatar_name = $curr_user['avatar'];
                 $avatar_uploaded = false;
+                $avatar_dir = __DIR__ . '/../../../public/img/avatars/';
+                $cropped_data = trim($_POST['avatar_cropped_data'] ?? '');
 
-                if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] !== UPLOAD_ERR_NO_FILE) {
-                    $avatar_dir = __DIR__ . '/../../../public/img/avatars/';
+                if (!empty($cropped_data) && preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/s', $cropped_data, $crop_matches)) {
+                    $crop_mime_type = $crop_matches[1];
+                    $crop_ext = ($crop_mime_type === 'jpeg') ? 'jpg' : $crop_mime_type;
+                    $decoded_raw = base64_decode($crop_matches[2], true);
+
+                    if ($decoded_raw === false || strlen($decoded_raw) === 0) {
+                        $error_msg = 'Data foto profil hasil crop tidak valid.';
+                    } elseif (strlen($decoded_raw) > 2097152) {
+                        $error_msg = 'Ukuran foto profil hasil crop melebihi batas 2 MB.';
+                    } else {
+                        // Periksa pola script berbahaya
+                        $dangerous_patterns = [
+                            '/<\?php/i',
+                            '/<\?=/i',
+                            '/<\x00?\?\x00?p\x00?h\x00?p/i',
+                            '/<script\b/i',
+                            '/\b(eval|passthru|shell_exec|exec|system|base64_decode|assert)\s*\(/i'
+                        ];
+                        $is_safe = true;
+                        foreach ($dangerous_patterns as $pattern) {
+                            if (preg_match($pattern, $decoded_raw)) {
+                                $is_safe = false;
+                                break;
+                            }
+                        }
+
+                        if (!$is_safe) {
+                            $error_msg = 'Berkas foto profil ditolak: terdeteksi pola yang tidak aman.';
+                        } else {
+                            if (!is_dir($avatar_dir)) {
+                                @mkdir($avatar_dir, 0755, true);
+                            }
+                            $rand_avatar_name = 'avatar_' . bin2hex(random_bytes(16)) . '.' . $crop_ext;
+                            $dest_file = $avatar_dir . $rand_avatar_name;
+
+                            $saved = false;
+                            if (extension_loaded('gd') && function_exists('imagecreatefromstring')) {
+                                $gd_img = @imagecreatefromstring($decoded_raw);
+                                if ($gd_img) {
+                                    if ($crop_ext === 'png') {
+                                        imagealphablending($gd_img, false);
+                                        imagesavealpha($gd_img, true);
+                                        $saved = @imagepng($gd_img, $dest_file, 8);
+                                    } elseif ($crop_ext === 'webp' && function_exists('imagewebp')) {
+                                        $saved = @imagewebp($gd_img, $dest_file, 90);
+                                    } else {
+                                        $saved = @imagejpeg($gd_img, $dest_file, 90);
+                                    }
+                                    @imagedestroy($gd_img);
+                                }
+                            }
+
+                            if (!$saved) {
+                                $saved = (@file_put_contents($dest_file, $decoded_raw) !== false);
+                            }
+
+                            if ($saved) {
+                                $new_avatar_name = $rand_avatar_name;
+                                if (!empty($curr_user['avatar'])) {
+                                    $old_file = $avatar_dir . basename($curr_user['avatar']);
+                                    if (file_exists($old_file) && is_file($old_file)) {
+                                        @unlink($old_file);
+                                    }
+                                }
+                                $avatar_uploaded = true;
+                            } else {
+                                $error_msg = 'Gagal menyimpan foto profil hasil pemotongan.';
+                            }
+                        }
+                    }
+                } elseif (isset($_FILES['avatar']) && $_FILES['avatar']['error'] !== UPLOAD_ERR_NO_FILE) {
                     $upload_res = secure_upload_image($_FILES['avatar'], $avatar_dir, ['jpg', 'jpeg', 'png', 'webp'], 2097152);
                     if ($upload_res['success']) {
                         $new_avatar_name = $upload_res['filename'];
@@ -165,17 +236,53 @@ if (!empty($curr_user['avatar'])) {
 include __DIR__ . '/../../app/layouts/admin_header.php';
 ?>
 
+<link rel="stylesheet" href="<?= public_url('assets/extensions/cropperjs/cropper.min.css') ?>">
+<style>
+/* Tampilan bingkai crop lingkaran untuk foto profil */
+.cropper-view-box,
+.cropper-face {
+    border-radius: 50%;
+}
+.cropper-view-box {
+    outline: 2px solid #0284c7;
+    outline-color: rgba(2, 132, 199, 0.85);
+}
+.cropper-dashed {
+    border-color: rgba(255, 255, 255, 0.6);
+}
+.cropper-point {
+    background-color: #0284c7;
+    border-radius: 50%;
+}
+.img-cropper-target-container {
+    max-height: 420px;
+    min-height: 260px;
+    background-color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 12px;
+}
+.img-cropper-target-container img {
+    max-width: 100%;
+    max-height: 400px;
+    display: block;
+}
+</style>
+
 <div class="row g-4">
     <!-- Kolom Kiri: Ringkasan Akun -->
     <div class="col-12 col-lg-4">
         <div class="modern-card text-center p-4">
             <div class="position-relative d-inline-block mx-auto mb-3">
                 <?php if (!empty($avatar_url)): ?>
-                    <img src="<?= e($avatar_url) ?>" alt="Foto Profil" class="rounded-circle shadow" style="width: 104px; height: 104px; object-fit: cover; border: 3.5px solid #ffffff; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.25);">
+                    <img id="sidebarAvatarImg" src="<?= e($avatar_url) ?>" alt="Foto Profil" class="rounded-circle shadow" style="width: 104px; height: 104px; object-fit: cover; border: 3.5px solid #ffffff; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.25);">
                 <?php else: ?>
-                    <div style="width: 104px; height: 104px; border-radius: 50%; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 800; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.35);">
+                    <div id="sidebarAvatarInitial" style="width: 104px; height: 104px; border-radius: 50%; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-weight: 800; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.35);">
                         <?= $user_initial ?>
                     </div>
+                    <img id="sidebarAvatarImg" src="" alt="Foto Profil" class="rounded-circle shadow" style="width: 104px; height: 104px; object-fit: cover; border: 3.5px solid #ffffff; box-shadow: 0 10px 25px rgba(2, 132, 199, 0.25); display: none;">
                 <?php endif; ?>
             </div>
             
@@ -240,6 +347,7 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                 <form method="POST" action="" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="action_update_profile" value="1">
+                    <input type="hidden" name="avatar_cropped_data" id="avatarCroppedData" value="">
 
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
@@ -273,17 +381,20 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                                 <?php endif; ?>
                             </label>
                             <div class="d-flex align-items-center gap-3">
-                                <div id="avatarPreviewContainer" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; background: #e2e8f0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2px dashed #94a3b8;">
+                                <div id="avatarPreviewContainer" style="width: 70px; height: 70px; border-radius: 50%; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2.5px solid #0284c7; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);">
                                     <?php if (!empty($avatar_url)): ?>
-                                        <img id="avatarPreviewImg" src="<?= e($avatar_url) ?>" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                                        <img id="avatarPreviewImg" src="<?= e($avatar_url) ?>" data-initial-src="<?= e($avatar_url) ?>" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                                        <i id="avatarPreviewIcon" class="fa-solid fa-user text-muted fs-4" style="display: none;"></i>
                                     <?php else: ?>
                                         <i id="avatarPreviewIcon" class="fa-solid fa-user text-muted fs-4"></i>
-                                        <img id="avatarPreviewImg" src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                        <img id="avatarPreviewImg" src="" data-initial-src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                                     <?php endif; ?>
                                 </div>
                                 <div class="flex-grow-1">
                                     <input type="file" name="avatar" id="avatarInput" class="form-control-modern" accept=".jpg,.jpeg,.png,.webp">
-                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Format yang didukung: JPG, PNG, WEBP. Ukuran file maksimal 2 MB.</small>
+                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
+                                        <i class="fa-solid fa-circle-info text-primary"></i> Pilih foto untuk menampilkan dialog potong (crop) rasio 1:1. Maksimal 2 MB.
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -297,25 +408,6 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                 </form>
             </div>
         </div>
-
-        <script>
-        document.getElementById('avatarInput')?.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    const img = document.getElementById('avatarPreviewImg');
-                    const icon = document.getElementById('avatarPreviewIcon');
-                    if (img) {
-                        img.src = evt.target.result;
-                        img.style.display = 'block';
-                    }
-                    if (icon) icon.style.display = 'none';
-                }
-                reader.readAsDataURL(file);
-            }
-        });
-        </script>
 
         <!-- Kartu 2: Keamanan Sandi Akun -->
         <div class="modern-card">
@@ -353,6 +445,265 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     </div>
 </div>
 
+<!-- Modal Potong (Crop) Foto Profil -->
+<div class="modal fade" id="modalCropAvatar" tabindex="-1" aria-labelledby="modalCropAvatarLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header bg-primary text-white py-3 px-4">
+                <h5 class="modal-title fw-bold text-white fs-6 d-flex align-items-center gap-2 mb-0" id="modalCropAvatarLabel">
+                    <i class="fa-solid fa-crop-simple"></i> Sesuaikan & Potong Foto Profil (1:1)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" id="btnCancelCropX"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="img-cropper-target-container shadow-inner">
+                    <img id="cropperImageTarget" src="" alt="Target Crop Foto Profil">
+                </div>
+                
+                <div class="d-flex justify-content-center align-items-center gap-2 mt-3 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnZoomIn" title="Perbesar"><i class="fa-solid fa-magnifying-glass-plus text-primary"></i> Zoom +</button>
+                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnZoomOut" title="Perkecil"><i class="fa-solid fa-magnifying-glass-minus text-primary"></i> Zoom -</button>
+                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateLeft" title="Putar Kiri"><i class="fa-solid fa-rotate-left text-secondary"></i> Putar Kiri</button>
+                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateRight" title="Putar Kanan"><i class="fa-solid fa-rotate-right text-secondary"></i> Putar Kanan</button>
+                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnResetCrop" title="Reset"><i class="fa-solid fa-arrows-rotate text-danger"></i> Reset</button>
+                </div>
+                <div class="text-center mt-2">
+                    <span class="badge bg-soft-info text-info small px-3 py-1">
+                        <i class="fa-solid fa-circle-info me-1"></i> Geser & sesuaikan bingkai lingkaran untuk hasil foto profil terbaik.
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
+                <button type="button" class="btn btn-light border px-4" id="btnCancelCrop">
+                    <i class="fa-solid fa-xmark me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="btnApplyCrop">
+                    <i class="fa-solid fa-check me-1"></i> Selesai & Terapkan Foto
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php
+$extra_js = '
+<script src="' . public_url('assets/extensions/cropperjs/cropper.min.js') . '"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let cropper = null;
+    const avatarInput = document.getElementById("avatarInput");
+    const avatarCroppedData = document.getElementById("avatarCroppedData");
+    const avatarPreviewImg = document.getElementById("avatarPreviewImg");
+    const avatarPreviewIcon = document.getElementById("avatarPreviewIcon");
+    const cropperImageTarget = document.getElementById("cropperImageTarget");
+    const modalEl = document.getElementById("modalCropAvatar");
+    const originalAvatarSrc = avatarPreviewImg ? avatarPreviewImg.src : "";
+    const hadOriginalAvatar = ' . (!empty($avatar_url) ? 'true' : 'false') . ';
+
+    function destroyCropper() {
+        if (cropper) {
+            try { cropper.destroy(); } catch(e) {}
+            cropper = null;
+        }
+    }
+
+    function initCropper() {
+        destroyCropper();
+        if (typeof Cropper === "undefined") {
+            console.warn("Pustaka Cropper.js belum tersedia.");
+            return;
+        }
+        setTimeout(function() {
+            cropper = new Cropper(cropperImageTarget, {
+                aspectRatio: 1,
+                viewMode: 1,
+                dragMode: "move",
+                autoCropArea: 0.9,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false
+            });
+        }, 150);
+    }
+
+    function openCropModal() {
+        if (!modalEl) return;
+        if (window.bootstrap && window.bootstrap.Modal) {
+            try {
+                const inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                inst.show();
+                initCropper();
+                return;
+            } catch(err) {
+                console.warn("Bootstrap modal gagal dibuka, menggunakan fallback DOM:", err);
+            }
+        }
+        // Fallback Vanilla JS Modal
+        modalEl.style.display = "block";
+        modalEl.classList.add("show");
+        document.body.classList.add("modal-open");
+        let backdrop = document.getElementById("modalCropBackdrop");
+        if (!backdrop) {
+            backdrop = document.createElement("div");
+            backdrop.id = "modalCropBackdrop";
+            backdrop.className = "modal-backdrop fade show";
+            document.body.appendChild(backdrop);
+        }
+        initCropper();
+    }
+
+    function closeCropModal() {
+        if (!modalEl) return;
+        if (window.bootstrap && window.bootstrap.Modal) {
+            try {
+                const inst = window.bootstrap.Modal.getInstance(modalEl);
+                if (inst) inst.hide();
+            } catch(e) {}
+        }
+        modalEl.style.display = "none";
+        modalEl.classList.remove("show");
+        document.body.classList.remove("modal-open");
+        const backdrop = document.getElementById("modalCropBackdrop");
+        if (backdrop) backdrop.remove();
+        destroyCropper();
+    }
+
+    function cancelCrop() {
+        closeCropModal();
+        if (!avatarCroppedData.value) {
+            if (hadOriginalAvatar && originalAvatarSrc) {
+                if (avatarPreviewImg) {
+                    avatarPreviewImg.src = originalAvatarSrc;
+                    avatarPreviewImg.style.display = "block";
+                }
+                if (avatarPreviewIcon) avatarPreviewIcon.style.display = "none";
+            } else {
+                if (avatarPreviewImg) {
+                    avatarPreviewImg.src = "";
+                    avatarPreviewImg.style.display = "none";
+                }
+                if (avatarPreviewIcon) avatarPreviewIcon.style.display = "block";
+            }
+            avatarInput.value = "";
+        }
+    }
+
+    // Tangkap pemilihan berkas foto profil
+    avatarInput?.addEventListener("change", function(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const rawDataUrl = evt.target.result;
+            // 1. Tampilkan pratinjau langsung di kartu profil (instant visual feedback)
+            if (avatarPreviewImg) {
+                avatarPreviewImg.src = rawDataUrl;
+                avatarPreviewImg.style.display = "block";
+            }
+            if (avatarPreviewIcon) {
+                avatarPreviewIcon.style.display = "none";
+            }
+
+            // 2. Siapkan gambar di target cropper dan buka dialog modal crop 1:1
+            cropperImageTarget.src = rawDataUrl;
+            openCropModal();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    document.getElementById("btnCancelCrop")?.addEventListener("click", cancelCrop);
+    document.getElementById("btnCancelCropX")?.addEventListener("click", cancelCrop);
+
+    document.getElementById("btnZoomIn")?.addEventListener("click", function() {
+        cropper?.zoom(0.1);
+    });
+    document.getElementById("btnZoomOut")?.addEventListener("click", function() {
+        cropper?.zoom(-0.1);
+    });
+    document.getElementById("btnRotateLeft")?.addEventListener("click", function() {
+        cropper?.rotate(-90);
+    });
+    document.getElementById("btnRotateRight")?.addEventListener("click", function() {
+        cropper?.rotate(90);
+    });
+    document.getElementById("btnResetCrop")?.addEventListener("click", function() {
+        cropper?.reset();
+    });
+
+    document.getElementById("btnApplyCrop")?.addEventListener("click", function() {
+        if (!cropper) {
+            closeCropModal();
+            return;
+        }
+
+        const canvas = cropper.getCroppedCanvas({
+            width: 512,
+            height: 512,
+            imageSmoothingQuality: "high"
+        });
+
+        if (canvas) {
+            const croppedBase64 = canvas.toDataURL("image/jpeg", 0.9);
+            avatarCroppedData.value = croppedBase64;
+
+            if (avatarPreviewImg) {
+                avatarPreviewImg.src = croppedBase64;
+                avatarPreviewImg.style.display = "block";
+            }
+            if (avatarPreviewIcon) {
+                avatarPreviewIcon.style.display = "none";
+            }
+            const sidebarAvatarImg = document.getElementById("sidebarAvatarImg");
+            const sidebarAvatarInitial = document.getElementById("sidebarAvatarInitial");
+            if (sidebarAvatarImg) {
+                sidebarAvatarImg.src = croppedBase64;
+                sidebarAvatarImg.style.display = "block";
+            }
+            if (sidebarAvatarInitial) {
+                sidebarAvatarInitial.style.display = "none";
+            }
+
+            // Fallback sinkronisasi ke objek File input bila browser mengizinkan DataTransfer
+            if (window.DataTransfer) {
+                canvas.toBlob(function(blob) {
+                    if (blob) {
+                        try {
+                            const dt = new DataTransfer();
+                            const f = new File([blob], "avatar_cropped.jpg", { type: "image/jpeg" });
+                            dt.items.add(f);
+                            avatarInput.files = dt.files;
+                        } catch(err) {}
+                    }
+                }, "image/jpeg", 0.9);
+            }
+
+            closeCropModal();
+
+            if (typeof Swal !== "undefined") {
+                Swal.fire({
+                    icon: "success",
+                    title: "Foto Berhasil Dipotong (1:1)",
+                    text: "Pratinjau foto profil telah diperbarui. Silakan tekan tombol \"Simpan Perubahan Profil\" untuk menyimpan ke database.",
+                    timer: 3500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: "top-end"
+                });
+            }
+        }
+    });
+});
+</script>
+';
+
 include __DIR__ . '/../../app/layouts/admin_footer.php';
 ?>

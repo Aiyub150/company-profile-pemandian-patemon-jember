@@ -177,6 +177,7 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
     <link rel="stylesheet" href="<?= public_url('css/modern-theme.css') ?>">
     <script src="<?= public_url('js/patemon-i18n.js') ?>"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="<?= public_url('js/image-upload-validator.js') ?>"></script>
     <script>
         (function() {
             var theme = localStorage.getItem('patemon_theme') || 'light';

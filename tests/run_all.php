@@ -15,6 +15,7 @@ $testFiles = [
     'Calendar & Operations'       => __DIR__ . '/Unit/CalendarTest.php',
     'Ticket & Transaction Logic'  => __DIR__ . '/Unit/TransactionTest.php',
     'Email & Gmail Dispatch'      => __DIR__ . '/Unit/EmailTest.php',
+    'Image Upload & Avatar Crop'  => __DIR__ . '/test_image_upload_crop.php',
 ];
 
 $allPassed = true;
