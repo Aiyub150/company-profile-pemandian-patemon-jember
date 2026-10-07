@@ -790,16 +790,53 @@ if (!function_exists('get_month_holidays')) {
  */
 if (!function_exists('send_email')) {
     function send_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
+        $mailMethod  = getenv('MAIL_METHOD') ?: get_setting('mail_method', 'auto');
+        $emailApiKey = trim(getenv('EMAIL_API_KEY') ?: (getenv('BREVO_API_KEY') ?: (getenv('RESEND_API_KEY') ?: get_setting('email_api_key', ''))));
+        $apiProvider = trim(getenv('EMAIL_API_PROVIDER') ?: get_setting('email_api_provider', 'auto'));
+
         $smtpUser = getenv('SMTP_USER') ?: (getenv('GMAIL_USER') ?: get_setting('smtp_user', ''));
         $smtpPass = getenv('SMTP_PASS') ?: (getenv('GMAIL_PASS') ?: get_setting('smtp_pass', ''));
         $smtpHost = getenv('SMTP_HOST') ?: get_setting('smtp_host', '');
         $smtpPort = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 0));
 
+        $fromEmail = get_setting('smtp_from_email', (!empty($smtpUser) ? $smtpUser : 'aiyubheriyanto150@gmail.com'));
+        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
+
+        // 1. Metode HTTPS REST API (Port 443) - Solusi Utama untuk VPS NAT & Anti-Blokir Firewall
+        if (!empty($emailApiKey) && ($mailMethod === 'api' || $mailMethod === 'auto' || empty($smtpPass))) {
+            $provider = strtolower($apiProvider);
+            if ($provider === 'auto' || empty($provider)) {
+                if (strpos($emailApiKey, 're_') === 0) {
+                    $provider = 'resend';
+                } elseif (strpos($emailApiKey, 'xkeysib-') === 0) {
+                    $provider = 'brevo';
+                } else {
+                    $provider = 'brevo';
+                }
+            }
+
+            if ($provider === 'resend') {
+                $apiRes = _send_via_resend_api($to_email, $to_name, $subject, $html_body, $emailApiKey, $fromEmail, $fromName);
+            } else {
+                $apiRes = _send_via_brevo_api($to_email, $to_name, $subject, $html_body, $emailApiKey, $fromEmail, $fromName);
+            }
+
+            if ($apiRes['success']) {
+                return $apiRes;
+            }
+
+            // Jika API gagal, kembalikan pesan kegagalan eksplisit
+            return [
+                'success' => false,
+                'message' => "Pengiriman via HTTPS API (" . ucfirst($provider) . ") gagal: " . $apiRes['message']
+            ];
+        }
+
         // Deteksi apakah konfigurasi ditujukan untuk Gmail
         if (empty($smtpHost)) {
             if (!empty($smtpUser) && (strpos($smtpUser, '@gmail.com') !== false || strpos($to_email, '@gmail.com') !== false)) {
                 $smtpHost = 'smtp.gmail.com';
-                if ($smtpPort <= 0) $smtpPort = 587;
+                if ($smtpPort <= 0) $smtpPort = 465;
             }
         }
 
@@ -887,6 +924,167 @@ if (!function_exists('send_email')) {
             'success' => false,
             'message' => "Pengiriman email via native mail() gagal (layanan mail server lokal VPS tidak merespon). Konfigurasikan SMTP di .env untuk pengiriman via Gmail."
         ];
+    }
+}
+
+/**
+ * Dispatch Email melalui Brevo (Sendinblue) HTTPS REST API (Port 443)
+ * Solusi utama untuk VPS NAT yang memblokir port SMTP raw.
+ */
+if (!function_exists('_send_via_brevo_api')) {
+    function _send_via_brevo_api($to_email, $to_name, $subject, $html_body, $apiKey, $fromEmail, $fromName) {
+        $url = 'https://api.brevo.com/v3/smtp/email';
+        $senderEmail = $fromEmail ?: 'aiyubheriyanto150@gmail.com';
+        $senderName  = $fromName ?: 'Wisata Pemandian Patemon';
+
+        $payload = [
+            'sender' => [
+                'name'  => $senderName,
+                'email' => $senderEmail
+            ],
+            'to' => [
+                [
+                    'email' => $to_email,
+                    'name'  => $to_name ?: $to_email
+                ]
+            ],
+            'subject'     => $subject,
+            'htmlContent' => $html_body
+        ];
+
+        $jsonPayload = json_encode($payload);
+        $headers = [
+            'api-key: ' . trim($apiKey),
+            'Content-Type: application/json',
+            'Accept: application/json'
+        ];
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $jsonPayload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlErr) {
+                return ['success' => false, 'message' => "cURL HTTPS Brevo Error: " . $curlErr];
+            }
+        } else {
+            $opts = [
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => implode("\r\n", $headers),
+                    'content' => $jsonPayload,
+                    'timeout' => 12,
+                    'ignore_errors' => true
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ];
+            $response = @file_get_contents($url, false, stream_context_create($opts));
+            $httpCode = 200;
+            if (isset($http_response_header[0]) && preg_match('{HTTP\/\S*\s(\d{3})}', $http_response_header[0], $match)) {
+                $httpCode = (int)$match[1];
+            }
+        }
+
+        $resJson = json_decode($response, true);
+        if ($httpCode >= 200 && $httpCode < 300) {
+            $msgId = $resJson['messageId'] ?? 'OK';
+            return ['success' => true, 'message' => "Email berhasil dikirim via Brevo HTTPS API (Message ID: {$msgId})"];
+        }
+
+        $errMsg = $resJson['message'] ?? ($resJson['code'] ?? "HTTP {$httpCode}: " . substr(strip_tags((string)$response), 0, 150));
+        return ['success' => false, 'message' => "Brevo API Gagal: " . $errMsg];
+    }
+}
+
+/**
+ * Dispatch Email melalui Resend HTTPS REST API (Port 443)
+ */
+if (!function_exists('_send_via_resend_api')) {
+    function _send_via_resend_api($to_email, $to_name, $subject, $html_body, $apiKey, $fromEmail, $fromName) {
+        $url = 'https://api.resend.com/emails';
+        $senderName = $fromName ?: 'Wisata Pemandian Patemon';
+
+        if (empty($fromEmail) || strpos($fromEmail, '@gmail.com') !== false || strpos($fromEmail, '@resend.dev') !== false) {
+            $fromFormatted = "{$senderName} <onboarding@resend.dev>";
+        } else {
+            $fromFormatted = "{$senderName} <{$fromEmail}>";
+        }
+
+        $payload = [
+            'from'    => $fromFormatted,
+            'to'      => [$to_email],
+            'subject' => $subject,
+            'html'    => $html_body
+        ];
+
+        $jsonPayload = json_encode($payload);
+        $headers = [
+            'Authorization: Bearer ' . trim($apiKey),
+            'Content-Type: application/json'
+        ];
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $jsonPayload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_TIMEOUT        => 12,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlErr) {
+                return ['success' => false, 'message' => "cURL HTTPS Resend Error: " . $curlErr];
+            }
+        } else {
+            $opts = [
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => implode("\r\n", $headers),
+                    'content' => $jsonPayload,
+                    'timeout' => 12,
+                    'ignore_errors' => true
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ];
+            $response = @file_get_contents($url, false, stream_context_create($opts));
+            $httpCode = 200;
+            if (isset($http_response_header[0]) && preg_match('{HTTP\/\S*\s(\d{3})}', $http_response_header[0], $match)) {
+                $httpCode = (int)$match[1];
+            }
+        }
+
+        $resJson = json_decode($response, true);
+        if ($httpCode >= 200 && $httpCode < 300) {
+            $msgId = $resJson['id'] ?? 'OK';
+            return ['success' => true, 'message' => "Email berhasil dikirim via Resend HTTPS API (ID: {$msgId})"];
+        }
+
+        $errMsg = $resJson['message'] ?? ($resJson['name'] ?? "HTTP {$httpCode}: " . substr(strip_tags((string)$response), 0, 150));
+        return ['success' => false, 'message' => "Resend API Gagal: " . $errMsg];
     }
 }
 

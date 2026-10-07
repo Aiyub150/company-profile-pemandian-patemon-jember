@@ -30,6 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         log_activity('server_logs', 'cleanup', "Membersihkan {$clean_res['deleted_count']} berkas media sampah fisik (membebaskan {$freed_kb} KB penyimpanan).");
         $msg_success = "Pembersihan selesai! {$clean_res['deleted_count']} berkas sampah berhasil dihapus dari server (membebaskan {$freed_kb} KB ruang penyimpanan).";
     } elseif ($_POST['action'] === 'save_email_config' || $_POST['action'] === 'save_and_test_email') {
+        $mail_method = trim($_POST['mail_method'] ?? 'api');
+        $api_provider = trim($_POST['email_api_provider'] ?? 'auto');
+        $api_key = trim($_POST['email_api_key'] ?? '');
+
         $cfg_host = trim($_POST['smtp_host'] ?? '');
         $cfg_port = trim($_POST['smtp_port'] ?? '');
         $cfg_user = trim($_POST['smtp_user'] ?? '');
@@ -37,6 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $cfg_from_email = trim($_POST['smtp_from_email'] ?? '');
         $cfg_from_name  = trim($_POST['smtp_from_name'] ?? '');
 
+        set_setting('mail_method', $mail_method);
+        set_setting('email_api_provider', $api_provider);
+        if (!empty($api_key)) {
+            set_setting('email_api_key', $api_key);
+        }
         set_setting('smtp_host', $cfg_host);
         set_setting('smtp_port', $cfg_port);
         set_setting('smtp_user', $cfg_user);
@@ -46,18 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         set_setting('smtp_from_email', $cfg_from_email);
         set_setting('smtp_from_name', $cfg_from_name);
 
-        log_activity('server_logs', 'update_config', "Memperbarui konfigurasi SMTP email sistem.");
+        log_activity('server_logs', 'update_config', "Memperbarui konfigurasi metode pengiriman email sistem.");
 
         if ($_POST['action'] === 'save_and_test_email') {
             $test_target = trim($_POST['test_target_email'] ?? '');
             if (empty($test_target) || !filter_var($test_target, FILTER_VALIDATE_EMAIL)) {
-                $msg_error = 'Konfigurasi SMTP disimpan, namun alamat email tujuan uji coba tidak valid.';
+                $msg_error = 'Konfigurasi disimpan, namun alamat email tujuan uji coba tidak valid.';
             } else {
                 $t_subj = 'Tes Diagnostik Pengiriman Email - Pemandian Patemon';
                 $t_body = '<div style="font-family:sans-serif;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;">
                     <h3 style="color:#0284c7;margin-top:0;">Tes Pengiriman Berhasil!</h3>
                     <p>Email ini dikirim dari server VPS Cloudflare Tunnel sistem Wisata Pemandian Patemon pada ' . date('d M Y H:i:s') . ' WIB.</p>
-                    <p style="color:#64748b;font-size:13px;">Jika Anda menerima email ini di kotak masuk, berarti konfigurasi SMTP & pengiriman email sistem Anda telah bekerja 100%.</p>
+                    <p style="color:#64748b;font-size:13px;">Jika Anda menerima email ini di kotak masuk, berarti konfigurasi pengiriman email sistem Anda telah bekerja 100%.</p>
                 </div>';
                 $test_res = send_email($test_target, 'Pengguna Uji', $t_subj, $t_body);
                 if ($test_res['success']) {
@@ -67,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
             }
         } else {
-            $msg_success = 'Konfigurasi SMTP Email berhasil disimpan ke pengaturan sistem database!';
+            $msg_success = 'Konfigurasi Email berhasil disimpan ke pengaturan sistem database!';
         }
     } elseif ($_POST['action'] === 'test_email_dispatch') {
         $test_target = trim($_POST['test_target_email'] ?? '');
@@ -303,55 +312,121 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
 <?php endif; ?>
 
 <?php
-$cur_pass = getenv('SMTP_PASS') ?: get_setting('smtp_pass', '');
-$has_pass = !empty($cur_pass);
+$cur_method   = get_setting('mail_method', 'api');
+$cur_api_key  = getenv('EMAIL_API_KEY') ?: (getenv('BREVO_API_KEY') ?: (getenv('RESEND_API_KEY') ?: get_setting('email_api_key', '')));
+$cur_provider = get_setting('email_api_provider', 'auto');
+$has_api_key  = !empty($cur_api_key);
+
+$cur_pass     = getenv('SMTP_PASS') ?: get_setting('smtp_pass', '');
+$has_pass     = !empty($cur_pass);
 ?>
 
 <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
     <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
-            <h5 class="fw-bold mb-1"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Konfigurasi &amp; Diagnostik Pengiriman Email (Gmail SMTP / Relay)</h5>
-            <p class="text-muted small mb-0">Atur kredensial email pengirim resmi (Google App Password) langsung melalui database atau lakukan tes kirim live.</p>
+            <h5 class="fw-bold mb-1"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Konfigurasi &amp; Diagnostik Pengiriman Email Sistem</h5>
+            <p class="text-muted small mb-0">Dukungan HTTPS REST API (bebas blokir port pada VPS NAT) serta opsi SMTP Relay klasik.</p>
         </div>
         <div>
-            <?php if ($has_pass): ?>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-circle-check me-1"></i> Google App Password Aktif</span>
+            <?php if ($has_api_key): ?>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-cloud-bolt me-1"></i> HTTPS API Aktif (Anti-Blokir NAT)</span>
+            <?php elseif ($has_pass): ?>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-key me-1"></i> Password SMTP Tersimpan</span>
             <?php else: ?>
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Password Belum Disimpan di VPS</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Kredensial Email Belum Dikonfigurasi</span>
             <?php endif; ?>
         </div>
     </div>
     <div class="card-body px-4 pb-4">
+        <!-- Alert Rekomendasi VPS NAT -->
+        <div class="alert alert-info border-0 d-flex align-items-start gap-3 p-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08);">
+            <i class="fa-solid fa-circle-info text-primary fs-5 mt-1"></i>
+            <div class="small">
+                <strong>Catatan Khusus VPS NAT:</strong> Pada VPS NAT, seluruh port SMTP (25, 465, 587) diblokir permanen oleh router hosting untuk mencegah spam IP bersama. 
+                Gunakan <strong>Metode HTTPS API (Port 443)</strong> menggunakan <strong>Brevo</strong> (gratis 300 email/hari) atau <strong>Resend</strong> (gratis 3.000 email/bln). Lalu lintas HTTPS dijamin 100% tembus tanpa pernah terkena <em>connection timed out</em>.
+            </div>
+        </div>
+
         <form action="" method="POST" class="row g-3">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-            <div class="col-12 col-md-3">
-                <label class="form-label small fw-bold">SMTP Host</label>
-                <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e(get_setting('smtp_host', 'smtp.gmail.com')) ?>" placeholder="smtp.gmail.com">
-            </div>
-            <div class="col-12 col-md-3">
-                <label class="form-label small fw-bold">SMTP Port &amp; Enkripsi</label>
-                <select name="smtp_port" class="form-select form-select-sm">
-                    <option value="465" <?= (string)get_setting('smtp_port', '465') === '465' ? 'selected' : '' ?>>465 (SSL - Aman untuk VPS)</option>
-                    <option value="587" <?= (string)get_setting('smtp_port', '465') === '587' ? 'selected' : '' ?>>587 (TLS / STARTTLS)</option>
+
+            <!-- Pilihan Metode Pengiriman -->
+            <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">Jalur Pengiriman (Delivery Method)</label>
+                <select name="mail_method" id="mailMethodSelect" class="form-select form-select-sm fw-semibold">
+                    <option value="api" <?= $cur_method === 'api' ? 'selected' : '' ?>>🌐 HTTPS REST API (Port 443 - Bebas Blokir VPS NAT)</option>
+                    <option value="smtp" <?= $cur_method === 'smtp' ? 'selected' : '' ?>>🔌 SMTP Socket (Port 465/587 - Gmail Relay)</option>
                 </select>
             </div>
-            <div class="col-12 col-md-3">
-                <label class="form-label small fw-bold">Akun Pengirim (Gmail / Email)</label>
-                <input type="email" name="smtp_user" class="form-control form-control-sm" value="<?= e(get_setting('smtp_user', 'aiyubheriyanto150@gmail.com')) ?>" placeholder="email@gmail.com">
+
+            <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">Provider API</label>
+                <select name="email_api_provider" class="form-select form-select-sm">
+                    <option value="auto" <?= $cur_provider === 'auto' ? 'selected' : '' ?>>⚡ Deteksi Otomatis (Brevo / Resend)</option>
+                    <option value="brevo" <?= $cur_provider === 'brevo' ? 'selected' : '' ?>>Brevo (Sendinblue) - Bebas Kirim ke Email Manapun</option>
+                    <option value="resend" <?= $cur_provider === 'resend' ? 'selected' : '' ?>>Resend - Pengiriman Cepat Modern</option>
+                </select>
             </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label small fw-bold">Google App Password (16 Huruf)</label>
-                <input type="text" name="smtp_pass" class="form-control form-control-sm" placeholder="<?= $has_pass ? '•••••••••••••••• (Ketik baru jika ingin mengganti)' : 'Contoh: eqwo aijj rmlr hdah' ?>" autocomplete="off">
-                <div class="form-text text-muted" style="font-size: 0.73rem;">Bisa ditempel dengan atau tanpa spasi, sistem otomatis merapikan.</div>
+
+            <!-- API Key Section -->
+            <div class="col-12">
+                <label class="form-label small fw-bold">API Key (Brevo / Resend)</label>
+                <input type="text" name="email_api_key" class="form-control form-control-sm font-monospace" placeholder="<?= $has_api_key ? '•••••••••••••••• (Ketik baru jika ingin mengganti API Key)' : 'Contoh: xkeysib-xxxxxxxxxx... atau re_xxxxxxxxxx...' ?>" autocomplete="off">
+                <div class="form-text text-muted d-flex flex-wrap gap-3 mt-1" style="font-size: 0.75rem;">
+                    <span><i class="fa-solid fa-arrow-up-right-from-square text-primary me-1"></i>Daftar Brevo Gratis: <a href="https://www.brevo.com" target="_blank" class="fw-semibold text-decoration-none">brevo.com</a> (Menu SMTP &amp; API &rarr; Generate Key)</span>
+                    <span><i class="fa-solid fa-arrow-up-right-from-square text-primary me-1"></i>Daftar Resend Gratis: <a href="https://resend.com" target="_blank" class="fw-semibold text-decoration-none">resend.com</a> (Menu API Keys)</span>
+                </div>
+            </div>
+
+            <!-- Nama & Akun Pengirim -->
+            <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">Alamat Email Pengirim</label>
+                <input type="email" name="smtp_from_email" class="form-control form-control-sm" value="<?= e(get_setting('smtp_from_email', get_setting('smtp_user', 'aiyubheriyanto150@gmail.com'))) ?>" placeholder="email@gmail.com">
+                <div class="form-text text-muted" style="font-size: 0.72rem;">Email yang Anda gunakan saat mendaftar di Brevo / Resend.</div>
             </div>
             <div class="col-12 col-md-6">
                 <label class="form-label small fw-bold">Nama Pengirim Resmi</label>
                 <input type="text" name="smtp_from_name" class="form-control form-control-sm" value="<?= e(get_setting('smtp_from_name', 'Wisata Pemandian Patemon')) ?>" placeholder="Wisata Pemandian Patemon">
             </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label small fw-bold">Email Tujuan Uji Coba Langsung</label>
-                <input type="email" name="test_target_email" class="form-control form-control-sm" placeholder="aiyubheriyanto005@gmail.com" value="aiyubheriyanto005@gmail.com">
-                <div class="form-text text-muted" style="font-size: 0.73rem;">Email penerima saat menguji kirim via tombol di bawah.</div>
+
+            <!-- Bagian Cadangan SMTP Klasik (Dapat dibuka jika diperlukan) -->
+            <div class="col-12">
+                <div class="p-3 bg-light rounded-3 border">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-secondary"><i class="fa-solid fa-sliders me-1"></i> Opsi Cadangan SMTP Socket (Jika Menggunakan Port SMTP)</span>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small text-muted mb-1">SMTP Host</label>
+                            <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e(get_setting('smtp_host', 'smtp.gmail.com')) ?>" placeholder="smtp.gmail.com">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small text-muted mb-1">Port &amp; Enkripsi</label>
+                            <select name="smtp_port" class="form-select form-select-sm">
+                                <option value="465" <?= (string)get_setting('smtp_port', '465') === '465' ? 'selected' : '' ?>>465 (SSL)</option>
+                                <option value="587" <?= (string)get_setting('smtp_port', '465') === '587' ? 'selected' : '' ?>>587 (TLS)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small text-muted mb-1">Akun Gmail SMTP</label>
+                            <input type="email" name="smtp_user" class="form-control form-control-sm" value="<?= e(get_setting('smtp_user', 'aiyubheriyanto150@gmail.com')) ?>" placeholder="email@gmail.com">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small text-muted mb-1">Google App Password</label>
+                            <input type="text" name="smtp_pass" class="form-control form-control-sm" placeholder="<?= $has_pass ? '••••••••••••••••' : 'App Password 16 Huruf' ?>">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Tujuan Uji Coba -->
+            <div class="col-12">
+                <label class="form-label small fw-bold">Email Tujuan Uji Coba Diagnostik</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fa-solid fa-at text-muted"></i></span>
+                    <input type="email" name="test_target_email" class="form-control form-control-sm" placeholder="aiyubheriyanto005@gmail.com" value="aiyubheriyanto005@gmail.com">
+                </div>
+                <div class="form-text text-muted" style="font-size: 0.72rem;">Email yang akan menerima surat uji coba saat tombol kirim ditekan.</div>
             </div>
 
             <div class="col-12 d-flex flex-wrap gap-2 justify-content-end mt-4">
