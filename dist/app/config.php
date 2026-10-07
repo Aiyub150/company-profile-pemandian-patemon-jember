@@ -817,6 +817,33 @@ if (!function_exists('send_email')) {
                 return $smtpRes;
             }
 
+            // Auto-Failover Port: Jika port 587 diblokir firewall hosting/VPS, otomatis beralih ke port 465 (SSL SMTPS)
+            if ((int)$smtpPort === 587 && strpos($smtpHost, 'gmail.com') !== false) {
+                if (function_exists('error_log')) {
+                    error_log("Port 587 gagal ({$smtpRes['message']}), mencoba otomatis ke port 465 (SSL)...");
+                }
+                $altRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, 465, $smtpUser, $smtpPass);
+                if ($altRes['success']) {
+                    if (function_exists('set_setting')) {
+                        set_setting('smtp_port', '465');
+                    }
+                    return $altRes;
+                }
+                $smtpRes['message'] .= " | Percobaan otomatis Port 465: " . $altRes['message'];
+            } elseif ((int)$smtpPort === 465 && strpos($smtpHost, 'gmail.com') !== false) {
+                if (function_exists('error_log')) {
+                    error_log("Port 465 gagal ({$smtpRes['message']}), mencoba otomatis ke port 587 (STARTTLS)...");
+                }
+                $altRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, 587, $smtpUser, $smtpPass);
+                if ($altRes['success']) {
+                    if (function_exists('set_setting')) {
+                        set_setting('smtp_port', '587');
+                    }
+                    return $altRes;
+                }
+                $smtpRes['message'] .= " | Percobaan otomatis Port 587: " . $altRes['message'];
+            }
+
             // Laporkan kegagalan spesifik dari koneksi SMTP agar jelas akar masalahnya
             return [
                 'success' => false,
@@ -868,7 +895,7 @@ if (!function_exists('send_email')) {
  */
 if (!function_exists('_send_via_smtp_auth')) {
     function _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $host, $port, $user, $pass) {
-        $timeout = 15;
+        $timeout = 7;
         $fromEmail = get_setting('smtp_from_email', $user);
         $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
 

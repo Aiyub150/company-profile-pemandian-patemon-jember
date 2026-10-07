@@ -328,9 +328,12 @@ $has_pass = !empty($cur_pass);
                 <label class="form-label small fw-bold">SMTP Host</label>
                 <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e(get_setting('smtp_host', 'smtp.gmail.com')) ?>" placeholder="smtp.gmail.com">
             </div>
-            <div class="col-12 col-md-2">
-                <label class="form-label small fw-bold">SMTP Port</label>
-                <input type="number" name="smtp_port" class="form-control form-control-sm" value="<?= e(get_setting('smtp_port', '587')) ?>" placeholder="587">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold">SMTP Port &amp; Enkripsi</label>
+                <select name="smtp_port" class="form-select form-select-sm">
+                    <option value="465" <?= (string)get_setting('smtp_port', '465') === '465' ? 'selected' : '' ?>>465 (SSL - Aman untuk VPS)</option>
+                    <option value="587" <?= (string)get_setting('smtp_port', '465') === '587' ? 'selected' : '' ?>>587 (TLS / STARTTLS)</option>
+                </select>
             </div>
             <div class="col-12 col-md-3">
                 <label class="form-label small fw-bold">Akun Pengirim (Gmail / Email)</label>
