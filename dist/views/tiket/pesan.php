@@ -86,6 +86,8 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
 
         if ($total_qty === 0) {
             $error_msg = "Silakan pilih minimal 1 tiket untuk melanjutkan pemesanan.";
+        } elseif (($metode_pembayaran === 'Qris' || $metode_pembayaran === 'Transfer Bank') && (!isset($_FILES["bukti_pembayaran"]) || $_FILES["bukti_pembayaran"]["error"] === UPLOAD_ERR_NO_FILE)) {
+            $error_msg = "Silakan unggah foto bukti pembayaran (transfer / scan QRIS) untuk metode " . htmlspecialchars($metode_pembayaran) . ".";
         } else {
             $tgl_pemesanan   = date('Y-m-d');
             $status          = 'notyet';
@@ -667,7 +669,7 @@ if (($_SERVER["REQUEST_METHOD"] ?? '') === "POST") {
     </form>
 </div>
 
-<script src="../../../public/assets/js/bootstrap.js"></script>
+<script src="<?= public_url('assets/js/bootstrap.js') ?>"></script>
 <script>
 const ticketsData = <?= json_encode($daftar_tiket) ?>;
 
@@ -831,6 +833,23 @@ document.addEventListener('DOMContentLoaded', () => {
     applyPatemonTheme(localStorage.getItem('patemon_theme') || 'light');
     recalcTotal();
     handlePaymentChange();
+
+    const form = document.getElementById('formPesan');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const method = document.querySelector('input[name="metode_pembayaran"]:checked')?.value || 'Bayar Di Loket';
+            const fileInput = document.getElementById('bukti_pembayaran');
+            if ((method === 'Qris' || method === 'Transfer Bank') && (!fileInput || !fileInput.files || fileInput.files.length === 0)) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Bukti Pembayaran Diperlukan',
+                    text: 'Silakan unggah foto bukti transfer/QRIS Anda sebelum mengirim pesanan.',
+                    confirmButtonColor: '#0284c7'
+                });
+            }
+        });
+    }
 });
 </script>
 </body>

@@ -117,15 +117,18 @@ $shift_noncash_cnt = (int)($noncash_rc['noncash_cnt'] ?? 0);
 
 // Rincian Tiket Terjual pada Shift Hari Ini
 $shift_ticket_details = [];
-$tkt_sql = "SELECT tiket.nama_tiket, tiket.harga, SUM(detail_transaksi.jumlah) as total_lembar, SUM(detail_transaksi.subtotal) as subtotal
+$tkt_sql = "SELECT detail_transaksi.jenis_tiket AS nama_tiket, 
+                   COALESCE(tiket.harga, ROUND(SUM(detail_transaksi.sub_total) / NULLIF(SUM(detail_transaksi.quantity), 0))) AS harga, 
+                   SUM(detail_transaksi.quantity) AS total_lembar, 
+                   SUM(detail_transaksi.sub_total) AS subtotal
             FROM detail_transaksi
             INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi
-            INNER JOIN tiket ON detail_transaksi.id_tiket = tiket.id_tiket
+            LEFT JOIN tiket ON detail_transaksi.jenis_tiket = tiket.nama_tiket
             WHERE DATE(transaksi.tgl_pemesanan) = CURDATE()
               AND transaksi.status = 'done'
               AND transaksi.deleted_at IS NULL
               " . ($user_level === 3 ? $recap_kasir_sql : "") . "
-            GROUP BY tiket.id_tiket
+            GROUP BY detail_transaksi.jenis_tiket
             ORDER BY total_lembar DESC";
 $tkt_res = $conn->query($tkt_sql);
 $shift_total_lembar = 0;
@@ -639,7 +642,7 @@ function cetakStrukShift() {
 let html5QrcodeScanner;
 document.addEventListener("DOMContentLoaded", () => {
     // Deteksi apakah konteks aman (HTTPS atau localhost)
-    const isSecure = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isSecure = window.isSecureContext || window.location.hostname === \'localhost\' || window.location.hostname === \'127.0.0.1\';
     const warningEl = document.getElementById("camera-insecure-warning");
     if (!isSecure && warningEl) {
         warningEl.classList.remove("d-none");
@@ -671,7 +674,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 (decodedText) => {
                     const resEl = document.getElementById("your-qr-result");
                     if (resEl) {
-                        resEl.innerHTML = '<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: ' + decodedText + '</span>';
+                        resEl.innerHTML = \'<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: \' + decodedText + \'</span>\';
                     }
                     setTimeout(() => {
                         window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);

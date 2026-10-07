@@ -103,7 +103,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     $ins_d = $conn->prepare("INSERT INTO detail_transaksi (id_transaksi, jenis_tiket, quantity, sub_total) VALUES (?, ?, ?, ?)");
                     foreach ($order_items as $item) {
-                        $ins_d->bind_param("isii", $id_transaksi, $item['nama_tiket'], $item['qty'], $item['subtotal']);
+                        $ins_d->bind_param("isii", $id_transaksi, $item['nama'], $item['qty'], $item['subtotal']);
                         $ins_d->execute();
                     }
                     $ins_d->close();

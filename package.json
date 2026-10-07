@@ -1,4 +1,12 @@
 {
+  "name": "pemandian-patemon",
+  "version": "2.0.0",
+  "description": "Sistem Kasir & Portofolio Wisata Pemandian Patemon Jember",
+  "scripts": {
+    "setup": "composer install && node -e \"console.log('Setup dependencies selesai.')\"",
+    "test": "composer test",
+    "serve": "php -S localhost:8000 router.php"
+  },
   "dependencies": {
     "jspdf": "^2.5.1",
     "sweetalert2": "^11.7.32"
