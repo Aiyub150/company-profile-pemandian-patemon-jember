@@ -29,6 +29,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $freed_kb = round($clean_res['freed_bytes'] / 1024, 2);
         log_activity('server_logs', 'cleanup', "Membersihkan {$clean_res['deleted_count']} berkas media sampah fisik (membebaskan {$freed_kb} KB penyimpanan).");
         $msg_success = "Pembersihan selesai! {$clean_res['deleted_count']} berkas sampah berhasil dihapus dari server (membebaskan {$freed_kb} KB ruang penyimpanan).";
+    } elseif ($_POST['action'] === 'save_email_config') {
+        $cfg_host = trim($_POST['smtp_host'] ?? '');
+        $cfg_port = trim($_POST['smtp_port'] ?? '');
+        $cfg_user = trim($_POST['smtp_user'] ?? '');
+        $cfg_pass = trim($_POST['smtp_pass'] ?? '');
+        $cfg_from_email = trim($_POST['smtp_from_email'] ?? '');
+        $cfg_from_name  = trim($_POST['smtp_from_name'] ?? '');
+
+        set_setting('smtp_host', $cfg_host);
+        set_setting('smtp_port', $cfg_port);
+        set_setting('smtp_user', $cfg_user);
+        if (!empty($cfg_pass)) {
+            set_setting('smtp_pass', $cfg_pass);
+        }
+        set_setting('smtp_from_email', $cfg_from_email);
+        set_setting('smtp_from_name', $cfg_from_name);
+
+        log_activity('server_logs', 'update_config', "Memperbarui konfigurasi SMTP email sistem.");
+        $msg_success = 'Konfigurasi SMTP Email berhasil disimpan ke pengaturan sistem database!';
+    } elseif ($_POST['action'] === 'test_email_dispatch') {
+        $test_target = trim($_POST['test_target_email'] ?? '');
+        if (empty($test_target) || !filter_var($test_target, FILTER_VALIDATE_EMAIL)) {
+            $msg_error = 'Alamat email tujuan uji coba tidak valid.';
+        } else {
+            $t_subj = 'Tes Diagnostik Pengiriman Email - Pemandian Patemon';
+            $t_body = '<div style="font-family:sans-serif;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;">
+                <h3 style="color:#0284c7;margin-top:0;">Tes Pengiriman Berhasil!</h3>
+                <p>Email ini dikirim dari server pengujian sistem Wisata Pemandian Patemon pada ' . date('d M Y H:i:s') . ' WIB.</p>
+                <p style="color:#64748b;font-size:13px;">Jika Anda menerima email ini di kotak masuk, berarti konfigurasi SMTP & pengiriman email sistem Anda telah bekerja 100%.</p>
+            </div>';
+            $test_res = send_email($test_target, 'Pengguna Uji', $t_subj, $t_body);
+            if ($test_res['success']) {
+                $msg_success = "Uji pengiriman BERHASIL: " . $test_res['message'];
+            } else {
+                $msg_error = "Uji pengiriman GAGAL: " . $test_res['message'];
+            }
+        }
     }
 }
 
@@ -235,6 +272,66 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 <?php endif; ?>
+
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-1"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Konfigurasi &amp; Diagnostik Pengiriman Email (Gmail SMTP / Relay)</h5>
+            <p class="text-muted small mb-0">Atur kredensial email pengirim resmi (Google App Password) langsung melalui database atau lakukan tes kirim live.</p>
+        </div>
+    </div>
+    <div class="card-body px-4 pb-4">
+        <form action="" method="POST" class="row g-3">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <input type="hidden" name="action" value="save_email_config">
+            <div class="col-12 col-md-4">
+                <label class="form-label small fw-bold">SMTP Host</label>
+                <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e(get_setting('smtp_host', 'smtp.gmail.com')) ?>" placeholder="smtp.gmail.com">
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small fw-bold">SMTP Port</label>
+                <input type="number" name="smtp_port" class="form-control form-control-sm" value="<?= e(get_setting('smtp_port', '587')) ?>" placeholder="587">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold">Akun Pengirim (Gmail / Email)</label>
+                <input type="email" name="smtp_user" class="form-control form-control-sm" value="<?= e(get_setting('smtp_user', 'aiyubheriyanto150@gmail.com')) ?>" placeholder="email@gmail.com">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold">Google App Password (16 Huruf)</label>
+                <input type="password" name="smtp_pass" class="form-control form-control-sm" placeholder="*** (Biarkan kosong jika tetap)">
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">Nama Pengirim Resmi</label>
+                <input type="text" name="smtp_from_name" class="form-control form-control-sm" value="<?= e(get_setting('smtp_from_name', 'Wisata Pemandian Patemon')) ?>" placeholder="Wisata Pemandian Patemon">
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end justify-content-end">
+                <button type="submit" class="btn btn-primary btn-sm px-4">
+                    <i class="fa-solid fa-floppy-disk me-1"></i> Simpan Konfigurasi SMTP ke DB
+                </button>
+            </div>
+        </form>
+
+        <hr class="my-4">
+
+        <!-- Form Tes Kirim Langsung -->
+        <form action="" method="POST" class="row g-2 align-items-center">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <input type="hidden" name="action" value="test_email_dispatch">
+            <div class="col-12 col-md-4">
+                <label class="form-label small fw-bold mb-0">Uji Diagnostik Kirim Email Langsung:</label>
+                <div class="small text-muted">Kirim email percobaan ke alamat manapun untuk memastikan live delivery.</div>
+            </div>
+            <div class="col-12 col-md-5">
+                <input type="email" name="test_target_email" required class="form-control form-control-sm" placeholder="Masukkan email penerima uji (contoh: aiyubheriyanto005@gmail.com)" value="aiyubheriyanto005@gmail.com">
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-outline-success btn-sm w-100">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Kirim Email Uji Coba
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Filter & Log Table -->
 <div class="card border-0 shadow-sm" style="border-radius: 16px;">

@@ -834,12 +834,19 @@ if (!function_exists('send_email')) {
         $mailSent = @mail($to_email, $subject, $html_body, $headersStr);
 
         if (function_exists('error_log')) {
-            error_log("Email Dispatch: Mengirim ke {$to_email} (Subject: {$subject}) - Direct Send: " . ($mailSent ? 'Sent' : 'Processed'));
+            error_log("Email Dispatch: Mengirim ke {$to_email} (Subject: {$subject}) - Direct Send: " . ($mailSent ? 'Sent' : 'Failed'));
+        }
+
+        if ($mailSent) {
+            return [
+                'success' => true,
+                'message' => "Email berhasil dikirim ke {$to_email}."
+            ];
         }
 
         return [
-            'success' => true,
-            'message' => "Email berhasil dikirim ke {$to_email}."
+            'success' => false,
+            'message' => "Pengiriman email via native mail() gagal (layanan mail server lokal VPS tidak merespon). Konfigurasikan SMTP di .env untuk pengiriman via Gmail."
         ];
     }
 }
