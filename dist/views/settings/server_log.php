@@ -29,81 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $freed_kb = round($clean_res['freed_bytes'] / 1024, 2);
         log_activity('server_logs', 'cleanup', "Membersihkan {$clean_res['deleted_count']} berkas media sampah fisik (membebaskan {$freed_kb} KB penyimpanan).");
         $msg_success = "Pembersihan selesai! {$clean_res['deleted_count']} berkas sampah berhasil dihapus dari server (membebaskan {$freed_kb} KB ruang penyimpanan).";
-    } elseif ($_POST['action'] === 'save_email_config' || $_POST['action'] === 'save_and_test_email') {
-        $mail_method = trim($_POST['mail_method'] ?? 'api');
-        $api_provider = trim($_POST['email_api_provider'] ?? 'auto');
-        $api_key = trim($_POST['email_api_key'] ?? '');
-
-        $cfg_host = trim($_POST['smtp_host'] ?? '');
-        $cfg_port = trim($_POST['smtp_port'] ?? '');
-        $cfg_user = trim($_POST['smtp_user'] ?? '');
-        $cfg_pass = str_replace(' ', '', trim($_POST['smtp_pass'] ?? ''));
-        $cfg_from_email = trim($_POST['smtp_from_email'] ?? '');
-        $cfg_from_name  = trim($_POST['smtp_from_name'] ?? '');
-
-        set_setting('mail_method', $mail_method);
-        set_setting('email_api_provider', $api_provider);
-        if (!empty($api_key)) {
-            set_setting('email_api_key', $api_key);
-        }
-        set_setting('smtp_host', $cfg_host);
-        set_setting('smtp_port', $cfg_port);
-        set_setting('smtp_user', $cfg_user);
-        if (!empty($cfg_pass)) {
-            set_setting('smtp_pass', $cfg_pass);
-        }
-        set_setting('smtp_from_email', $cfg_from_email);
-        set_setting('smtp_from_name', $cfg_from_name);
-
-        log_activity('server_logs', 'update_config', "Memperbarui konfigurasi metode pengiriman email sistem.");
-
-        if ($_POST['action'] === 'save_and_test_email') {
-            $test_target = trim($_POST['test_target_email'] ?? '');
-            if (empty($test_target) || !filter_var($test_target, FILTER_VALIDATE_EMAIL)) {
-                $msg_error = 'Konfigurasi disimpan, namun alamat email tujuan uji coba tidak valid.';
-            } else {
-                $t_subj = 'Tes Diagnostik Pengiriman Email - Pemandian Patemon';
-                $t_body = '<div style="font-family:sans-serif;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;">
-                    <h3 style="color:#0284c7;margin-top:0;">Tes Pengiriman Berhasil!</h3>
-                    <p>Email ini dikirim dari server VPS Cloudflare Tunnel sistem Wisata Pemandian Patemon pada ' . date('d M Y H:i:s') . ' WIB.</p>
-                    <p style="color:#64748b;font-size:13px;">Jika Anda menerima email ini di kotak masuk, berarti konfigurasi pengiriman email sistem Anda telah bekerja 100%.</p>
-                </div>';
-                $test_res = send_email($test_target, 'Pengguna Uji', $t_subj, $t_body);
-                if ($test_res['success']) {
-                    $msg_success = "Konfigurasi berhasil disimpan & Uji kirim BERHASIL: " . $test_res['message'];
-                } else {
-                    $msg_error = "Konfigurasi berhasil disimpan, namun uji kirim GAGAL: " . $test_res['message'];
-                }
-            }
-        } else {
-            $msg_success = 'Konfigurasi Email berhasil disimpan ke pengaturan sistem database!';
-        }
-    } elseif ($_POST['action'] === 'test_email_dispatch') {
-        $test_target = trim($_POST['test_target_email'] ?? '');
-        $inline_pass = str_replace(' ', '', trim($_POST['smtp_pass'] ?? ''));
-        if (!empty($inline_pass)) {
-            set_setting('smtp_pass', $inline_pass);
-        }
-        $cur_pass = getenv('SMTP_PASS') ?: get_setting('smtp_pass', '');
-
-        if (empty($cur_pass)) {
-            $msg_error = 'Uji pengiriman GAGAL: Google App Password (16 huruf) belum disimpan di database. Masukkan Google App Password di kolom di bawah, lalu klik "Simpan & Uji Coba Kirim".';
-        } elseif (empty($test_target) || !filter_var($test_target, FILTER_VALIDATE_EMAIL)) {
-            $msg_error = 'Alamat email tujuan uji coba tidak valid.';
-        } else {
-            $t_subj = 'Tes Diagnostik Pengiriman Email - Pemandian Patemon';
-            $t_body = '<div style="font-family:sans-serif;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;">
-                <h3 style="color:#0284c7;margin-top:0;">Tes Pengiriman Berhasil!</h3>
-                <p>Email ini dikirim dari server pengujian sistem Wisata Pemandian Patemon pada ' . date('d M Y H:i:s') . ' WIB.</p>
-                <p style="color:#64748b;font-size:13px;">Jika Anda menerima email ini di kotak masuk, berarti konfigurasi SMTP & pengiriman email sistem Anda telah bekerja 100%.</p>
-            </div>';
-            $test_res = send_email($test_target, 'Pengguna Uji', $t_subj, $t_body);
-            if ($test_res['success']) {
-                $msg_success = "Uji pengiriman BERHASIL: " . $test_res['message'];
-            } else {
-                $msg_error = "Uji pengiriman GAGAL: " . $test_res['message'];
-            }
-        }
     }
 }
 
@@ -208,6 +133,9 @@ $is_remote_env = !in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1
 
 $header_actions = '
     <div class="d-flex flex-wrap gap-2">
+        <a href="' . htmlspecialchars($mailpit_web_url) . '" target="_blank" class="btn btn-outline-info" style="border-radius: 10px;" title="Buka Mailpit Web UI">
+            <i class="fa-solid fa-envelope-open-text me-1"></i> Mailpit Web
+        </a>
         <button type="button" class="btn btn-outline-warning" style="border-radius: 10px;" onclick="confirmCleanOrphans()">
             <i class="fa-solid fa-trash-can me-1"></i> Bersihkan Berkas Sampah
         </button>
@@ -278,23 +206,33 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
     </div>
 </div>
 
-<!-- Email Service Status Banner -->
-<div class="alert alert-primary border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
+<!-- Mailpit Server & Web UI Info -->
+<div class="alert alert-info border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" style="border-radius: 12px; background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
     <div class="d-flex align-items-center gap-3">
-        <div class="rounded-circle p-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
-            <i class="fa-solid fa-paper-plane fs-5"></i>
+        <div class="rounded-circle p-2 bg-info-subtle text-info d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+            <i class="fa-solid fa-envelope-open-text fs-5"></i>
         </div>
         <div>
             <div class="fw-bold text-dark d-flex align-items-center gap-2">
-                <span>Layanan Email: Smart Mailer Terpadu (Gmail / SMTP / Direct)</span>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Direct Delivery Aktif</span>
-                <span class="badge bg-info-subtle text-info border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Mendukung Gmail SMTP</span>
+                <span>Layanan Email Pengujian &amp; Aktivasi (Mailpit)</span>
+                <?php if ($is_remote_env): ?>
+                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Server Host / VPS</span>
+                <?php endif; ?>
             </div>
             <div class="small text-muted">
-                Email aktivasi staf &amp; pemulihan kata sandi dikirim langsung ke alamat email tujuan (Gmail / domain institusi).
+                Socket SMTP: <code><?= htmlspecialchars($smtp_host_cfg . ':' . $smtp_port_cfg) ?></code> &bull; 
+                Webmail: <code><?= htmlspecialchars($mailpit_web_url) ?></code>
+                <?php if ($is_remote_env && strpos($mailpit_web_url, 'localhost') !== false): ?>
+                    <span class="text-warning-emphasis d-block d-sm-inline ms-sm-1">
+                        <i class="fa-solid fa-circle-info me-1"></i>(Gunakan SSH port forwarding atau tunnel port 8025 untuk akses eksternal)
+                    </span>
+                <?php endif; ?>
             </div>
         </div>
     </div>
+    <a href="<?= htmlspecialchars($mailpit_web_url) ?>" target="_blank" class="btn btn-sm btn-info text-white fw-semibold px-3 py-2" style="border-radius: 8px;">
+        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Buka Webmail
+    </a>
 </div>
 
 <?php if (!empty($msg_success)): ?>
@@ -310,163 +248,6 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 <?php endif; ?>
-
-<?php
-$cur_method   = get_setting('mail_method', 'api');
-$cur_api_key  = getenv('EMAIL_API_KEY') ?: (getenv('BREVO_API_KEY') ?: (getenv('RESEND_API_KEY') ?: get_setting('email_api_key', '')));
-$cur_provider = get_setting('email_api_provider', 'auto');
-$has_api_key  = !empty($cur_api_key);
-
-$cur_pass     = getenv('SMTP_PASS') ?: get_setting('smtp_pass', '');
-$has_pass     = !empty($cur_pass);
-?>
-
-<style>
-.nat-callout-card {
-    background: #e0f2fe !important;
-    border: 1px solid #7dd3fc !important;
-    border-radius: 12px;
-    color: #0c4a6e !important;
-}
-.nat-callout-card .nat-callout-title {
-    color: #0369a1 !important;
-}
-.nat-callout-card .nat-callout-text {
-    color: #075985 !important;
-    line-height: 1.6;
-}
-body.theme-dark .nat-callout-card {
-    background: rgba(14, 165, 233, 0.14) !important;
-    border-color: rgba(56, 189, 248, 0.35) !important;
-    color: #e0f2fe !important;
-}
-body.theme-dark .nat-callout-card .nat-callout-title {
-    color: #38bdf8 !important;
-}
-body.theme-dark .nat-callout-card .nat-callout-text {
-    color: #bae6fd !important;
-}
-</style>
-
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <div>
-            <h5 class="fw-bold mb-1"><i class="fa-solid fa-envelope-circle-check text-primary me-2"></i>Konfigurasi &amp; Diagnostik Pengiriman Email Sistem</h5>
-            <p class="text-muted small mb-0">Dukungan HTTPS REST API (bebas blokir port pada VPS NAT) serta opsi SMTP Relay klasik.</p>
-        </div>
-        <div>
-            <?php if ($has_api_key): ?>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-cloud-bolt me-1"></i> HTTPS API Aktif (Anti-Blokir NAT)</span>
-            <?php elseif ($has_pass): ?>
-                <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-key me-1"></i> Password SMTP Tersimpan</span>
-            <?php else: ?>
-                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2" style="font-size: 0.8rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i> Kredensial Email Belum Dikonfigurasi</span>
-            <?php endif; ?>
-        </div>
-    </div>
-    <div class="card-body px-4 pb-4">
-        <!-- Callout Rekomendasi VPS NAT (Kontras Tinggi Mode Terang & Gelap) -->
-        <div class="d-flex align-items-start gap-3 p-3 mb-4 nat-callout-card">
-            <i class="fa-solid fa-circle-info fs-5 mt-1 text-primary flex-shrink-0"></i>
-            <div class="small nat-callout-text">
-                <strong class="nat-callout-title">Catatan Khusus VPS NAT:</strong> Pada VPS NAT, seluruh port SMTP (25, 465, 587) diblokir permanen oleh router hosting untuk mencegah spam IP bersama. 
-                Gunakan <strong>Metode HTTPS API (Port 443)</strong> menggunakan <strong>Brevo</strong> (gratis 300 email/hari) atau <strong>Resend</strong> (gratis 3.000 email/bln). Lalu lintas HTTPS dijamin 100% tembus tanpa pernah terkena <em>connection timed out</em>.
-            </div>
-        </div>
-
-        <form action="" method="POST" class="row g-3">
-            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-
-            <!-- Pilihan Metode Pengiriman -->
-            <div class="col-12 col-md-6">
-                <label class="form-label small fw-bold">Jalur Pengiriman (Delivery Method)</label>
-                <select name="mail_method" id="mailMethodSelect" class="form-select form-select-sm fw-semibold">
-                    <option value="api" <?= $cur_method === 'api' ? 'selected' : '' ?>>🌐 HTTPS REST API (Port 443 - Bebas Blokir VPS NAT)</option>
-                    <option value="smtp" <?= $cur_method === 'smtp' ? 'selected' : '' ?>>🔌 SMTP Socket (Port 465/587 - Gmail Relay)</option>
-                </select>
-            </div>
-
-            <div class="col-12 col-md-6">
-                <label class="form-label small fw-bold">Provider API</label>
-                <select name="email_api_provider" class="form-select form-select-sm">
-                    <option value="auto" <?= $cur_provider === 'auto' ? 'selected' : '' ?>>⚡ Deteksi Otomatis (Brevo / Resend)</option>
-                    <option value="brevo" <?= $cur_provider === 'brevo' ? 'selected' : '' ?>>Brevo (Sendinblue) - Bebas Kirim ke Email Manapun</option>
-                    <option value="resend" <?= $cur_provider === 'resend' ? 'selected' : '' ?>>Resend - Pengiriman Cepat Modern</option>
-                </select>
-            </div>
-
-            <!-- API Key Section -->
-            <div class="col-12">
-                <label class="form-label small fw-bold">API Key (Brevo / Resend)</label>
-                <input type="text" name="email_api_key" class="form-control form-control-sm font-monospace" placeholder="<?= $has_api_key ? '•••••••••••••••• (Ketik baru jika ingin mengganti API Key)' : 'Contoh: xkeysib-xxxxxxxxxx... atau re_xxxxxxxxxx...' ?>" autocomplete="off">
-                <div class="form-text text-muted d-flex flex-wrap gap-3 mt-1" style="font-size: 0.75rem;">
-                    <span><i class="fa-solid fa-arrow-up-right-from-square text-primary me-1"></i>Daftar Brevo Gratis: <a href="https://www.brevo.com" target="_blank" class="fw-semibold text-decoration-none">brevo.com</a> (Menu SMTP &amp; API &rarr; Generate Key)</span>
-                    <span><i class="fa-solid fa-arrow-up-right-from-square text-primary me-1"></i>Daftar Resend Gratis: <a href="https://resend.com" target="_blank" class="fw-semibold text-decoration-none">resend.com</a> (Menu API Keys)</span>
-                </div>
-            </div>
-
-            <!-- Nama & Akun Pengirim -->
-            <div class="col-12 col-md-6">
-                <label class="form-label small fw-bold">Alamat Email Pengirim</label>
-                <input type="email" name="smtp_from_email" class="form-control form-control-sm" value="<?= e(get_setting('smtp_from_email', get_setting('smtp_user', 'aiyubheriyanto150@gmail.com'))) ?>" placeholder="email@gmail.com">
-                <div class="form-text text-muted" style="font-size: 0.72rem;">Email yang Anda gunakan saat mendaftar di Brevo / Resend.</div>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label small fw-bold">Nama Pengirim Resmi</label>
-                <input type="text" name="smtp_from_name" class="form-control form-control-sm" value="<?= e(get_setting('smtp_from_name', 'Wisata Pemandian Patemon')) ?>" placeholder="Wisata Pemandian Patemon">
-            </div>
-
-            <!-- Bagian Cadangan SMTP Klasik (Dapat dibuka jika diperlukan) -->
-            <div class="col-12">
-                <div class="p-3 rounded-3 border" style="background: rgba(148, 163, 184, 0.06);">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold text-body-secondary"><i class="fa-solid fa-sliders me-1"></i> Opsi Cadangan SMTP Socket (Jika Menggunakan Port SMTP)</span>
-                    </div>
-                    <div class="row g-2">
-                        <div class="col-12 col-md-3">
-                            <label class="form-label small text-body-secondary mb-1">SMTP Host</label>
-                            <input type="text" name="smtp_host" class="form-control form-control-sm" value="<?= e(get_setting('smtp_host', 'smtp.gmail.com')) ?>" placeholder="smtp.gmail.com">
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label small text-body-secondary mb-1">Port &amp; Enkripsi</label>
-                            <select name="smtp_port" class="form-select form-select-sm">
-                                <option value="465" <?= (string)get_setting('smtp_port', '465') === '465' ? 'selected' : '' ?>>465 (SSL)</option>
-                                <option value="587" <?= (string)get_setting('smtp_port', '465') === '587' ? 'selected' : '' ?>>587 (TLS)</option>
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label small text-body-secondary mb-1">Akun Gmail SMTP</label>
-                            <input type="email" name="smtp_user" class="form-control form-control-sm" value="<?= e(get_setting('smtp_user', 'aiyubheriyanto150@gmail.com')) ?>" placeholder="email@gmail.com">
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label small text-body-secondary mb-1">Google App Password</label>
-                            <input type="text" name="smtp_pass" class="form-control form-control-sm" placeholder="<?= $has_pass ? '••••••••••••••••' : 'App Password 16 Huruf' ?>">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Email Tujuan Uji Coba -->
-            <div class="col-12">
-                <label class="form-label small fw-bold">Email Tujuan Uji Coba Diagnostik</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="fa-solid fa-at text-muted"></i></span>
-                    <input type="email" name="test_target_email" class="form-control form-control-sm" placeholder="aiyubheriyanto005@gmail.com" value="aiyubheriyanto005@gmail.com">
-                </div>
-                <div class="form-text text-muted" style="font-size: 0.72rem;">Email yang akan menerima surat uji coba saat tombol kirim ditekan.</div>
-            </div>
-
-            <div class="col-12 d-flex flex-wrap gap-2 justify-content-end mt-4">
-                <button type="submit" name="action" value="save_email_config" class="btn btn-outline-primary btn-sm px-3">
-                    <i class="fa-solid fa-floppy-disk me-1"></i> Simpan Saja ke DB
-                </button>
-                <button type="submit" name="action" value="save_and_test_email" class="btn btn-success btn-sm px-4 fw-semibold shadow-sm">
-                    <i class="fa-solid fa-paper-plane me-1"></i> Simpan &amp; Uji Coba Kirim Langsung
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <!-- Filter & Log Table -->
 <div class="card border-0 shadow-sm" style="border-radius: 16px;">

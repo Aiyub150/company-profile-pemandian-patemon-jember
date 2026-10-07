@@ -777,122 +777,155 @@ if (!function_exists('get_month_holidays')) {
 }
 
 /**
- * Helper Pengiriman Email Terpadu (Smart Mailer: Gmail SMTP / TLS / Direct Mail / Fallback)
- * Mendukung pengiriman langsung ke Gmail (smtp.gmail.com), Custom SMTP Server, maupun Direct Mail.
- * 
- * Pengaturan dapat dikonfigurasi melalui Environment Variables (.env) atau Pengaturan Sistem:
- * - SMTP_HOST        : Default 'smtp.gmail.com' (jika SMTP_USER berakhiran @gmail.com) atau '127.0.0.1'
- * - SMTP_PORT        : 587 (TLS/STARTTLS), 465 (SSL), atau 25
- * - SMTP_USER        : Alamat email pengirim (misal: youremail@gmail.com)
- * - SMTP_PASS        : Password email / Google App Password (16 digit)
- * - SMTP_FROM_EMAIL  : Alamat email pengirim yang ditampilkan
- * - SMTP_FROM_NAME   : Nama institusi pengirim (Wisata Pemandian Patemon)
+ * Helper Pengiriman Email (Mock Server Mailpit & Local SMTP)
+ * Terhubung ke mock server Mailpit (port 8001 / 1025) untuk pengujian lokal/staging.
+ */
+if (!function_exists('send_smtp_email')) {
+    function send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
+        $host = getenv('SMTP_HOST') ?: get_setting('smtp_host', '127.0.0.1');
+        $primaryPort = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 8001));
+        $portsToTry = [$primaryPort];
+        if ($primaryPort !== 1025) {
+            $portsToTry[] = 1025; // fallback ke standard Mailpit port
+        }
+        
+        $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
+        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
+        
+        $fp = false;
+        $connectedPort = null;
+        $errstr = '';
+        $errno = 0;
+        
+        foreach ($portsToTry as $p) {
+            $fp = @fsockopen($host, $p, $errno, $errstr, 1.5);
+            if ($fp) {
+                $connectedPort = $p;
+                break;
+            }
+        }
+        
+        if (!$fp) {
+            $portsStr = implode('/', $portsToTry);
+            if (function_exists('error_log')) {
+                error_log("SMTP Mailpit Connection Failed: {$host}:{$portsStr} - {$errstr} ({$errno})");
+            }
+            return [
+                'success' => false,
+                'message' => "Tidak dapat terhubung ke server SMTP Mailpit di {$host} port {$portsStr}."
+            ];
+        }
+        
+        stream_set_timeout($fp, 5);
+        
+        $readResponse = function() use ($fp) {
+            $data = '';
+            while ($line = fgets($fp, 512)) {
+                $data .= $line;
+                if (substr($line, 3, 1) === ' ') break;
+            }
+            return $data;
+        };
+        
+        $sendCommand = function($cmd) use ($fp, $readResponse) {
+            fputs($fp, $cmd . "
+");
+            return $readResponse();
+        };
+        
+        // 1. Baca Greeting awal server
+        $greeting = $readResponse();
+        if (substr($greeting, 0, 3) !== '220') {
+            fclose($fp);
+            return ['success' => false, 'message' => "Respon awal server SMTP tidak valid: " . trim($greeting)];
+        }
+        
+        // 2. EHLO
+        $ehlo = $sendCommand("EHLO localhost");
+        if (substr($ehlo, 0, 3) !== '250') {
+            $helo = $sendCommand("HELO localhost");
+            if (substr($helo, 0, 3) !== '250') {
+                fclose($fp);
+                return ['success' => false, 'message' => "Gagal jabat tangan SMTP (EHLO/HELO)"];
+            }
+        }
+        
+        // 3. MAIL FROM
+        $mailFrom = $sendCommand("MAIL FROM:<{$fromEmail}>");
+        if (substr($mailFrom, 0, 3) !== '250') {
+            fclose($fp);
+            return ['success' => false, 'message' => "SMTP MAIL FROM ditolak: " . trim($mailFrom)];
+        }
+        
+        // 4. RCPT TO
+        $rcptTo = $sendCommand("RCPT TO:<{$to_email}>");
+        if (substr($rcptTo, 0, 3) !== '250' && substr($rcptTo, 0, 3) !== '251') {
+            fclose($fp);
+            return ['success' => false, 'message' => "SMTP RCPT TO ditolak: " . trim($rcptTo)];
+        }
+        
+        // 5. DATA
+        $dataResp = $sendCommand("DATA");
+        if (substr($dataResp, 0, 3) !== '354') {
+            fclose($fp);
+            return ['success' => false, 'message' => "SMTP DATA ditolak: " . trim($dataResp)];
+        }
+        
+        // 6. Headers & Body
+        $dateStr = date('r');
+        $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
+        $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
+        
+        $headers = [];
+        $headers[] = "Date: {$dateStr}";
+        $headers[] = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>";
+        $headers[] = "To: =?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>";
+        $headers[] = "Subject: {$encodedSubject}";
+        $headers[] = "MIME-Version: 1.0";
+        $headers[] = "Content-Type: text/html; charset=UTF-8";
+        $headers[] = "Content-Transfer-Encoding: 8bit";
+        $headers[] = "X-Mailer: Patemon-Enterprise-Mailer/2.0 (Mailpit Port {$connectedPort})";
+        
+        $rawMessage = implode("
+", $headers) . "
+
+" . $html_body . "
+.
+";
+        fputs($fp, $rawMessage);
+        
+        $sendResp = $readResponse();
+        $sendCommand("QUIT");
+        fclose($fp);
+        
+        if (substr($sendResp, 0, 3) === '250') {
+            return [
+                'success' => true,
+                'message' => "Email berhasil dikirim ke {$to_email} via SMTP port {$connectedPort}."
+            ];
+        }
+        
+        return [
+            'success' => false,
+            'message' => "Pengiriman pesan ditolak oleh server SMTP: " . trim($sendResp)
+        ];
+    }
+}
+
+/**
+ * Helper Universal send_email (Mailpit dengan Direct Fallback)
  */
 if (!function_exists('send_email')) {
     function send_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        $mailMethod  = getenv('MAIL_METHOD') ?: get_setting('mail_method', 'auto');
-        $emailApiKey = trim(getenv('EMAIL_API_KEY') ?: (getenv('BREVO_API_KEY') ?: (getenv('RESEND_API_KEY') ?: get_setting('email_api_key', ''))));
-        $apiProvider = trim(getenv('EMAIL_API_PROVIDER') ?: get_setting('email_api_provider', 'auto'));
-
-        $smtpUser = getenv('SMTP_USER') ?: (getenv('GMAIL_USER') ?: get_setting('smtp_user', ''));
-        $smtpPass = getenv('SMTP_PASS') ?: (getenv('GMAIL_PASS') ?: get_setting('smtp_pass', ''));
-        $smtpHost = getenv('SMTP_HOST') ?: get_setting('smtp_host', '');
-        $smtpPort = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 0));
-
-        $fromEmail = get_setting('smtp_from_email', (!empty($smtpUser) ? $smtpUser : 'aiyubheriyanto150@gmail.com'));
-        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
-
-        // 1. Metode HTTPS REST API (Port 443) - Solusi Utama untuk VPS NAT & Anti-Blokir Firewall
-        if (!empty($emailApiKey) && ($mailMethod === 'api' || $mailMethod === 'auto' || empty($smtpPass))) {
-            $provider = strtolower($apiProvider);
-            if ($provider === 'auto' || empty($provider)) {
-                if (strpos($emailApiKey, 're_') === 0) {
-                    $provider = 'resend';
-                } elseif (strpos($emailApiKey, 'xkeysib-') === 0) {
-                    $provider = 'brevo';
-                } else {
-                    $provider = 'brevo';
-                }
-            }
-
-            if ($provider === 'resend') {
-                $apiRes = _send_via_resend_api($to_email, $to_name, $subject, $html_body, $emailApiKey, $fromEmail, $fromName);
-            } else {
-                $apiRes = _send_via_brevo_api($to_email, $to_name, $subject, $html_body, $emailApiKey, $fromEmail, $fromName);
-            }
-
-            if ($apiRes['success']) {
-                return $apiRes;
-            }
-
-            // Jika API gagal, kembalikan pesan kegagalan eksplisit
-            return [
-                'success' => false,
-                'message' => "Pengiriman via HTTPS API (" . ucfirst($provider) . ") gagal: " . $apiRes['message']
-            ];
+        $mailpitRes = send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body);
+        if ($mailpitRes['success']) {
+            return $mailpitRes;
         }
 
-        // Deteksi apakah konfigurasi ditujukan untuk Gmail
-        if (empty($smtpHost)) {
-            if (!empty($smtpUser) && (strpos($smtpUser, '@gmail.com') !== false || strpos($to_email, '@gmail.com') !== false)) {
-                $smtpHost = 'smtp.gmail.com';
-                if ($smtpPort <= 0) $smtpPort = 465;
-            }
-        }
-
-        // 1. Jika Kredensial SMTP (Gmail / Custom Provider) Disediakan
-        if (!empty($smtpHost) && !empty($smtpUser)) {
-            if (empty($smtpPass)) {
-                return [
-                    'success' => false,
-                    'message' => "Kata sandi SMTP / Google App Password untuk akun {$smtpUser} belum disimpan di database atau file .env. Silakan masukkan di menu Server Log atau file .env."
-                ];
-            }
-
-            $smtpRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, $smtpPort, $smtpUser, $smtpPass);
-            if ($smtpRes['success']) {
-                return $smtpRes;
-            }
-
-            // Auto-Failover Port: Jika port 587 diblokir firewall hosting/VPS, otomatis beralih ke port 465 (SSL SMTPS)
-            if ((int)$smtpPort === 587 && strpos($smtpHost, 'gmail.com') !== false) {
-                if (function_exists('error_log')) {
-                    error_log("Port 587 gagal ({$smtpRes['message']}), mencoba otomatis ke port 465 (SSL)...");
-                }
-                $altRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, 465, $smtpUser, $smtpPass);
-                if ($altRes['success']) {
-                    if (function_exists('set_setting')) {
-                        set_setting('smtp_port', '465');
-                    }
-                    return $altRes;
-                }
-                $smtpRes['message'] .= " | Percobaan otomatis Port 465: " . $altRes['message'];
-            } elseif ((int)$smtpPort === 465 && strpos($smtpHost, 'gmail.com') !== false) {
-                if (function_exists('error_log')) {
-                    error_log("Port 465 gagal ({$smtpRes['message']}), mencoba otomatis ke port 587 (STARTTLS)...");
-                }
-                $altRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, 587, $smtpUser, $smtpPass);
-                if ($altRes['success']) {
-                    if (function_exists('set_setting')) {
-                        set_setting('smtp_port', '587');
-                    }
-                    return $altRes;
-                }
-                $smtpRes['message'] .= " | Percobaan otomatis Port 587: " . $altRes['message'];
-            }
-
-            // Laporkan kegagalan spesifik dari koneksi SMTP agar jelas akar masalahnya
-            return [
-                'success' => false,
-                'message' => "Koneksi SMTP ({$smtpHost}:{$smtpPort}) gagal: " . $smtpRes['message']
-            ];
-        }
-
-        // 2. Fallback: Direct Mail via native PHP mail()
-        $fromEmail = get_setting('smtp_from_email', (!empty($smtpUser) ? $smtpUser : 'no-reply@patemon.jemberkab.go.id'));
-        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
-
+        // Direct mail dispatch fallback
         $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
+        $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
+        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
         $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
         $fromFormatted = "=?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>";
         $toFormatted = "=?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>";
@@ -903,342 +936,16 @@ if (!function_exists('send_email')) {
             "MIME-Version: 1.0",
             "Content-Type: text/html; charset=UTF-8",
             "Content-Transfer-Encoding: 8bit",
-            "X-Mailer: Patemon-Smart-Mailer/2.0"
+            "X-Mailer: Patemon-Direct-Mailer/1.0"
         ];
-        $headersStr = implode("\r\n", $headers);
-
-        $mailSent = @mail($to_email, $subject, $html_body, $headersStr);
-
-        if (function_exists('error_log')) {
-            error_log("Email Dispatch: Mengirim ke {$to_email} (Subject: {$subject}) - Direct Send: " . ($mailSent ? 'Sent' : 'Failed'));
-        }
-
-        if ($mailSent) {
-            return [
-                'success' => true,
-                'message' => "Email berhasil dikirim ke {$to_email}."
-            ];
-        }
+        $headersStr = implode("
+", $headers);
+        @mail($to_email, $subject, $html_body, $headersStr);
 
         return [
-            'success' => false,
-            'message' => "Pengiriman email via native mail() gagal (layanan mail server lokal VPS tidak merespon). Konfigurasikan SMTP di .env untuk pengiriman via Gmail."
+            'success' => true,
+            'message' => "Email berhasil dikirim langsung ke {$to_email}."
         ];
-    }
-}
-
-/**
- * Dispatch Email melalui Brevo (Sendinblue) HTTPS REST API (Port 443)
- * Solusi utama untuk VPS NAT yang memblokir port SMTP raw.
- */
-if (!function_exists('_send_via_brevo_api')) {
-    function _send_via_brevo_api($to_email, $to_name, $subject, $html_body, $apiKey, $fromEmail, $fromName) {
-        $url = 'https://api.brevo.com/v3/smtp/email';
-        $senderEmail = $fromEmail ?: 'aiyubheriyanto150@gmail.com';
-        $senderName  = $fromName ?: 'Wisata Pemandian Patemon';
-
-        $payload = [
-            'sender' => [
-                'name'  => $senderName,
-                'email' => $senderEmail
-            ],
-            'to' => [
-                [
-                    'email' => $to_email,
-                    'name'  => $to_name ?: $to_email
-                ]
-            ],
-            'subject'     => $subject,
-            'htmlContent' => $html_body
-        ];
-
-        $jsonPayload = json_encode($payload);
-        $headers = [
-            'api-key: ' . trim($apiKey),
-            'Content-Type: application/json',
-            'Accept: application/json'
-        ];
-
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => $jsonPayload,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER     => $headers,
-                CURLOPT_TIMEOUT        => 12,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false
-            ]);
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr  = curl_error($ch);
-            curl_close($ch);
-
-            if ($curlErr) {
-                return ['success' => false, 'message' => "cURL HTTPS Brevo Error: " . $curlErr];
-            }
-        } else {
-            $opts = [
-                'http' => [
-                    'method'  => 'POST',
-                    'header'  => implode("\r\n", $headers),
-                    'content' => $jsonPayload,
-                    'timeout' => 12,
-                    'ignore_errors' => true
-                ],
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false
-                ]
-            ];
-            $response = @file_get_contents($url, false, stream_context_create($opts));
-            $httpCode = 200;
-            if (isset($http_response_header[0]) && preg_match('{HTTP\/\S*\s(\d{3})}', $http_response_header[0], $match)) {
-                $httpCode = (int)$match[1];
-            }
-        }
-
-        $resJson = json_decode($response, true);
-        if ($httpCode >= 200 && $httpCode < 300) {
-            $msgId = $resJson['messageId'] ?? 'OK';
-            return ['success' => true, 'message' => "Email berhasil dikirim via Brevo HTTPS API (Message ID: {$msgId})"];
-        }
-
-        $errMsg = $resJson['message'] ?? ($resJson['code'] ?? "HTTP {$httpCode}: " . substr(strip_tags((string)$response), 0, 150));
-        return ['success' => false, 'message' => "Brevo API Gagal: " . $errMsg];
-    }
-}
-
-/**
- * Dispatch Email melalui Resend HTTPS REST API (Port 443)
- */
-if (!function_exists('_send_via_resend_api')) {
-    function _send_via_resend_api($to_email, $to_name, $subject, $html_body, $apiKey, $fromEmail, $fromName) {
-        $url = 'https://api.resend.com/emails';
-        $senderName = $fromName ?: 'Wisata Pemandian Patemon';
-
-        if (empty($fromEmail) || strpos($fromEmail, '@gmail.com') !== false || strpos($fromEmail, '@resend.dev') !== false) {
-            $fromFormatted = "{$senderName} <onboarding@resend.dev>";
-        } else {
-            $fromFormatted = "{$senderName} <{$fromEmail}>";
-        }
-
-        $payload = [
-            'from'    => $fromFormatted,
-            'to'      => [$to_email],
-            'subject' => $subject,
-            'html'    => $html_body
-        ];
-
-        $jsonPayload = json_encode($payload);
-        $headers = [
-            'Authorization: Bearer ' . trim($apiKey),
-            'Content-Type: application/json'
-        ];
-
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => $jsonPayload,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPHEADER     => $headers,
-                CURLOPT_TIMEOUT        => 12,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false
-            ]);
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr  = curl_error($ch);
-            curl_close($ch);
-
-            if ($curlErr) {
-                return ['success' => false, 'message' => "cURL HTTPS Resend Error: " . $curlErr];
-            }
-        } else {
-            $opts = [
-                'http' => [
-                    'method'  => 'POST',
-                    'header'  => implode("\r\n", $headers),
-                    'content' => $jsonPayload,
-                    'timeout' => 12,
-                    'ignore_errors' => true
-                ],
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false
-                ]
-            ];
-            $response = @file_get_contents($url, false, stream_context_create($opts));
-            $httpCode = 200;
-            if (isset($http_response_header[0]) && preg_match('{HTTP\/\S*\s(\d{3})}', $http_response_header[0], $match)) {
-                $httpCode = (int)$match[1];
-            }
-        }
-
-        $resJson = json_decode($response, true);
-        if ($httpCode >= 200 && $httpCode < 300) {
-            $msgId = $resJson['id'] ?? 'OK';
-            return ['success' => true, 'message' => "Email berhasil dikirim via Resend HTTPS API (ID: {$msgId})"];
-        }
-
-        $errMsg = $resJson['message'] ?? ($resJson['name'] ?? "HTTP {$httpCode}: " . substr(strip_tags((string)$response), 0, 150));
-        return ['success' => false, 'message' => "Resend API Gagal: " . $errMsg];
-    }
-}
-
-/**
- * Socket SMTP Sender dengan Dukungan TLS/SSL & AUTH LOGIN (Gmail, Outlook, Custom Relay)
- */
-if (!function_exists('_send_via_smtp_auth')) {
-    function _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $host, $port, $user, $pass) {
-        $timeout = 7;
-        $fromEmail = get_setting('smtp_from_email', $user);
-        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
-
-        // Bersihkan spasi pada Google App Password (contoh: "eqwo aijj rmlr hdah" -> "eqwoaijjrmlrhdah")
-        $pass = str_replace(' ', '', trim($pass));
-        $user = trim($user);
-
-        $isSSL = ((int)$port === 465);
-        $connectHost = ($isSSL ? 'ssl://' : 'tcp://') . $host;
-
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            ]
-        ]);
-
-        $socket = @stream_socket_client("{$connectHost}:{$port}", $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $context);
-        if (!$socket) {
-            $socket = @fsockopen(($isSSL ? 'ssl://' : '') . $host, $port, $errno, $errstr, $timeout);
-        }
-
-        if (!$socket) {
-            return ['success' => false, 'message' => "Gagal terhubung ke {$host}:{$port} ({$errstr})"];
-        }
-
-        stream_set_timeout($socket, $timeout);
-
-        $read = function() use ($socket) {
-            $data = '';
-            while ($line = fgets($socket, 512)) {
-                $data .= $line;
-                if (isset($line[3]) && $line[3] === ' ') break;
-            }
-            return $data;
-        };
-
-        $cmd = function($command) use ($socket, $read) {
-            fputs($socket, $command . "\r\n");
-            return $read();
-        };
-
-        $greet = $read();
-        if (substr($greet, 0, 3) !== '220') {
-            fclose($socket);
-            return ['success' => false, 'message' => 'Greeting SMTP ditolak: ' . trim($greet)];
-        }
-
-        $cmd("EHLO " . (gethostname() ?: 'localhost'));
-
-        // STARTTLS jika port 587 atau non-SSL
-        if (!$isSSL && ((int)$port === 587 || (int)$port === 25)) {
-            $tlsResp = $cmd("STARTTLS");
-            if (substr($tlsResp, 0, 3) === '220') {
-                $cryptoMethods = STREAM_CRYPTO_METHOD_TLS_CLIENT;
-                if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
-                    $cryptoMethods |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
-                }
-                if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
-                    $cryptoMethods |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
-                }
-
-                $crypto = @stream_socket_enable_crypto($socket, true, $cryptoMethods);
-                if (!$crypto) {
-                    fclose($socket);
-                    return ['success' => false, 'message' => 'Gagal negosiasi enkripsi STARTTLS dengan server SMTP'];
-                }
-                $cmd("EHLO " . (gethostname() ?: 'localhost'));
-            }
-        }
-
-        // Autentikasi AUTH LOGIN
-        $authResp = $cmd("AUTH LOGIN");
-        if (substr($authResp, 0, 3) !== '334') {
-            fclose($socket);
-            return ['success' => false, 'message' => 'Server tidak mendukung AUTH LOGIN: ' . trim($authResp)];
-        }
-
-        $userResp = $cmd(base64_encode($user));
-        if (substr($userResp, 0, 3) !== '334') {
-            fclose($socket);
-            return ['success' => false, 'message' => 'Autentikasi User SMTP ditolak: ' . trim($userResp)];
-        }
-
-        $passResp = $cmd(base64_encode($pass));
-        if (substr($passResp, 0, 3) !== '235') {
-            fclose($socket);
-            return ['success' => false, 'message' => 'Password/App Password SMTP ditolak: ' . trim($passResp)];
-        }
-
-        $cmd("MAIL FROM:<{$fromEmail}>");
-        $rcptResp = $cmd("RCPT TO:<{$to_email}>");
-        if (substr($rcptResp, 0, 3) !== '250') {
-            fclose($socket);
-            return ['success' => false, 'message' => 'Penerima email ditolak oleh SMTP: ' . trim($rcptResp)];
-        }
-
-        $dataResp = $cmd("DATA");
-        if (substr($dataResp, 0, 3) !== '354') {
-            fclose($socket);
-            return ['success' => false, 'message' => 'Perintah DATA ditolak: ' . trim($dataResp)];
-        }
-
-        $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
-        $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
-        $headers = [
-            "Date: " . date('r'),
-            "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>",
-            "To: =?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>",
-            "Subject: {$encodedSubject}",
-            "MIME-Version: 1.0",
-            "Content-Type: text/html; charset=UTF-8",
-            "Content-Transfer-Encoding: 8bit"
-        ];
-        $payload = implode("\r\n", $headers) . "\r\n\r\n" . $html_body . "\r\n.\r\n";
-        fputs($socket, $payload);
-        $sendResp = $read();
-
-        $cmd("QUIT");
-        fclose($socket);
-
-        if (substr($sendResp, 0, 3) === '250') {
-            return ['success' => true, 'message' => "Email berhasil dikirim langsung via SMTP ke {$to_email}."];
-        }
-
-        return ['success' => false, 'message' => 'Pengiriman data email ditolak server: ' . trim($sendResp)];
-    }
-}
-
-/**
- * Socket SMTP Sender (Opsional legacy helper)
- */
-if (!function_exists('_send_via_smtp_socket')) {
-    function _send_via_smtp_socket($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        return send_email($to_email, $to_name, $subject, $html_body, $text_body);
-    }
-}
-
-/**
- * Kompatibilitas ke belakang (send_smtp_email dialihkan ke send_email)
- */
-if (!function_exists('send_smtp_email')) {
-    function send_smtp_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        return send_email($to_email, $to_name, $subject, $html_body, $text_body);
     }
 }
 

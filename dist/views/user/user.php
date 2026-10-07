@@ -161,14 +161,26 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error'], $_SESSION['flash_war
                             </td>
                             <td>
                                 <?php if ($is_active === 1): ?>
-                                    <span class="badge-modern badge-modern-success"><i class="fa-solid fa-circle-check"></i> Aktif</span>
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        <span class="badge-modern badge-modern-success"><i class="fa-solid fa-circle-check"></i> Aktif</span>
+                                        <?php if ($curr_login_lvl === 1 && $row["id_user"] != $_SESSION['id_user']): ?>
+                                            <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-2 py-0" style="font-size: 0.72rem; line-height: 1.6;" title="Nonaktifkan Akun Pengguna" onclick="confirmToggleStatus(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['username'])) ?>', 0)">
+                                                <i class="fa-solid fa-ban me-1"></i> Nonaktifkan
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php else: ?>
                                     <div class="d-flex align-items-center gap-1 flex-wrap">
                                         <span class="badge-modern badge-modern-warning"><i class="fa-solid fa-clock"></i> Belum Aktif</span>
-                                        <?php if ($curr_login_lvl === 1 && !empty($row['email'])): ?>
-                                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-2 py-0" style="font-size: 0.72rem; line-height: 1.6;" title="Kirim ulang tautan aktivasi akun ke email pengguna" onclick="confirmResendActivation(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['email'])) ?>')">
-                                                <i class="fa-solid fa-paper-plane me-1"></i> Kirim Ulang
+                                        <?php if ($curr_login_lvl === 1): ?>
+                                            <button type="button" class="btn btn-success btn-sm rounded-pill px-2 py-0 text-white shadow-sm" style="font-size: 0.72rem; line-height: 1.6;" title="Aktifkan Akun Secara Langsung (Bypass Email / NAT VPS)" onclick="confirmToggleStatus(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['username'])) ?>', 1)">
+                                                <i class="fa-solid fa-bolt me-1"></i> Aktifkan Langsung
                                             </button>
+                                            <?php if (!empty($row['email'])): ?>
+                                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-2 py-0" style="font-size: 0.72rem; line-height: 1.6;" title="Kirim ulang tautan aktivasi akun ke email pengguna" onclick="confirmResendActivation(<?= (int)$row['id_user'] ?>, '<?= e(addslashes($row['email'])) ?>')">
+                                                    <i class="fa-solid fa-paper-plane me-1"></i> Kirim Ulang
+                                                </button>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
@@ -218,6 +230,45 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error'], $_SESSION['flash_war
 <?php
 $extra_js = '
 <script>
+function confirmToggleStatus(id, username, targetStatus) {
+    const isActivating = (targetStatus === 1);
+    const titleText = isActivating ? "Aktifkan Akun Langsung?" : "Nonaktifkan Akun Pengguna?";
+    const descText = isActivating 
+        ? "Akun @" + username + " akan langsung diaktifkan tanpa menunggu aktivasi email. Pengguna dapat langsung login dengan kata sandi yang telah ditentukan."
+        : "Akun @" + username + " akan dinonaktifkan sementara dan tidak dapat login ke sistem.";
+    const btnColor = isActivating ? "#10b981" : "#f59e0b";
+    const btnText = isActivating ? "Ya, Aktifkan Langsung!" : "Ya, Nonaktifkan!";
+
+    Swal.fire({
+        title: titleText,
+        text: descText,
+        icon: isActivating ? "question" : "warning",
+        showCancelButton: true,
+        confirmButtonColor: btnColor,
+        cancelButtonColor: "#64748b",
+        confirmButtonText: btnText,
+        cancelButtonText: "Batal"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "' . route_url('users_toggle') . '";
+            const idInput = document.createElement("input");
+            idInput.type = "hidden";
+            idInput.name = "id_user";
+            idInput.value = id;
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrf_token";
+            csrfInput.value = "' . csrf_token() . '";
+            form.appendChild(idInput);
+            form.appendChild(csrfInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
 function confirmResendActivation(id, email) {
     Swal.fire({
         title: "Kirim Ulang Aktivasi?",

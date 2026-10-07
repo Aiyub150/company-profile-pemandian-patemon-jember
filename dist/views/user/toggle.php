@@ -61,8 +61,13 @@ if (!$user) {
 $current_active = (int)($user['is_active'] ?? 1);
 $new_status = ($current_active === 1) ? 0 : 1;
 
-$stmtUp = $conn->prepare("UPDATE users SET is_active = ? WHERE id_user = ?");
-$stmtUp->bind_param("ii", $new_status, $id_user);
+if ($new_status === 1) {
+    $stmtUp = $conn->prepare("UPDATE users SET is_active = 1, activation_token = NULL, activation_expires_at = NULL WHERE id_user = ?");
+    $stmtUp->bind_param("i", $id_user);
+} else {
+    $stmtUp = $conn->prepare("UPDATE users SET is_active = 0 WHERE id_user = ?");
+    $stmtUp->bind_param("i", $id_user);
+}
 
 if ($stmtUp->execute()) {
     $stmtUp->close();
@@ -73,9 +78,9 @@ if ($stmtUp->execute()) {
         $_SESSION['flash_success'] = "Akun pengguna <strong>@" . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . "</strong> berhasil dinonaktifkan. Pengguna tidak dapat login ke sistem.";
     } else {
         if (function_exists('log_activity')) {
-            log_activity('USER_ACTIVATED', 'users', "Akun @{$user['username']} diaktifkan kembali oleh Super Admin.", $id_user);
+            log_activity('USER_ACTIVATED', 'users', "Akun @{$user['username']} diaktifkan secara langsung oleh Super Admin.", $id_user);
         }
-        $_SESSION['flash_success'] = "Akun pengguna <strong>@" . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . "</strong> berhasil diaktifkan kembali.";
+        $_SESSION['flash_success'] = "Akun pengguna <strong>@" . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . "</strong> berhasil diaktifkan secara langsung! Pengguna kini dapat login ke sistem.";
     }
 } else {
     $_SESSION['flash_error'] = "Gagal memperbarui status akun: " . $conn->error;

@@ -128,15 +128,15 @@ $plainBody = "Halo " . ($user['nama'] ?: $user['username']) . ",\n\n"
     . $activation_url . "\n\n"
     . "Tautan ini berlaku hingga: " . date('d M Y H:i', strtotime($expires_at)) . " WIB.\n";
 
-$mailRes = send_email($user['email'], $user['nama'] ?: $user['username'], $subject, $htmlBody, $plainBody);
+$mailRes = send_smtp_email($user['email'], $user['nama'] ?: $user['username'], $subject, $htmlBody, $plainBody);
 
 if ($mailRes['success']) {
     if (function_exists('log_activity')) {
         log_activity('RESEND_ACTIVATION_EMAIL', 'users', "Email aktivasi akun @{$user['username']} berhasil dikirim ulang ke {$user['email']}.", $id_user);
     }
-    $_SESSION['flash_success'] = "Email aktivasi akun berhasil dikirimkan langsung ke <strong>" . htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8') . "</strong>.";
+    $_SESSION['flash_success'] = "Email aktivasi akun berhasil dikirimkan ke <strong>" . htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8') . "</strong>.";
 } else {
-    $_SESSION['flash_warning'] = "Token aktivasi diperbarui, namun pengiriman email mengalami kendala (" . htmlspecialchars($mailRes['message'] ?? 'gagal mengirim', ENT_QUOTES, 'UTF-8') . ").";
+    $_SESSION['flash_warning'] = "Token aktivasi diperbarui, namun pengiriman email mengalami kendala (" . htmlspecialchars($mailRes['message'] ?? 'server Mailpit tidak aktif', ENT_QUOTES, 'UTF-8') . "). Super Admin dapat mengaktifkan akun secara langsung melalui tombol Aktifkan Langsung.";
 }
 
 header('Location: ' . route_url('users'));
