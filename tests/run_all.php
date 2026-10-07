@@ -14,6 +14,7 @@ $testFiles = [
     'Auth & RBAC Security'        => __DIR__ . '/Unit/AuthTest.php',
     'Calendar & Operations'       => __DIR__ . '/Unit/CalendarTest.php',
     'Ticket & Transaction Logic'  => __DIR__ . '/Unit/TransactionTest.php',
+    'Email & Gmail Dispatch'      => __DIR__ . '/Unit/EmailTest.php',
 ];
 
 $allPassed = true;

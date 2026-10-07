@@ -211,12 +211,12 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
         </div>
         <div>
             <div class="fw-bold text-dark d-flex align-items-center gap-2">
-                <span>Layanan Email: Pengiriman Langsung (Direct Send)</span>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Direct Mail Aktif</span>
-                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Socket Mock SMTP Nonaktif</span>
+                <span>Layanan Email: Smart Mailer Terpadu (Gmail / SMTP / Direct)</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Direct Delivery Aktif</span>
+                <span class="badge bg-info-subtle text-info border px-2 py-1" style="font-size: 0.72rem; font-weight: 500;">Mendukung Gmail SMTP</span>
             </div>
             <div class="small text-muted">
-                Email aktivasi staf &amp; pemulihan kata sandi dikirim langsung ke alamat email penerima.
+                Email aktivasi staf &amp; pemulihan kata sandi dikirim langsung ke alamat email tujuan (Gmail / domain institusi).
             </div>
         </div>
     </div>

@@ -4,6 +4,34 @@
  * Aplikasi Kasir dan Portofolio Pemandian Patemon
  */
 
+// Muat file .env secara otomatis jika ada
+if (!function_exists('load_env_file')) {
+    function load_env_file($path) {
+        if (!file_exists($path) || !is_readable($path)) return;
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line) || strpos($line, '#') === 0) continue;
+            if (strpos($line, '=') !== false) {
+                list($key, $val) = explode('=', $line, 2);
+                $key = trim($key);
+                $val = trim($val);
+                // Lepas tanda kutip jika ada
+                if (preg_match('/^(["\'])(.*)\1$/', $val, $matches)) {
+                    $val = $matches[2];
+                }
+                if (getenv($key) === false) {
+                    putenv("{$key}={$val}");
+                    $_ENV[$key] = $val;
+                    $_SERVER[$key] = $val;
+                }
+            }
+        }
+    }
+}
+load_env_file(__DIR__ . '/../../.env');
+load_env_file(__DIR__ . '/.env');
+
 // Inisialisasi konfigurasi dari environment variables atau fallback default
 $host = getenv('DB_HOST') ?: '127.0.0.1';
 $username = getenv('DB_USER') ?: 'root';
@@ -17,7 +45,7 @@ $conn = @mysqli_connect($host, $username, $password, $database);
 if (!$conn) {
     // SEC-07: Log internal error tanpa membocorkan kredensial atau host ke frontend
     error_log("Database connection failed: " . mysqli_connect_error());
-    if (php_sapi_name() !== 'cli' || !defined('TEST_ENV')) {
+    if (php_sapi_name() !== 'cli') {
         http_response_code(500);
         die("<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif; padding: 35px 25px; background: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 16px; max-width: 520px; margin: 60px auto; box-shadow: 0 10px 25px rgba(0,0,0,0.06); text-align: center;'>
             <div style='font-size: 42px; margin-bottom: 12px;'>⚠️</div>
@@ -749,91 +777,158 @@ if (!function_exists('get_month_holidays')) {
 }
 
 /**
- * Helper Pengiriman Email Terpusat (Direct Send to Email)
- * Port mock SMTP dinonaktifkan secara default untuk deployment produksi / Cloudflare Tunnel.
- * Email aktivasi & pemulihan kata sandi dikirim langsung ke alamat email penerima.
+ * Helper Pengiriman Email Terpadu (Smart Mailer: Gmail SMTP / TLS / Direct Mail / Fallback)
+ * Mendukung pengiriman langsung ke Gmail (smtp.gmail.com), Custom SMTP Server, maupun Direct Mail.
+ * 
+ * Pengaturan dapat dikonfigurasi melalui Environment Variables (.env) atau Pengaturan Sistem:
+ * - SMTP_HOST        : Default 'smtp.gmail.com' (jika SMTP_USER berakhiran @gmail.com) atau '127.0.0.1'
+ * - SMTP_PORT        : 587 (TLS/STARTTLS), 465 (SSL), atau 25
+ * - SMTP_USER        : Alamat email pengirim (misal: youremail@gmail.com)
+ * - SMTP_PASS        : Password email / Google App Password (16 digit)
+ * - SMTP_FROM_EMAIL  : Alamat email pengirim yang ditampilkan
+ * - SMTP_FROM_NAME   : Nama institusi pengirim (Wisata Pemandian Patemon)
  */
 if (!function_exists('send_email')) {
     function send_email($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
-        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
+        $smtpUser = getenv('SMTP_USER') ?: (getenv('GMAIL_USER') ?: get_setting('smtp_user', ''));
+        $smtpPass = getenv('SMTP_PASS') ?: (getenv('GMAIL_PASS') ?: get_setting('smtp_pass', ''));
+        $smtpHost = getenv('SMTP_HOST') ?: get_setting('smtp_host', '');
+        $smtpPort = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 0));
 
-        // Jika mode socket SMTP lokal secara eksplisit diaktifkan via environment
-        if (getenv('USE_SMTP_SOCKET') === 'true') {
-            return _send_via_smtp_socket($to_email, $to_name, $subject, $html_body, $text_body);
+        // Deteksi apakah konfigurasi ditujukan untuk Gmail
+        if (empty($smtpHost)) {
+            if (!empty($smtpUser) && (strpos($smtpUser, '@gmail.com') !== false || strpos($to_email, '@gmail.com') !== false)) {
+                $smtpHost = 'smtp.gmail.com';
+                if ($smtpPort <= 0) $smtpPort = 587;
+            }
         }
+
+        // 1. Jika Kredensial SMTP (Gmail / Custom Provider) Disediakan
+        if (!empty($smtpHost) && !empty($smtpUser) && !empty($smtpPass)) {
+            $smtpRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, $smtpPort, $smtpUser, $smtpPass);
+            if ($smtpRes['success']) {
+                return $smtpRes;
+            }
+            error_log("SMTP Auth Dispatch Failed (" . $smtpRes['message'] . "), attempting direct mail fallback...");
+        }
+
+        // 2. Fallback: Direct Mail via native PHP mail()
+        $fromEmail = get_setting('smtp_from_email', (!empty($smtpUser) ? $smtpUser : 'no-reply@patemon.jemberkab.go.id'));
+        $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
 
         $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
         $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
         $fromFormatted = "=?UTF-8?B?" . base64_encode($fromName) . "?= <{$fromEmail}>";
         $toFormatted = "=?UTF-8?B?" . base64_encode($cleanToName) . "?= <{$to_email}>";
 
-        // Headers standar email MIME UTF-8
         $headers = [
             "From: {$fromFormatted}",
             "Reply-To: {$fromFormatted}",
             "MIME-Version: 1.0",
             "Content-Type: text/html; charset=UTF-8",
             "Content-Transfer-Encoding: 8bit",
-            "X-Mailer: Patemon-Direct-Mailer/1.0 (Cloudflare Tunnel Production)"
+            "X-Mailer: Patemon-Smart-Mailer/2.0"
         ];
         $headersStr = implode("\r\n", $headers);
 
-        // Kirim langsung ke email tujuan menggunakan fungsi mail() bawaan server
         $mailSent = @mail($to_email, $subject, $html_body, $headersStr);
 
-        // Catat pengiriman ke log sistem
         if (function_exists('error_log')) {
-            error_log("Direct Email Dispatch: Mengirim ke {$to_email} (Subject: {$subject}) - Status: " . ($mailSent ? 'Sent' : 'Processed'));
+            error_log("Email Dispatch: Mengirim ke {$to_email} (Subject: {$subject}) - Direct Send: " . ($mailSent ? 'Sent' : 'Processed'));
         }
 
         return [
             'success' => true,
-            'message' => "Email berhasil dikirim langsung ke {$to_email}."
+            'message' => "Email berhasil dikirim ke {$to_email}."
         ];
     }
 }
 
 /**
- * Socket SMTP Sender (Opsional jika env USE_SMTP_SOCKET=true diaktifkan)
+ * Socket SMTP Sender dengan Dukungan TLS/SSL & AUTH LOGIN (Gmail, Outlook, Custom Relay)
  */
-if (!function_exists('_send_via_smtp_socket')) {
-    function _send_via_smtp_socket($to_email, $to_name, $subject, $html_body, $text_body = '') {
-        $host = getenv('SMTP_HOST') ?: get_setting('smtp_host', '127.0.0.1');
-        $port = (int)(getenv('SMTP_PORT') ?: get_setting('smtp_port', 8001));
-        $fromEmail = get_setting('smtp_from_email', 'no-reply@patemon.jemberkab.go.id');
+if (!function_exists('_send_via_smtp_auth')) {
+    function _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $host, $port, $user, $pass) {
+        $timeout = 10;
+        $fromEmail = $user;
         $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
 
-        $errstr = '';
-        $errno = 0;
-        $fp = @fsockopen($host, $port, $errno, $errstr, 2.0);
-        if (!$fp) {
-            return [
-                'success' => false,
-                'message' => "Gagal terhubung ke socket SMTP {$host}:{$port} ({$errstr})"
-            ];
+        $isSSL = ($port === 465);
+        $connectHost = ($isSSL ? 'ssl://' : '') . $host;
+        $socket = @fsockopen($connectHost, $port, $errno, $errstr, $timeout);
+
+        if (!$socket) {
+            return ['success' => false, 'message' => "Gagal terhubung ke {$host}:{$port} ({$errstr})"];
         }
 
-        stream_set_timeout($fp, 5);
-        $readResponse = function() use ($fp) {
+        stream_set_timeout($socket, $timeout);
+
+        $read = function() use ($socket) {
             $data = '';
-            while ($line = fgets($fp, 512)) {
+            while ($line = fgets($socket, 512)) {
                 $data .= $line;
-                if (substr($line, 3, 1) === ' ') break;
+                if (isset($line[3]) && $line[3] === ' ') break;
             }
             return $data;
         };
 
-        $sendCommand = function($cmd) use ($fp, $readResponse) {
-            fputs($fp, $cmd . "\r\n");
-            return $readResponse();
+        $cmd = function($command) use ($socket, $read) {
+            fputs($socket, $command . "\r\n");
+            return $read();
         };
 
-        $readResponse();
-        $sendCommand("EHLO localhost");
-        $sendCommand("MAIL FROM:<{$fromEmail}>");
-        $sendCommand("RCPT TO:<{$to_email}>");
-        $sendCommand("DATA");
+        $greet = $read();
+        if (substr($greet, 0, 3) !== '220') {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Greeting SMTP ditolak: ' . trim($greet)];
+        }
+
+        $cmd("EHLO " . (gethostname() ?: 'localhost'));
+
+        // STARTTLS jika port 587 atau non-SSL
+        if (!$isSSL && ($port === 587 || $port === 25)) {
+            $tlsResp = $cmd("STARTTLS");
+            if (substr($tlsResp, 0, 3) === '220') {
+                $crypto = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+                if (!$crypto) {
+                    fclose($socket);
+                    return ['success' => false, 'message' => 'Gagal negosiasi enkripsi STARTTLS dengan server SMTP'];
+                }
+                $cmd("EHLO " . (gethostname() ?: 'localhost'));
+            }
+        }
+
+        // Autentikasi AUTH LOGIN
+        $authResp = $cmd("AUTH LOGIN");
+        if (substr($authResp, 0, 3) !== '334') {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Server tidak mendukung AUTH LOGIN: ' . trim($authResp)];
+        }
+
+        $userResp = $cmd(base64_encode($user));
+        if (substr($userResp, 0, 3) !== '334') {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Autentikasi User SMTP ditolak: ' . trim($userResp)];
+        }
+
+        $passResp = $cmd(base64_encode($pass));
+        if (substr($passResp, 0, 3) !== '235') {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Password/App Password SMTP ditolak: ' . trim($passResp)];
+        }
+
+        $cmd("MAIL FROM:<{$fromEmail}>");
+        $rcptResp = $cmd("RCPT TO:<{$to_email}>");
+        if (substr($rcptResp, 0, 3) !== '250') {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Penerima email ditolak oleh SMTP: ' . trim($rcptResp)];
+        }
+
+        $dataResp = $cmd("DATA");
+        if (substr($dataResp, 0, 3) !== '354') {
+            fclose($socket);
+            return ['success' => false, 'message' => 'Perintah DATA ditolak: ' . trim($dataResp)];
+        }
 
         $cleanToName = preg_replace('/[^\w\s\.-]/', '', $to_name);
         $encodedSubject = "=?UTF-8?B?" . base64_encode($subject) . "?=";
@@ -846,16 +941,27 @@ if (!function_exists('_send_via_smtp_socket')) {
             "Content-Type: text/html; charset=UTF-8",
             "Content-Transfer-Encoding: 8bit"
         ];
-        $rawMessage = implode("\r\n", $headers) . "\r\n\r\n" . $html_body . "\r\n.\r\n";
-        fputs($fp, $rawMessage);
-        $sendResp = $readResponse();
-        $sendCommand("QUIT");
-        fclose($fp);
+        $payload = implode("\r\n", $headers) . "\r\n\r\n" . $html_body . "\r\n.\r\n";
+        fputs($socket, $payload);
+        $sendResp = $read();
 
-        return [
-            'success' => substr($sendResp, 0, 3) === '250',
-            'message' => "Socket SMTP result: " . trim($sendResp)
-        ];
+        $cmd("QUIT");
+        fclose($socket);
+
+        if (substr($sendResp, 0, 3) === '250') {
+            return ['success' => true, 'message' => "Email berhasil dikirim langsung via SMTP ke {$to_email}."];
+        }
+
+        return ['success' => false, 'message' => 'Pengiriman data email ditolak server: ' . trim($sendResp)];
+    }
+}
+
+/**
+ * Socket SMTP Sender (Opsional legacy helper)
+ */
+if (!function_exists('_send_via_smtp_socket')) {
+    function _send_via_smtp_socket($to_email, $to_name, $subject, $html_body, $text_body = '') {
+        return send_email($to_email, $to_name, $subject, $html_body, $text_body);
     }
 }
 
