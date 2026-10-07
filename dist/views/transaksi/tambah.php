@@ -1157,5 +1157,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         recalculate();
     });
     </script>
+    <script src="<?= public_url('js/image-upload-validator.js') ?>"></script>
 </body>
 </html>

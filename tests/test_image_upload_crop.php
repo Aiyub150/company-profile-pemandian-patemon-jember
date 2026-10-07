@@ -47,10 +47,11 @@ $pesan_view = file_get_contents(__DIR__ . '/../dist/views/tiket/pesan.php');
 assert_true(strpos($transaksi_view, 'modalCropAvatar') === false && strpos($transaksi_view, 'Cropper') === false, "dist/views/transaksi/tambah.php TIDAK memiliki fitur crop");
 assert_true(strpos($pesan_view, 'modalCropAvatar') === false && strpos($pesan_view, 'Cropper') === false, "dist/views/tiket/pesan.php TIDAK memiliki fitur crop");
 
-// 5. Verifikasi admin_footer.php dan tiket/pesan.php memuat image-upload-validator.js
+// 5. Verifikasi admin_footer.php, tiket/pesan.php, dan transaksi/tambah.php memuat image-upload-validator.js
 $footer_content = file_get_contents(__DIR__ . '/../dist/app/layouts/admin_footer.php');
 assert_true(strpos($footer_content, 'image-upload-validator.js') !== false, "admin_footer.php memuat image-upload-validator.js");
 assert_true(strpos($pesan_view, 'image-upload-validator.js') !== false, "dist/views/tiket/pesan.php memuat image-upload-validator.js");
+assert_true(strpos($transaksi_view, 'image-upload-validator.js') !== false, "dist/views/transaksi/tambah.php memuat image-upload-validator.js");
 
 // 6. Uji logika dekoding base64 avatar crop backend
 // A. Valid JPEG base64 payload
