@@ -804,12 +804,24 @@ if (!function_exists('send_email')) {
         }
 
         // 1. Jika Kredensial SMTP (Gmail / Custom Provider) Disediakan
-        if (!empty($smtpHost) && !empty($smtpUser) && !empty($smtpPass)) {
+        if (!empty($smtpHost) && !empty($smtpUser)) {
+            if (empty($smtpPass)) {
+                return [
+                    'success' => false,
+                    'message' => "Kata sandi SMTP / Google App Password untuk akun {$smtpUser} belum disimpan di database atau file .env. Silakan masukkan di menu Server Log atau file .env."
+                ];
+            }
+
             $smtpRes = _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $smtpHost, $smtpPort, $smtpUser, $smtpPass);
             if ($smtpRes['success']) {
                 return $smtpRes;
             }
-            error_log("SMTP Auth Dispatch Failed (" . $smtpRes['message'] . "), attempting direct mail fallback...");
+
+            // Laporkan kegagalan spesifik dari koneksi SMTP agar jelas akar masalahnya
+            return [
+                'success' => false,
+                'message' => "Koneksi SMTP ({$smtpHost}:{$smtpPort}) gagal: " . $smtpRes['message']
+            ];
         }
 
         // 2. Fallback: Direct Mail via native PHP mail()
@@ -856,13 +868,29 @@ if (!function_exists('send_email')) {
  */
 if (!function_exists('_send_via_smtp_auth')) {
     function _send_via_smtp_auth($to_email, $to_name, $subject, $html_body, $host, $port, $user, $pass) {
-        $timeout = 10;
-        $fromEmail = $user;
+        $timeout = 15;
+        $fromEmail = get_setting('smtp_from_email', $user);
         $fromName  = get_setting('smtp_from_name', 'Wisata Pemandian Patemon');
 
-        $isSSL = ($port === 465);
-        $connectHost = ($isSSL ? 'ssl://' : '') . $host;
-        $socket = @fsockopen($connectHost, $port, $errno, $errstr, $timeout);
+        // Bersihkan spasi pada Google App Password (contoh: "eqwo aijj rmlr hdah" -> "eqwoaijjrmlrhdah")
+        $pass = str_replace(' ', '', trim($pass));
+        $user = trim($user);
+
+        $isSSL = ((int)$port === 465);
+        $connectHost = ($isSSL ? 'ssl://' : 'tcp://') . $host;
+
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            ]
+        ]);
+
+        $socket = @stream_socket_client("{$connectHost}:{$port}", $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $context);
+        if (!$socket) {
+            $socket = @fsockopen(($isSSL ? 'ssl://' : '') . $host, $port, $errno, $errstr, $timeout);
+        }
 
         if (!$socket) {
             return ['success' => false, 'message' => "Gagal terhubung ke {$host}:{$port} ({$errstr})"];
@@ -893,10 +921,18 @@ if (!function_exists('_send_via_smtp_auth')) {
         $cmd("EHLO " . (gethostname() ?: 'localhost'));
 
         // STARTTLS jika port 587 atau non-SSL
-        if (!$isSSL && ($port === 587 || $port === 25)) {
+        if (!$isSSL && ((int)$port === 587 || (int)$port === 25)) {
             $tlsResp = $cmd("STARTTLS");
             if (substr($tlsResp, 0, 3) === '220') {
-                $crypto = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+                $cryptoMethods = STREAM_CRYPTO_METHOD_TLS_CLIENT;
+                if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+                    $cryptoMethods |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+                }
+                if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) {
+                    $cryptoMethods |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+                }
+
+                $crypto = @stream_socket_enable_crypto($socket, true, $cryptoMethods);
                 if (!$crypto) {
                     fclose($socket);
                     return ['success' => false, 'message' => 'Gagal negosiasi enkripsi STARTTLS dengan server SMTP'];
