@@ -628,9 +628,15 @@ if (file_exists($logo_file)) {
         </div>
 
         <!-- Detail Pemesanan -->
+        <?php 
+        // Prioritas Nama Pengunjung: Utamakan input manual nama_pemesan di loket kasir, baru nama akun member
+        $display_customer_name = !empty($transaksi_data['nama_pemesan']) 
+            ? $transaksi_data['nama_pemesan'] 
+            : (!empty($transaksi_data['user_nama']) ? $transaksi_data['user_nama'] : $nama);
+        ?>
         <div class="item-row">
             <span class="text-muted">Nama Pengunjung:</span>
-            <strong class="text-dark"><?= e($transaksi_data['user_nama'] ?? $transaksi_data['nama_pemesan'] ?? $nama) ?></strong>
+            <strong class="text-dark"><?= e($display_customer_name) ?></strong>
         </div>
         <?php 
         $cust_telp = !empty($transaksi_data['no_telepon_pemesan']) ? $transaksi_data['no_telepon_pemesan'] : ($transaksi_data['no_telepon'] ?? '');

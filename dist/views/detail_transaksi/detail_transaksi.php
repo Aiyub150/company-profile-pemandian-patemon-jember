@@ -13,7 +13,7 @@ if ($id_transaksi <= 0) {
     exit();
 }
 
-$stmt = $conn->prepare("SELECT detail_transaksi.*, transaksi.tgl_pemesanan, transaksi.total_harga, transaksi.metode_pembayaran, transaksi.status, transaksi.bukti_pembayaran, users.nama 
+$stmt = $conn->prepare("SELECT detail_transaksi.*, transaksi.tgl_pemesanan, transaksi.total_harga, transaksi.metode_pembayaran, transaksi.status, transaksi.bukti_pembayaran, transaksi.nama_pemesan, users.nama 
     FROM detail_transaksi 
     INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi 
     INNER JOIN users ON transaksi.id_user = users.id_user 
@@ -66,8 +66,13 @@ require '../../app/layouts/admin_header.php';
                         <div class="order-info-box p-3 rounded-3 mb-4 border">
                             <div class="row g-3">
                                 <div class="col-sm-6">
-                                    <div class="text-muted small fw-semibold">Nama Pemesan:</div>
-                                    <div class="fw-bold text-dark fs-6"><?= e($transaksi_info['nama']) ?></div>
+                                    <div class="text-muted small">Pemesan / Pengunjung</div>
+                                    <?php 
+                                    $nama_pemesan_tampil = !empty($transaksi_info['nama_pemesan']) 
+                                        ? $transaksi_info['nama_pemesan'] 
+                                        : (!empty($transaksi_info['nama']) ? $transaksi_info['nama'] : 'Pengunjung Loket');
+                                    ?>
+                                    <div class="fw-bold text-dark fs-6"><?= e($nama_pemesan_tampil) ?></div>
                                     <div class="text-muted small fw-semibold mt-2">Tanggal Transaksi:</div>
                                     <div class="fw-semibold text-secondary"><?= date('d F Y', strtotime($transaksi_info['tgl_pemesanan'])) ?></div>
                                 </div>

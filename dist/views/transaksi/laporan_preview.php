@@ -24,7 +24,21 @@ if ($user_level === 3) {
 }
 
 $tipe = $_GET['tipe'] ?? 'bulanan'; // harian, mingguan, bulanan, tahunan
-$filter_date  = $_GET['date'] ?? date('Y-m-d');
+$filter_date  = $_GET['date'] ?? '';
+if (empty($filter_date)) {
+    $today = date('Y-m-d');
+    $check_today = $conn->query("SELECT id_transaksi FROM transaksi WHERE DATE(tgl_pemesanan) = '{$today}' AND status = 'done' AND deleted_at IS NULL LIMIT 1");
+    if ($check_today && $check_today->num_rows > 0) {
+        $filter_date = $today;
+    } else {
+        $last_trx = $conn->query("SELECT DATE(tgl_pemesanan) as last_date FROM transaksi WHERE status = 'done' AND deleted_at IS NULL ORDER BY tgl_pemesanan DESC LIMIT 1");
+        if ($last_trx && $row_last = $last_trx->fetch_assoc()) {
+            $filter_date = $row_last['last_date'] ?: $today;
+        } else {
+            $filter_date = $today;
+        }
+    }
+}
 $filter_start = $_GET['start'] ?? date('Y-m-d', strtotime('-6 days'));
 $filter_end   = $_GET['end'] ?? date('Y-m-d');
 $filter_month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
@@ -43,7 +57,7 @@ $types = "";
 
 if ($tipe === 'harian') {
     $periode_label = "Tanggal: " . format_tanggal_indonesia($filter_date, true);
-    $where[] = "t.tgl_pemesanan = ?";
+    $where[] = "DATE(t.tgl_pemesanan) = ?";
     $params[] = $filter_date;
     $types .= "s";
 } elseif ($tipe === 'mingguan') {

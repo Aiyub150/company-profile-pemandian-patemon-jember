@@ -513,22 +513,33 @@ document.addEventListener("DOMContentLoaded", function() {
             console.warn("Pustaka Cropper.js belum tersedia.");
             return;
         }
-        setTimeout(function() {
-            cropper = new Cropper(cropperImageTarget, {
-                aspectRatio: 1,
-                viewMode: 1,
-                dragMode: "move",
-                autoCropArea: 0.9,
-                restore: false,
-                guides: true,
-                center: true,
-                highlight: false,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
-                toggleDragModeOnDblclick: false
-            });
-        }, 150);
+        cropper = new Cropper(cropperImageTarget, {
+            aspectRatio: 1,
+            viewMode: 1,
+            dragMode: "move",
+            autoCropArea: 0.9,
+            restore: false,
+            guides: true,
+            center: true,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+            ready: function() {
+                // Pastikan canvas cropper terukur sempurna saat siap
+                cropper?.crop();
+            }
+        });
     }
+
+    // Pasang listener pada event modal Bootstrap
+    modalEl?.addEventListener("shown.bs.modal", function() {
+        initCropper();
+    });
+
+    modalEl?.addEventListener("hidden.bs.modal", function() {
+        destroyCropper();
+    });
 
     function openCropModal() {
         if (!modalEl) return;
@@ -536,7 +547,6 @@ document.addEventListener("DOMContentLoaded", function() {
             try {
                 const inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
                 inst.show();
-                initCropper();
                 return;
             } catch(err) {
                 console.warn("Bootstrap modal gagal dibuka, menggunakan fallback DOM:", err);
@@ -553,7 +563,7 @@ document.addEventListener("DOMContentLoaded", function() {
             backdrop.className = "modal-backdrop fade show";
             document.body.appendChild(backdrop);
         }
-        initCropper();
+        setTimeout(initCropper, 50);
     }
 
     function closeCropModal() {

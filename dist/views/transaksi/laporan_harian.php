@@ -5,12 +5,29 @@ check_auth([1, 2, 3]);
 $active_menu = 'laporan_harian';
 $base_view = '..';
 
-$dateInput = isset($_GET['dateInput']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['dateInput']) ? $_GET['dateInput'] : date('Y-m-d');
+// Parameter tanggal: jika tidak diset, periksa apakah hari ini ada transaksi; jika tidak ada, default ke tanggal transaksi terakhir yang ada agar data langsung tampil
+$dateInput = isset($_GET['dateInput']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['dateInput']) ? $_GET['dateInput'] : '';
+if (empty($dateInput)) {
+    // Cek apakah ada transaksi pada hari ini
+    $today = date('Y-m-d');
+    $check_today = $conn->query("SELECT id_transaksi FROM transaksi WHERE DATE(tgl_pemesanan) = '{$today}' AND status = 'done' AND deleted_at IS NULL LIMIT 1");
+    if ($check_today && $check_today->num_rows > 0) {
+        $dateInput = $today;
+    } else {
+        // Ambil tanggal transaksi terakhir agar pengguna tidak melihat laporan kosong saat hari baru belum ada transaksi
+        $last_trx = $conn->query("SELECT DATE(tgl_pemesanan) as last_date FROM transaksi WHERE status = 'done' AND deleted_at IS NULL ORDER BY tgl_pemesanan DESC LIMIT 1");
+        if ($last_trx && $row_last = $last_trx->fetch_assoc()) {
+            $dateInput = $row_last['last_date'] ?: $today;
+        } else {
+            $dateInput = $today;
+        }
+    }
+}
 
-$stmt = $conn->prepare("SELECT detail_transaksi.jenis_tiket, SUM(detail_transaksi.quantity) AS total_quantity, SUM(detail_transaksi.sub_total) AS total_sub, transaksi.tgl_pemesanan
+$stmt = $conn->prepare("SELECT detail_transaksi.jenis_tiket, SUM(detail_transaksi.quantity) AS total_quantity, SUM(detail_transaksi.sub_total) AS total_sub, DATE(transaksi.tgl_pemesanan) as tgl_pemesanan
     FROM detail_transaksi 
     INNER JOIN transaksi ON detail_transaksi.id_transaksi = transaksi.id_transaksi
-    WHERE transaksi.tgl_pemesanan = ? AND transaksi.status = 'done' AND transaksi.deleted_at IS NULL
+    WHERE DATE(transaksi.tgl_pemesanan) = ? AND transaksi.status = 'done' AND transaksi.deleted_at IS NULL
     GROUP BY detail_transaksi.jenis_tiket");
 $stmt->bind_param("s", $dateInput);
 $stmt->execute();
