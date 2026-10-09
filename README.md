@@ -21,7 +21,61 @@ Sistem menjembatani dua kebutuhan utama tata kelola pariwisata modern:
 
 ---
 
-## ✨ 2. Fitur Utama, Library & Kutipan Kode (Libraries & Code Snippets)
+## 📸 2. Galeri Pratinjau Antarmuka & Alur Kerja Sistem (UI & Workflow Showcase)
+
+Berikut adalah dokumentasi visual menyeluruh dari setiap halaman, alur kerja (*workflow*), dan antarmuka operasional pada sistem:
+
+### A. Antarmuka Publik & E-Ticketing Wisatawan
+
+| Halaman / Alur Kerja | Pratinjau Visual Antarmuka | Deskripsi Fitur & Fungsionalitas |
+| :--- | :---: | :--- |
+| **Beranda & Hero Section** | <img src="docs/screenshots/homev2.png" width="480" alt="Beranda Utama"> | Landing page interaktif beranda wisata lengkap dengan widget jam operasional, profil wisata, dan navigasi ramah seluler. |
+| **Layanan & Fasilitas Wisata** | <img src="docs/screenshots/service.png" width="480" alt="Layanan Wisata"> | Informasi sarana prasarana wisata, kolam renang alami, gazebo santai, dan fasilitas penunjang rekreasi keluarga. |
+| **Galeri Wisata & Pop-up Preview** | <img src="docs/screenshots/galleryv2.png" width="480" alt="Galeri Wisata"><br><img src="docs/screenshots/popup_galleryv2.png" width="480" alt="Pop-up Detail Foto"> | Etalase visual dokumentasi keindahan alam dengan modal pop-up interaktif untuk melihat foto resolusi tinggi. |
+| **Pemesanan Tiket Pengunjung** | <img src="docs/screenshots/buy_ticketv2.png" width="480" alt="Pemesanan Tiket"> | Formulir reservasi tiket mandiri oleh pengunjung dengan kalkulasi total otomatis dan upload bukti transfer (validasi maks. 2 MB). |
+| **Ulasan Pengunjung & Toxic Filter** | <img src="docs/screenshots/feedbackv2.png" width="480" alt="Ulasan Pengunjung"><br><img src="docs/screenshots/popup_feedbackv2.png" width="480" alt="Kirim Ulasan"> | Ruang testimoni pengunjung terintegrasi sensor otomatis kata terlarang (*Toxic Word Filter*) untuk menjamin kesopanan konten. |
+
+### B. Otentikasi, Profil & Keamanan Pengguna
+
+| Halaman / Alur Kerja | Pratinjau Visual Antarmuka | Deskripsi Fitur & Fungsionalitas |
+| :--- | :---: | :--- |
+| **Halaman Masuk (Login)** | <img src="docs/screenshots/login.png" width="480" alt="Halaman Login"> | Gerbang masuk terproteksi Rate Limiting & CSRF Shield untuk Super Admin, Admin, Kasir, dan Pengunjung terdaftar. |
+| **Pendaftaran Akun Baru** | <img src="docs/screenshots/register.png" width="480" alt="Pendaftaran Akun"> | Form registrasi akun wisatawan baru dengan verifikasi kata sandi kuat dan sanitasi input keamanan. |
+| **Lupa Password & Pemulihan** | <img src="docs/screenshots/forgot_password.png" width="480" alt="Lupa Password"> | Alur reset kata sandi mandiri menggunakan token acak aman yang dikirimkan via SMTP email lokal / Mailpit. |
+| **Profil & Cropper Avatar 1:1** | <img src="docs/screenshots/profile.png" width="480" alt="Profil Pengguna"> | Tata kelola akun pengguna, ubah kata sandi, dan pemotong foto profil rasio 1:1 berbasis Cropper.js dengan validasi batas 2 MB. |
+
+### C. Point of Sale (POS) Kasir Loket & Cetak Struk
+
+| Halaman / Alur Kerja | Pratinjau Visual Antarmuka | Deskripsi Fitur & Fungsionalitas |
+| :--- | :---: | :--- |
+| **Kasir Loket Walk-in (POS)** | <img src="docs/screenshots/pos_tambah_transaksi.png" width="480" alt="Kasir Loket POS"> | Input transaksi cepat tamu fisik di pintu gerbang dengan integrasi kamera WebRTC langsung untuk bukti pembayaran. |
+| **Meja Data Transaksi** | <img src="docs/screenshots/transactionv2.png" width="480" alt="Daftar Transaksi"> | Tabel rekap transaksi kasir harian lengkap dengan pencarian real-time, filter status pembayaran, dan tombol tindakan. |
+| **Faktur & Rincian Transaksi** | <img src="docs/screenshots/detail_transaksi.png" width="480" alt="Detail Transaksi"> | Tampilan rincian tiket yang dipesan, identitas pemesan, riwayat pembayaran, serta validasi persetujuan kasir. |
+| **Struk / Nota Termal Transaksi** | <img src="docs/screenshots/receipt_nota.png" width="480" alt="Struk Kasir Termal"> | Format cetak struk siap cetak thermal 80mm/58mm dengan kode tiket barcode Code-128 dan nama pemesan akurat. |
+
+### D. Panel Administrasi & Tata Kelola (Backoffice)
+
+| Halaman / Alur Kerja | Pratinjau Visual Antarmuka | Deskripsi Fitur & Fungsionalitas |
+| :--- | :---: | :--- |
+| **Dashboard Operasional** | <img src="docs/screenshots/dashboardv2.png" width="480" alt="Dashboard Backoffice"> | Statistik pengunjung real-time, grafik tren pendapatan, rekap tiket terjual, dan status operasional hari ini. |
+| **Manajemen Kategori & Tarif** | <img src="docs/screenshots/manage_categoryv2.png" width="480" alt="Kelola Tarif Tiket"> | Pengaturan tarif retribusi tiket masuk, kuota pengunjung, status keaktifan tiket, dan ikon kategori. |
+| **Manajemen Koleksi Galeri** | <img src="docs/screenshots/gallery_managementv2.png" width="480" alt="Manajemen Galeri"> | Kurasi foto dan album keindahan destinasi wisata dengan fitur upload cepat dan opsi publikasi. |
+| **Manajemen Akun & Hak Akses (RBAC)** | <img src="docs/screenshots/users_managementv2.png" width="480" alt="Kelola Pengguna"> | Pengelolaan data staf kasir, admin, hak akses bertingkat 4 level, dan aktivasi akun via email. |
+| **Kalender Libur & Perawatan** | <img src="docs/screenshots/kalender.png" width="480" alt="Kalender Operasional"> | Penjadwalan libur nasional dan penetapan tanggal tutup kuras/pemeliharaan kolam yang otomatis sinkron ke beranda. |
+
+### E. Pelaporan Keuangan, Audit Trail & Monitoring Sistem
+
+| Halaman / Alur Kerja | Pratinjau Visual Antarmuka | Deskripsi Fitur & Fungsionalitas |
+| :--- | :---: | :--- |
+| **Rekapitulasi Laporan Omzet** | <img src="docs/screenshots/reportsv2.png" width="480" alt="Laporan Keuangan"> | Agregasi penerimaan retribusi per periode (Harian, Mingguan, Bulanan, Tahunan) dengan rincian omzet. |
+| **Laporan Harian Kasir** | <img src="docs/screenshots/laporan_harian.png" width="480" alt="Laporan Kasir Harian"> | Rekapitulasi transaksi kasir intraday yang langsung teragregasi secara otomatis tanpa menunggu tutup buku. |
+| **Pratinjau Cetak Laporan Resmi** | <img src="docs/screenshots/laporan_preview.png" width="480" alt="Pratinjau Cetak Laporan"> | Format cetak laporan standar dinas/UPTD yang rapi untuk arsip pertanggungjawaban keuangan dan audit. |
+| **Audit Trail (Aktivitas Pengguna)** | <img src="docs/screenshots/history_logv2.png" width="480" alt="Log Aktivitas"> | Pencatatan kronologis seluruh tindakan login, manipulasi data, dan perubahan status oleh staf/admin. |
+| **Server Logs & Latensi HTTP** | <img src="docs/screenshots/server_logv2.png" width="480" alt="Log Kinerja Server"> | Pemantauan waktu respon rute HTTP, status kode HTTP (200/403/404), dan performa server secara terpusat. |
+
+---
+
+## ✨ 3. Fitur Utama, Library & Kutipan Kode (Libraries & Code Snippets)
 
 Berikut adalah rincian fitur utama beserta pustaka (library) dan kutipan kode (*code snippets*) yang mendasarinya:
 
@@ -162,7 +216,7 @@ Berikut adalah rincian fitur utama beserta pustaka (library) dan kutipan kode (*
 
 ---
 
-## 📐 3. Pola Arsitektur Sistem
+## 📐 4. Pola Arsitektur Sistem
 
 Aplikasi ini dibangun menggunakan arsitektur perangkat lunak berbasis **Front Controller Pattern**, dipadukan dengan konsep **Modular MVC (Model-View-Controller)** yang ramping dan terstruktur:
 
@@ -224,7 +278,7 @@ pemandian-patemon/
 
 ---
 
-## 🗄️ 4. Model Data & Relasi Entitas
+## 🗄️ 5. Model Data & Relasi Entitas
 
 Secara konseptual, struktur data aplikasi terbagi menjadi tiga domain utama:
 
@@ -287,7 +341,7 @@ erDiagram
 
 ---
 
-## 💻 5. Panduan Instalasi & Pengaturan Lingkungan (Setup Guide)
+## 💻 6. Panduan Instalasi & Pengaturan Lingkungan (Setup Guide)
 
 ### Prasyarat Sistem
 * **PHP:** Versi 8.1 ke atas (dengan ekstensi `mysqli`, `curl`, `mbstring`, `fileinfo`, `gd`, `openssl`).
@@ -351,7 +405,7 @@ erDiagram
 
 ---
 
-## 🛠️ 6. Panduan Pengembangan & Kustomisasi (Development Workflow)
+## 🛠️ 7. Panduan Pengembangan & Kustomisasi (Development Workflow)
 
 Bagian ini memandu pengembang dalam memodifikasi, menyesuaikan, atau menambahkan modul baru:
 
@@ -373,7 +427,7 @@ Saat membuat modul baru di dalam direktori `dist/views/`:
 
 ---
 
-## 🚀 7. Panduan Publikasi & Deployment ke Server Produksi (Publishing Guide)
+## 🚀 8. Panduan Publikasi & Deployment ke Server Produksi (Publishing Guide)
 
 Berikut adalah panduan teknis langkah demi langkah untuk menerbitkan aplikasi ke lingkungan produksi (*Production Web Server*):
 
@@ -467,7 +521,7 @@ sudo certbot --nginx -d tiket.patemon.jemberkab.go.id
 
 ---
 
-## 📈 8. Rencana Pengembangan Masa Depan (Roadmap)
+## 📈 9. Rencana Pengembangan Masa Depan (Roadmap)
 
 Sistem dirancang modular untuk mengakomodasi peningkatan skala di masa mendatang:
 
@@ -478,7 +532,7 @@ Sistem dirancang modular untuk mengakomodasi peningkatan skala di masa mendatang
 
 ---
 
-## 👨‍💻 9. Kontribusi & Lisensi
+## 👨‍💻 10. Kontribusi & Lisensi
 
 * **Pengembang Utama:** [Aiyub150](https://github.com/Aiyub150)
 * **Instansi Terkait:** UPTD Pariwisata Pemandian Patemon, Dinas Pariwisata dan Kebudayaan Pemerintah Kabupaten Jember.
