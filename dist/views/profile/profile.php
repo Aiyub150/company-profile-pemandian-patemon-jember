@@ -238,46 +238,92 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
 
 <link rel="stylesheet" href="<?= public_url('assets/extensions/cropperjs/cropper.min.css') ?>">
 <style>
-/* Tampilan bingkai crop lingkaran untuk foto profil standar industri */
-.cropper-view-box,
-.cropper-face {
-    border-radius: 50%;
-}
-.cropper-view-box {
-    outline: 2px solid #0284c7;
-    outline-color: rgba(2, 132, 199, 0.95);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
-}
-.cropper-dashed {
-    border-color: rgba(255, 255, 255, 0.35);
-}
-.cropper-point {
-    background-color: #0284c7;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    opacity: 0.85;
-}
-.cropper-point.point-se {
-    width: 10px;
-    height: 10px;
-}
-/* Kontainer Cropper: Block display berposisi relatif (bukan flexbox yang merusak offset) */
-.img-cropper-target-container {
-    width: 100%;
-    height: 460px;
+/* Styling Lensa Pemotong Foto & Stage Wallpaper */
+.crop-modal-stage-wrapper {
+    background: #090d16;
+    border-radius: 14px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 380px;
     max-height: 520px;
-    background-color: #090d16;
     position: relative;
-    border-radius: 12px;
     overflow: hidden;
-    margin: 0 auto;
 }
-/* Direct child img only agar tidak merusak elemen internal cropper-container / canvas / view-box */
-.img-cropper-target-container > img {
+.crop-wallpaper-stage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    max-height: 460px;
+    line-height: 0;
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    user-select: none;
+    -webkit-user-select: none;
+}
+.crop-wallpaper-stage img.crop-wallpaper-img {
     display: block;
     max-width: 100%;
+    max-height: 460px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+/* Lingkaran Lensa Transparan (Spotlight Lens) */
+.crop-lens {
+    position: absolute;
+    border-radius: 50%;
+    border: 3px solid #38bdf8;
+    box-shadow: 0 0 0 9999px rgba(9, 13, 22, 0.65), 0 0 16px rgba(56, 189, 248, 0.5);
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+    z-index: 10;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.crop-lens:active, .crop-lens.is-dragging {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 9999px rgba(9, 13, 22, 0.72), 0 0 22px rgba(96, 165, 250, 0.65);
+}
+/* Titik bidik tengah / crosshair subtle */
+.crop-lens::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 1.5px solid rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+}
+/* Handle Pengubah Ukuran Lensa (Resize Handle 1:1) */
+.crop-lens-handle {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #0284c7;
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    cursor: nwse-resize;
+    z-index: 12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 10px;
+    touch-action: none;
 }
 /* Styling modern avatar upload form section */
 .avatar-form-card {
@@ -304,30 +350,6 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     display: flex;
     align-items: center;
     justify-content: center;
-}
-/* Live circular preview thumbnail di dalam modal */
-.cropper-live-preview-box {
-    width: 96px;
-    height: 96px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid #0284c7;
-    background-color: #1e293b;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-}
-.cropper-live-preview-box-sm {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 2px solid #38bdf8;
-    background-color: #1e293b;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-/* Range Slider Zoom */
-.cropper-zoom-slider {
-    cursor: pointer;
-    accent-color: #0284c7;
 }
 </style>
 
@@ -525,72 +547,55 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     </div>
 </div>
 
-<!-- Modal Potong (Crop) Foto Profil (Standar Modern 1:1) -->
+<!-- Modal Potong (Crop) Foto Profil (Single-Image Wallpaper & Transparent Lens Viewfinder 1:1) -->
 <div class="modal fade" id="modalCropAvatar" tabindex="-1" aria-labelledby="modalCropAvatarLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 840px;">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 860px;">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
             <div class="modal-header bg-primary text-white py-3 px-4">
                 <h5 class="modal-title fw-bold text-white fs-6 d-flex align-items-center gap-2 mb-0" id="modalCropAvatarLabel">
-                    <i class="fa-solid fa-crop-simple"></i> Sesuaikan & Potong Foto Profil (1:1)
+                    <i class="fa-solid fa-crop-simple"></i> Sesuaikan Foto Profil (1:1)
                 </h5>
                 <button type="button" class="btn-close btn-close-white" aria-label="Close" id="btnCancelCropX"></button>
             </div>
             <div class="modal-body p-4 bg-light">
-                <!-- Area Kanvas Cropper Utama (Luas, Tinggi 460px, Darkroom Solid) -->
-                <div class="img-cropper-target-container shadow-sm mb-3">
-                    <img id="cropperImageTarget" src="" alt="Target Crop Foto Profil">
+                <!-- Area Wallpaper Backdrop & Lensa Transparan 1:1 (Single Image, No Duplication) -->
+                <div class="crop-modal-stage-wrapper shadow-sm mb-3" id="cropStageWrapper">
+                    <div class="crop-wallpaper-stage" id="cropWallpaperStage">
+                        <img id="cropWallpaperImg" class="crop-wallpaper-img" src="" alt="Pratinjau Foto Profil">
+                        <div id="cropLens" class="crop-lens">
+                            <div class="crop-lens-handle" id="cropLensHandle" title="Tarik untuk memperbesar/memperkecil lingkaran crop">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Kontrol Zoom & Live Preview Standar Modern -->
+                <!-- Kontrol Ukuran Lingkaran & Pratinjau Avatar Bulat -->
                 <div class="card border-0 shadow-sm p-3 bg-white rounded-3 mb-2">
                     <div class="row align-items-center g-3">
-                        <!-- Slider Zoom Halus -->
                         <div class="col-12 col-md-7">
-                            <label class="form-label small fw-semibold text-secondary d-flex justify-content-between mb-1">
-                                <span><i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Zoom Presisi Foto</span>
-                                <span id="zoomPercentLabel" class="text-muted fw-bold">100%</span>
-                            </label>
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-sm btn-light border px-2 py-1" id="btnZoomOut" title="Perkecil">
-                                    <i class="fa-solid fa-minus text-secondary"></i>
+                            <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                                <span class="small fw-bold text-dark"><i class="fa-solid fa-circle-dot text-primary me-1"></i> Ukuran Lingkaran:</span>
+                                <button type="button" class="btn btn-sm btn-light border px-2.5 py-1" id="btnLensSizeSm">Kecil</button>
+                                <button type="button" class="btn btn-sm btn-light border px-2.5 py-1" id="btnLensSizeMd">Sedang</button>
+                                <button type="button" class="btn btn-sm btn-light border px-2.5 py-1" id="btnLensSizeLg">Maksimal</button>
+                                <button type="button" class="btn btn-sm btn-light border px-2.5 py-1 text-danger" id="btnResetLens">
+                                    <i class="fa-solid fa-arrows-to-dot me-1"></i> Pusatkan
                                 </button>
-                                <input type="range" class="form-range cropper-zoom-slider flex-grow-1" id="cropZoomSlider" min="0.1" max="3" step="0.01" value="1">
-                                <button type="button" class="btn btn-sm btn-light border px-2 py-1" id="btnZoomIn" title="Perbesar">
-                                    <i class="fa-solid fa-plus text-primary"></i>
-                                </button>
+                            </div>
+                            <div class="text-muted small">
+                                <i class="fa-solid fa-hand-pointer text-primary me-1"></i> Geser lingkaran untuk menentukan bagian foto profil.
                             </div>
                         </div>
 
-                        <!-- Live Preview Thumbnail Bulat -->
+                        <!-- Live Pratinjau Bulat Real-Time -->
                         <div class="col-12 col-md-5 d-flex align-items-center justify-content-center justify-content-md-end gap-3 border-start-md">
                             <div class="text-end d-none d-sm-block">
-                                <div class="small fw-semibold text-dark">Hasil Pratinjau</div>
-                                <div class="text-muted" style="font-size: 0.72rem;">Tampilan bulat avatar</div>
+                                <div class="small fw-semibold text-dark">Hasil Avatar</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Pratinjau bulat asli</div>
                             </div>
-                            <div class="cropper-live-preview-box avatar-live-preview" title="Pratinjau Avatar Besar"></div>
-                            <div class="cropper-live-preview-box-sm avatar-live-preview d-none d-sm-block" title="Pratinjau Avatar Kecil"></div>
+                            <canvas id="liveCropPreviewCanvas" width="96" height="96" class="rounded-circle border border-2 border-primary shadow-sm" style="width: 72px; height: 72px; background: #e2e8f0;"></canvas>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Toolbar Manipulasi Foto -->
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-1">
-                    <div class="d-flex gap-1.5 flex-wrap">
-                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateLeft" title="Putar 90° ke Kiri">
-                            <i class="fa-solid fa-rotate-left text-secondary me-1"></i> Putar Kiri
-                        </button>
-                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateRight" title="Putar 90° ke Kanan">
-                            <i class="fa-solid fa-rotate-right text-secondary me-1"></i> Putar Kanan
-                        </button>
-                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnFlipH" title="Balik Horizontal">
-                            <i class="fa-solid fa-arrows-left-right text-secondary me-1"></i> Balik
-                        </button>
-                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnResetCrop" title="Kembalikan ke Posisi Asli">
-                            <i class="fa-solid fa-arrows-rotate text-danger me-1"></i> Reset
-                        </button>
-                    </div>
-                    <div class="text-muted small">
-                        <i class="fa-solid fa-hand-pointer text-primary me-1"></i> Geser foto untuk memposisikan wajah
                     </div>
                 </div>
             </div>
@@ -611,88 +616,210 @@ $extra_js = '
 <script src="' . public_url('assets/extensions/cropperjs/cropper.min.js') . '"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    let cropper = null;
-    let scaleX = 1;
-    let rawImageDataUrl = "";
+    // Konfigurasi pemotong rasio aspek 1:1 (aspectRatio: 1)
+    const cropConfig = { aspectRatio: 1, minSize: 60, exportSize: 512 };
+
     const avatarInput = document.getElementById("avatarInput");
     const avatarCroppedData = document.getElementById("avatarCroppedData");
     const avatarPreviewImg = document.getElementById("avatarPreviewImg");
     const avatarPreviewIcon = document.getElementById("avatarPreviewIcon");
-    const cropperImageTarget = document.getElementById("cropperImageTarget");
     const modalEl = document.getElementById("modalCropAvatar");
-    const cropZoomSlider = document.getElementById("cropZoomSlider");
-    const zoomPercentLabel = document.getElementById("zoomPercentLabel");
+    const stageWrapper = document.getElementById("cropStageWrapper");
+    const stageEl = document.getElementById("cropWallpaperStage");
+    const cropImg = document.getElementById("cropWallpaperImg");
+    const cropLens = document.getElementById("cropLens");
+    const lensHandle = document.getElementById("cropLensHandle");
+    const liveCanvas = document.getElementById("liveCropPreviewCanvas");
+    const liveCtx = liveCanvas ? liveCanvas.getContext("2d") : null;
+
     const originalAvatarSrc = avatarPreviewImg ? (avatarPreviewImg.getAttribute("data-initial-src") || avatarPreviewImg.src) : "";
     const hadOriginalAvatar = ' . (!empty($avatar_url) ? 'true' : 'false') . ';
 
-    function destroyCropper() {
-        if (cropper) {
-            try { cropper.destroy(); } catch(e) {}
-            cropper = null;
-        }
+    let rawImageDataUrl = "";
+    let rawImageObj = new Image();
+    let lensX = 0;
+    let lensY = 0;
+    let lensSize = 150;
+    let isDragging = false;
+    let isResizing = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLensX = 0;
+    let initialLensY = 0;
+    let initialLensSize = 150;
+
+    function applyLensPosition() {
+        if (!cropLens || !cropImg) return;
+        const stageW = cropImg.offsetWidth;
+        const stageH = cropImg.offsetHeight;
+        if (stageW <= 0 || stageH <= 0) return;
+
+        lensSize = Math.max(cropConfig.minSize, Math.min(Math.min(stageW, stageH), lensSize));
+        lensX = Math.max(0, Math.min(stageW - lensSize, lensX));
+        lensY = Math.max(0, Math.min(stageH - lensSize, lensY));
+
+        cropLens.style.width = lensSize + "px";
+        cropLens.style.height = lensSize + "px";
+        cropLens.style.left = lensX + "px";
+        cropLens.style.top = lensY + "px";
     }
 
-    function initCropper() {
-        destroyCropper();
-        if (typeof Cropper === "undefined") {
-            console.warn("Pustaka Cropper.js belum tersedia.");
-            return;
-        }
-        if (!cropperImageTarget || !cropperImageTarget.src || cropperImageTarget.src === window.location.href) {
-            return;
-        }
+    function updateLivePreview() {
+        if (!liveCtx || !rawImageObj.complete || rawImageObj.naturalWidth === 0 || !cropImg) return;
+        const stageW = cropImg.offsetWidth;
+        const stageH = cropImg.offsetHeight;
+        if (stageW <= 0 || stageH <= 0) return;
 
-        scaleX = 1;
-        cropper = new Cropper(cropperImageTarget, {
-            aspectRatio: 1,
-            viewMode: 1, // Kunci Utama: Bingkai crop TIDAK BISA keluar dari batas kanvas gambar asli
-            dragMode: "move", // Geser foto bebas di belakang lingkaran
-            autoCropArea: 0.85,
-            restore: false,
-            guides: false, // Tampilan lingkaran bersih tanpa grid silang
-            center: true,
-            highlight: false,
-            cropBoxMovable: true,
-            cropBoxResizable: true,
-            toggleDragModeOnDblclick: false,
-            preview: ".avatar-live-preview", // Sinkronisasi live preview bulat otomatis
-            responsive: true,
-            checkCrossOrigin: false,
-            zoomOnWheel: true,
-            ready: function() {
-                try {
-                    const canvasData = cropper.getCanvasData();
-                    const initialRatio = canvasData.width / canvasData.naturalWidth;
-                    if (cropZoomSlider && initialRatio > 0) {
-                        cropZoomSlider.min = Math.max(0.1, (initialRatio * 0.4)).toFixed(2);
-                        cropZoomSlider.max = (initialRatio * 3.5).toFixed(2);
-                        cropZoomSlider.value = initialRatio.toFixed(2);
-                        if (zoomPercentLabel) {
-                            zoomPercentLabel.textContent = Math.round(initialRatio * 100) + "%";
-                        }
-                    }
-                } catch(e) {}
-            },
-            zoom: function(e) {
-                try {
-                    if (cropZoomSlider && e.detail && e.detail.ratio) {
-                        cropZoomSlider.value = e.detail.ratio.toFixed(2);
-                        if (zoomPercentLabel) {
-                            zoomPercentLabel.textContent = Math.round(e.detail.ratio * 100) + "%";
-                        }
-                    }
-                } catch(e) {}
+        const scaleX = rawImageObj.naturalWidth / stageW;
+        const scaleY = rawImageObj.naturalHeight / stageH;
+
+        const sx = Math.max(0, Math.min(rawImageObj.naturalWidth, lensX * scaleX));
+        const sy = Math.max(0, Math.min(rawImageObj.naturalHeight, lensY * scaleY));
+        const sSize = Math.min(lensSize * scaleX, Math.min(rawImageObj.naturalWidth - sx, rawImageObj.naturalHeight - sy));
+
+        liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+        liveCtx.save();
+        liveCtx.beginPath();
+        liveCtx.arc(liveCanvas.width / 2, liveCanvas.height / 2, liveCanvas.width / 2, 0, Math.PI * 2);
+        liveCtx.clip();
+        try {
+            liveCtx.drawImage(rawImageObj, sx, sy, sSize, sSize, 0, 0, liveCanvas.width, liveCanvas.height);
+        } catch(e) {}
+        liveCtx.restore();
+    }
+
+    function initLensOnStage() {
+        if (!cropImg || !rawImageObj.complete || rawImageObj.naturalWidth === 0) return;
+
+        requestAnimationFrame(function() {
+            const stageW = cropImg.offsetWidth;
+            const stageH = cropImg.offsetHeight;
+            if (stageW <= 0 || stageH <= 0) {
+                setTimeout(initLensOnStage, 60);
+                return;
             }
+
+            // Atur ukuran awal lingkaran sekitar 75% dari sisi terpendek gambar
+            lensSize = Math.round(Math.min(stageW, stageH) * 0.75);
+            lensX = Math.round((stageW - lensSize) / 2);
+            lensY = Math.round((stageH - lensSize) / 2);
+
+            applyLensPosition();
+            updateLivePreview();
         });
     }
 
-    // Pasang listener pada event modal Bootstrap
-    modalEl?.addEventListener("shown.bs.modal", function() {
-        initCropper();
+    // Pasang listener drag pada lensa transparan (pointer events)
+    if (cropLens) {
+        cropLens.addEventListener("pointerdown", function(e) {
+            if (e.target === lensHandle || lensHandle.contains(e.target)) return;
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            initialLensX = lensX;
+            initialLensY = lensY;
+            cropLens.classList.add("is-dragging");
+            try { cropLens.setPointerCapture(e.pointerId); } catch(err) {}
+            e.preventDefault();
+        });
+
+        cropLens.addEventListener("pointermove", function(e) {
+            if (!isDragging || !cropImg) return;
+            const stageW = cropImg.offsetWidth;
+            const stageH = cropImg.offsetHeight;
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+
+            lensX = Math.max(0, Math.min(stageW - lensSize, initialLensX + dx));
+            lensY = Math.max(0, Math.min(stageH - lensSize, initialLensY + dy));
+
+            applyLensPosition();
+            updateLivePreview();
+        });
+
+        const stopDrag = function(e) {
+            if (isDragging) {
+                isDragging = false;
+                cropLens.classList.remove("is-dragging");
+                try { cropLens.releasePointerCapture(e.pointerId); } catch(err) {}
+            }
+        };
+        cropLens.addEventListener("pointerup", stopDrag);
+        cropLens.addEventListener("pointercancel", stopDrag);
+    }
+
+    // Pasang listener resize pada handle sudut lensa
+    if (lensHandle) {
+        lensHandle.addEventListener("pointerdown", function(e) {
+            e.stopPropagation();
+            isResizing = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            initialLensSize = lensSize;
+            try { lensHandle.setPointerCapture(e.pointerId); } catch(err) {}
+            e.preventDefault();
+        });
+
+        lensHandle.addEventListener("pointermove", function(e) {
+            if (!isResizing || !cropImg) return;
+            const stageW = cropImg.offsetWidth;
+            const stageH = cropImg.offsetHeight;
+            const delta = Math.max(e.clientX - dragStartX, e.clientY - dragStartY);
+            const maxPossible = Math.min(stageW - lensX, stageH - lensY);
+
+            lensSize = Math.max(cropConfig.minSize, Math.min(maxPossible, initialLensSize + delta));
+            applyLensPosition();
+            updateLivePreview();
+        });
+
+        const stopResize = function(e) {
+            if (isResizing) {
+                isResizing = false;
+                try { lensHandle.releasePointerCapture(e.pointerId); } catch(err) {}
+            }
+        };
+        lensHandle.addEventListener("pointerup", stopResize);
+        lensHandle.addEventListener("pointercancel", stopResize);
+    }
+
+    // Tombol Preset Ukuran Lingkaran
+    document.getElementById("btnLensSizeSm")?.addEventListener("click", function() {
+        if (!cropImg) return;
+        const minDim = Math.min(cropImg.offsetWidth, cropImg.offsetHeight);
+        lensSize = Math.max(cropConfig.minSize, Math.round(minDim * 0.45));
+        applyLensPosition();
+        updateLivePreview();
     });
 
-    modalEl?.addEventListener("hidden.bs.modal", function() {
-        destroyCropper();
+    document.getElementById("btnLensSizeMd")?.addEventListener("click", function() {
+        if (!cropImg) return;
+        const minDim = Math.min(cropImg.offsetWidth, cropImg.offsetHeight);
+        lensSize = Math.max(cropConfig.minSize, Math.round(minDim * 0.70));
+        applyLensPosition();
+        updateLivePreview();
+    });
+
+    document.getElementById("btnLensSizeLg")?.addEventListener("click", function() {
+        if (!cropImg) return;
+        const minDim = Math.min(cropImg.offsetWidth, cropImg.offsetHeight);
+        lensSize = minDim;
+        lensX = Math.round((cropImg.offsetWidth - lensSize) / 2);
+        lensY = Math.round((cropImg.offsetHeight - lensSize) / 2);
+        applyLensPosition();
+        updateLivePreview();
+    });
+
+    document.getElementById("btnResetLens")?.addEventListener("click", function() {
+        if (!cropImg) return;
+        lensX = Math.round((cropImg.offsetWidth - lensSize) / 2);
+        lensY = Math.round((cropImg.offsetHeight - lensSize) / 2);
+        applyLensPosition();
+        updateLivePreview();
+    });
+
+    // Kontrol Buka dan Tutup Modal
+    modalEl?.addEventListener("shown.bs.modal", function() {
+        initLensOnStage();
     });
 
     function openCropModal() {
@@ -701,12 +828,10 @@ document.addEventListener("DOMContentLoaded", function() {
             try {
                 const inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
                 inst.show();
-                if (modalEl.classList.contains("show")) {
-                    setTimeout(initCropper, 100);
-                }
+                setTimeout(initLensOnStage, 100);
                 return;
             } catch(err) {
-                console.warn("Bootstrap modal gagal dibuka, menggunakan fallback DOM:", err);
+                console.warn("Bootstrap modal fallback:", err);
             }
         }
         // Fallback Vanilla JS Modal
@@ -720,7 +845,7 @@ document.addEventListener("DOMContentLoaded", function() {
             backdrop.className = "modal-backdrop fade show";
             document.body.appendChild(backdrop);
         }
-        setTimeout(initCropper, 150);
+        setTimeout(initLensOnStage, 120);
     }
 
     function closeCropModal() {
@@ -736,7 +861,6 @@ document.addEventListener("DOMContentLoaded", function() {
         document.body.classList.remove("modal-open");
         const backdrop = document.getElementById("modalCropBackdrop");
         if (backdrop) backdrop.remove();
-        destroyCropper();
     }
 
     function cancelCrop() {
@@ -791,135 +915,121 @@ document.addEventListener("DOMContentLoaded", function() {
         const reader = new FileReader();
         reader.onload = function(evt) {
             rawImageDataUrl = evt.target.result;
-            
-            // Siapkan element Image untuk memastikan dimensi gambar terbaca sempurna
-            const preloadImg = new Image();
-            preloadImg.onload = function() {
-                cropperImageTarget.src = rawImageDataUrl;
+            rawImageObj = new Image();
+            rawImageObj.onload = function() {
+                if (cropImg) cropImg.src = rawImageDataUrl;
                 openCropModal();
             };
-            preloadImg.src = rawImageDataUrl;
+            rawImageObj.src = rawImageDataUrl;
         };
         reader.readAsDataURL(file);
     });
 
     document.getElementById("btnReopenCrop")?.addEventListener("click", function() {
         if (rawImageDataUrl) {
-            cropperImageTarget.src = rawImageDataUrl;
+            if (cropImg) cropImg.src = rawImageDataUrl;
             openCropModal();
         } else if (avatarPreviewImg && avatarPreviewImg.src) {
-            cropperImageTarget.src = avatarPreviewImg.src;
-            openCropModal();
+            rawImageDataUrl = avatarPreviewImg.src;
+            rawImageObj = new Image();
+            rawImageObj.onload = function() {
+                if (cropImg) cropImg.src = rawImageDataUrl;
+                openCropModal();
+            };
+            rawImageObj.src = rawImageDataUrl;
         }
     });
 
     document.getElementById("btnCancelCrop")?.addEventListener("click", cancelCrop);
     document.getElementById("btnCancelCropX")?.addEventListener("click", cancelCrop);
 
-    // Kontrol Zoom Slider Halus
-    cropZoomSlider?.addEventListener("input", function(e) {
-        if (!cropper) return;
-        const val = parseFloat(e.target.value);
-        cropper.zoomTo(val);
-        if (zoomPercentLabel) {
-            zoomPercentLabel.textContent = Math.round(val * 100) + "%";
-        }
-    });
-
-    document.getElementById("btnZoomIn")?.addEventListener("click", function() {
-        cropper?.zoom(0.1);
-    });
-    document.getElementById("btnZoomOut")?.addEventListener("click", function() {
-        cropper?.zoom(-0.1);
-    });
-    document.getElementById("btnRotateLeft")?.addEventListener("click", function() {
-        cropper?.rotate(-90);
-    });
-    document.getElementById("btnRotateRight")?.addEventListener("click", function() {
-        cropper?.rotate(90);
-    });
-    document.getElementById("btnFlipH")?.addEventListener("click", function() {
-        if (!cropper) return;
-        scaleX = -scaleX;
-        cropper.scaleX(scaleX);
-    });
-    document.getElementById("btnResetCrop")?.addEventListener("click", function() {
-        scaleX = 1;
-        cropper?.reset();
-    });
-
+    // Terapkan Crop Foto ke Format 1:1 Resolusi Tinggi
     document.getElementById("btnApplyCrop")?.addEventListener("click", function() {
-        if (!cropper) {
+        if (!rawImageObj.complete || rawImageObj.naturalWidth === 0 || !cropImg) {
             closeCropModal();
             return;
         }
 
-        const canvas = cropper.getCroppedCanvas({
-            width: 512,
-            height: 512,
-            imageSmoothingEnabled: true,
-            imageSmoothingQuality: "high"
-        });
-
-        if (canvas) {
-            const croppedBase64 = canvas.toDataURL("image/jpeg", 0.92);
-            avatarCroppedData.value = croppedBase64;
-
-            if (avatarPreviewImg) {
-                avatarPreviewImg.src = croppedBase64;
-                avatarPreviewImg.style.display = "block";
-            }
-            if (avatarPreviewIcon) {
-                avatarPreviewIcon.style.display = "none";
-            }
-            const sidebarAvatarImg = document.getElementById("sidebarAvatarImg");
-            const sidebarAvatarInitial = document.getElementById("sidebarAvatarInitial");
-            if (sidebarAvatarImg) {
-                sidebarAvatarImg.src = croppedBase64;
-                sidebarAvatarImg.style.display = "block";
-            }
-            if (sidebarAvatarInitial) {
-                sidebarAvatarInitial.style.display = "none";
-            }
-
-            const avatarStatusBadge = document.getElementById("avatarStatusBadge");
-            if (avatarStatusBadge) {
-                avatarStatusBadge.className = "badge bg-soft-warning text-warning small";
-                avatarStatusBadge.innerHTML = \'<i class="fa-solid fa-clock-rotate-left me-1"></i> Pratinjau Baru (Belum Disimpan)\';
-            }
-
-            const btnReopenCrop = document.getElementById("btnReopenCrop");
-            if (btnReopenCrop) {
-                btnReopenCrop.style.display = "inline-flex";
-            }
-
-            // Fallback sinkronisasi ke objek File input bila browser mengizinkan DataTransfer
-            if (window.DataTransfer) {
-                canvas.toBlob(function(blob) {
-                    if (blob) {
-                        try {
-                            const dt = new DataTransfer();
-                            const f = new File([blob], "avatar_cropped.jpg", { type: "image/jpeg" });
-                            dt.items.add(f);
-                            avatarInput.files = dt.files;
-                        } catch(err) {}
-                    }
-                }, "image/jpeg", 0.92);
-            }
-
+        const stageW = cropImg.offsetWidth;
+        const stageH = cropImg.offsetHeight;
+        if (stageW <= 0 || stageH <= 0) {
             closeCropModal();
+            return;
+        }
 
-            if (typeof Swal !== "undefined") {
-                Swal.fire({
-                    icon: "success",
-                    title: "Foto Berhasil Dipotong (1:1)",
-                    text: "Pratinjau foto profil telah diperbarui. Silakan tekan tombol \"Simpan Perubahan Profil\" untuk menyimpan ke database.",
-                    timer: 3500,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: "top-end"
-                });
-            }
+        const scaleX = rawImageObj.naturalWidth / stageW;
+        const scaleY = rawImageObj.naturalHeight / stageH;
+
+        const sx = Math.max(0, Math.min(rawImageObj.naturalWidth, lensX * scaleX));
+        const sy = Math.max(0, Math.min(rawImageObj.naturalHeight, lensY * scaleY));
+        const sSize = Math.min(lensSize * scaleX, Math.min(rawImageObj.naturalWidth - sx, rawImageObj.naturalHeight - sy));
+
+        const exportCanvas = document.createElement("canvas");
+        exportCanvas.width = cropConfig.exportSize;
+        exportCanvas.height = cropConfig.exportSize;
+        const exportCtx = exportCanvas.getContext("2d");
+        exportCtx.imageSmoothingEnabled = true;
+        exportCtx.imageSmoothingQuality = "high";
+
+        exportCtx.drawImage(rawImageObj, sx, sy, sSize, sSize, 0, 0, cropConfig.exportSize, cropConfig.exportSize);
+        const croppedBase64 = exportCanvas.toDataURL("image/jpeg", 0.92);
+
+        avatarCroppedData.value = croppedBase64;
+
+        if (avatarPreviewImg) {
+            avatarPreviewImg.src = croppedBase64;
+            avatarPreviewImg.style.display = "block";
+        }
+        if (avatarPreviewIcon) {
+            avatarPreviewIcon.style.display = "none";
+        }
+        const sidebarAvatarImg = document.getElementById("sidebarAvatarImg");
+        const sidebarAvatarInitial = document.getElementById("sidebarAvatarInitial");
+        if (sidebarAvatarImg) {
+            sidebarAvatarImg.src = croppedBase64;
+            sidebarAvatarImg.style.display = "block";
+        }
+        if (sidebarAvatarInitial) {
+            sidebarAvatarInitial.style.display = "none";
+        }
+
+        const avatarStatusBadge = document.getElementById("avatarStatusBadge");
+        if (avatarStatusBadge) {
+            avatarStatusBadge.className = "badge bg-soft-warning text-warning small";
+            avatarStatusBadge.innerHTML = \'<i class="fa-solid fa-clock-rotate-left me-1"></i> Pratinjau Baru (Belum Disimpan)\';
+        }
+
+        const btnReopenCrop = document.getElementById("btnReopenCrop");
+        if (btnReopenCrop) {
+            btnReopenCrop.style.display = "inline-flex";
+        }
+
+        // Fallback DataTransfer untuk sinkronisasi File object
+        if (window.DataTransfer) {
+            exportCanvas.toBlob(function(blob) {
+                if (blob) {
+                    try {
+                        const dt = new DataTransfer();
+                        const f = new File([blob], "avatar_cropped.jpg", { type: "image/jpeg" });
+                        dt.items.add(f);
+                        avatarInput.files = dt.files;
+                    } catch(err) {}
+                }
+            }, "image/jpeg", 0.92);
+        }
+
+        closeCropModal();
+
+        if (typeof Swal !== "undefined") {
+            Swal.fire({
+                icon: "success",
+                title: "Foto Berhasil Dipotong (1:1)",
+                text: "Pratinjau foto profil telah diperbarui. Silakan tekan tombol \"Simpan Perubahan Profil\" untuk menyimpan ke database.",
+                timer: 3500,
+                showConfirmButton: false,
+                toast: true,
+                position: "top-end"
+            });
         }
     });
 });
