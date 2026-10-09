@@ -43,7 +43,8 @@ Berikut adalah dokumentasi visual menyeluruh dari setiap halaman, alur kerja (*w
 | **Pendaftaran Akun Baru** | <img src="docs/screenshots/register.png" width="480" alt="Pendaftaran Akun"> | Form registrasi akun wisatawan baru dengan verifikasi kata sandi kuat dan sanitasi input keamanan. |
 | **Lupa Password & Pemulihan** | <img src="docs/screenshots/forgot_password.png" width="480" alt="Lupa Password"> | Alur reset kata sandi mandiri menggunakan token acak aman yang dikirimkan via SMTP email lokal / Mailpit. |
 | **Profil Pengguna** | <img src="docs/screenshots/profile.png" width="480" alt="Profil Pengguna"> | Tata kelola akun pengguna, form identitas profil berdimensi luas, ubah kata sandi, dan status keamanan terlindungi. |
-| **Modal Pemotong Foto (Cropper 1:1)** | <img src="docs/screenshots/modal_crop_v2.png" width="480" alt="Modal Pemotong Foto Profil 1:1"> | Alat pemotong foto rasio 1:1 berstandar industri dengan kanvas luas 460px, pembatas *clamping*, slider zoom presisi, rotasi, flip, dan *live preview* bulat *real-time*. |
+| **Modal Pemotong Foto (Lensa 1:1)** | <img src="docs/screenshots/modal_crop_v2.png" width="480" alt="Modal Pemotong Foto Profil 1:1"> | Alat pemotong foto rasio 1:1 dengan konsep *Single-Image Wallpaper Backdrop* adaptif dan *Transparent Lens Viewfinder* (tanpa distorsi/gambar ganda) disertai *live preview* bulat asli. |
+| **Hasil Profil Setelah Crop** | <img src="docs/screenshots/profile_after_crop.png" width="480" alt="Profil Pengguna Setelah Potong Foto"> | Sinkronisasi instan avatar profil bulat di kartu profil dan form input dengan badge indikator status pratinjau belum tersimpan. |
 
 ### C. Point of Sale (POS) Kasir Loket & Cetak Struk
 

@@ -10,6 +10,7 @@ EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 USER_DATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", "C:\\Temp"), "edge_test_profile_visual")
 PORT = 9223
 BASE_URL = "http://127.0.0.1:8000"
+SAMPLE_CAT_IMG = r"C:\Users\aiyub\AppData\Roaming\Hermes\composer-images\image_f77a15.png"
 
 async def send_cmd(ws, msg_id, method, params=None):
     payload = {"id": msg_id, "method": method}
@@ -108,76 +109,110 @@ async def main():
             # Ambil screenshot halaman profil lengkap
             await take_screenshot(ws, msg_id, "docs/screenshots/profile.png"); msg_id += 1
 
-            # 3. Simulasi unggah gambar potret (portrait / wajah)
-            print("\n▶ Membuka modal crop dengan gambar potret (300x500)...")
-            await evaluate(ws, msg_id, """
-                (() => {
-                    // Buat gambar canvas portrait sintetis
-                    const c = document.createElement('canvas');
-                    c.width = 300;
-                    c.height = 500;
-                    const ctx = c.getContext('2d');
-                    ctx.fillStyle = '#0284c7';
-                    ctx.fillRect(0, 0, 300, 500);
-                    // Gambar wajah lingkaran
-                    ctx.fillStyle = '#fde047';
-                    ctx.beginPath();
-                    ctx.arc(150, 200, 80, 0, Math.PI * 2);
-                    ctx.fill();
+            # 3. Baca gambar sampel (bila ada gunakan gambar kucing sampel pengguna)
+            if os.path.exists(SAMPLE_CAT_IMG):
+                import base64
+                with open(SAMPLE_CAT_IMG, "rb") as f:
+                    cat_b64 = base64.b64encode(f.read()).decode("utf-8")
+                mime_type = "image/png"
+            else:
+                cat_b64 = ""
+                mime_type = "image/jpeg"
 
-                    c.toBlob(blob => {
-                        const file = new File([blob], 'portrait_test.jpg', { type: 'image/jpeg' });
+            print("\n▶ Membuka modal crop dengan gambar latar wallpaper...")
+            await evaluate(ws, msg_id, f"""
+                (() => {{
+                    const b64 = "{cat_b64}";
+                    if (b64) {{
+                        const byteChars = atob(b64);
+                        const byteNums = new Array(byteChars.length);
+                        for (let i = 0; i < byteChars.length; i++) {{
+                            byteNums[i] = byteChars.charCodeAt(i);
+                        }}
+                        const byteArray = new Uint8Array(byteNums);
+                        const blob = new Blob([byteArray], {{ type: "{mime_type}" }});
+                        const file = new File([blob], 'user_cat_sample.png', {{ type: "{mime_type}" }});
                         const dt = new DataTransfer();
                         dt.items.add(file);
                         const input = document.getElementById('avatarInput');
                         input.files = dt.files;
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                    }, 'image/jpeg');
-                })()
+                        input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    }} else {{
+                        const c = document.createElement('canvas');
+                        c.width = 640;
+                        c.height = 400;
+                        const ctx = c.getContext('2d');
+                        ctx.fillStyle = '#0f172a';
+                        ctx.fillRect(0, 0, 640, 400);
+                        c.toBlob(blob => {{
+                            const file = new File([blob], 'sample.jpg', {{ type: 'image/jpeg' }});
+                            const dt = new DataTransfer();
+                            dt.items.add(file);
+                            const input = document.getElementById('avatarInput');
+                            input.files = dt.files;
+                            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        }});
+                    }}
+                }})()
             """); msg_id += 1
 
             await asyncio.sleep(2)
 
-            # Periksa modal crop yang aktif
-            cropper_metrics = await evaluate(ws, msg_id, """
+            # 4. Verifikasi Single-Image Backdrop & Transparent Lens di DOM
+            lens_metrics = await evaluate(ws, msg_id, """
                 (() => {
                     const modal = document.getElementById('modalCropAvatar');
-                    const targetContainer = document.querySelector('.img-cropper-target-container');
-                    const cropperBox = document.querySelector('.cropper-crop-box');
-                    const livePreviewLg = document.querySelector('.cropper-live-preview-box');
-                    const zoomSlider = document.getElementById('cropZoomSlider');
+                    const stageWrapper = document.getElementById('cropStageWrapper');
+                    const stage = document.getElementById('cropWallpaperStage');
+                    const img = document.getElementById('cropWallpaperImg');
+                    const lens = document.getElementById('cropLens');
+                    const liveCanvas = document.getElementById('liveCropPreviewCanvas');
+                    
+                    // Verifikasi ketiadaan elemen gambar ganda (no duplicate img inside lens)
+                    const duplicateImgs = lens ? lens.querySelectorAll('img') : [];
+
                     return {
                         modalShown: modal.classList.contains('show'),
-                        containerWidth: targetContainer ? targetContainer.offsetWidth : 0,
-                        containerHeight: targetContainer ? targetContainer.offsetHeight : 0,
-                        cropBoxWidth: cropperBox ? Math.round(cropperBox.offsetWidth) : 0,
-                        cropBoxHeight: cropperBox ? Math.round(cropperBox.offsetHeight) : 0,
-                        is1to1: cropperBox ? Math.abs(cropperBox.offsetWidth - cropperBox.offsetHeight) <= 2 : false,
-                        hasLivePreview: !!livePreviewLg,
-                        sliderValue: zoomSlider ? zoomSlider.value : null
+                        hasStageWrapper: !!stageWrapper,
+                        imgWidth: img ? img.offsetWidth : 0,
+                        imgHeight: img ? img.offsetHeight : 0,
+                        lensWidth: lens ? lens.offsetWidth : 0,
+                        lensHeight: lens ? lens.offsetHeight : 0,
+                        isLensSquare: lens ? lens.offsetWidth === lens.offsetHeight : false,
+                        duplicateImgCountInLens: duplicateImgs.length,
+                        hasLiveCanvas: !!liveCanvas
                     };
                 })()
             """); msg_id += 1
-            print(f"  Metrik Modal Cropper: {json.dumps(cropper_metrics, indent=2)}")
+            print(f"  Metrik Transparent Lens Viewfinder: {json.dumps(lens_metrics, indent=2)}")
 
-            # Ambil screenshot modal crop
+            # Simpan screenshot modal crop single-backdrop
             await take_screenshot(ws, msg_id, "docs/screenshots/modal_crop_v2.png"); msg_id += 1
 
-            # 4. Tes Zoom Slider interaktif
-            print("\n▶ Menguji slider zoom...")
-            slider_test = await evaluate(ws, msg_id, """
+            # 5. Uji tombol preset ukuran lensa (Kecil, Sedang, Maksimal)
+            print("\n▶ Menguji preset ukuran lensa...")
+            test_sizes = await evaluate(ws, msg_id, """
                 (() => {
-                    const slider = document.getElementById('cropZoomSlider');
-                    const labelBefore = document.getElementById('zoomPercentLabel').innerText;
-                    slider.value = (parseFloat(slider.value) * 1.5).toFixed(2);
-                    slider.dispatchEvent(new Event('input', { bubbles: true }));
-                    const labelAfter = document.getElementById('zoomPercentLabel').innerText;
-                    return { labelBefore, labelAfter };
+                    const lens = document.getElementById('cropLens');
+                    const btnSm = document.getElementById('btnLensSizeSm');
+                    const btnLg = document.getElementById('btnLensSizeLg');
+                    
+                    btnSm.click();
+                    const smSize = lens.offsetWidth;
+
+                    btnLg.click();
+                    const lgSize = lens.offsetWidth;
+
+                    // Kembalikan ke sedang
+                    document.getElementById('btnLensSizeMd').click();
+                    const mdSize = lens.offsetWidth;
+
+                    return { smSize, mdSize, lgSize };
                 })()
             """); msg_id += 1
-            print(f"  Slider Zoom Test: {json.dumps(slider_test, indent=2)}")
+            print(f"  Preset Ukuran Lensa: {json.dumps(test_sizes, indent=2)}")
 
-            # 5. Terapkan Crop
+            # 6. Terapkan Crop
             print("\n▶ Menekan Selesai & Terapkan Foto...")
             await evaluate(ws, msg_id, """
                 document.getElementById('btnApplyCrop').click();
@@ -188,11 +223,11 @@ async def main():
                 (() => {
                     const previewImg = document.getElementById('avatarPreviewImg');
                     const badge = document.getElementById('avatarStatusBadge');
-                    const btnReopen = document.getElementById('btnReopenCrop');
+                    const croppedData = document.getElementById('avatarCroppedData');
                     return {
                         previewImgSrcPrefix: previewImg ? previewImg.src.substring(0, 30) : '',
-                        badgeText: badge ? badge.innerText.trim() : '',
-                        btnReopenVisible: btnReopen ? btnReopen.style.display !== 'none' : false
+                        hasBase64Data: croppedData ? croppedData.value.startsWith('data:image/jpeg;base64,') : false,
+                        badgeText: badge ? badge.innerText.trim() : ''
                     };
                 })()
             """); msg_id += 1
