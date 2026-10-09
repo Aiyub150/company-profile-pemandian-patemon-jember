@@ -547,10 +547,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                                 <div class="form-group mb-0">
                                     <label class="form-label fw-semibold text-secondary" style="font-size: 0.875rem;">Status Transaksi:</label>
-                                    <select class="form-select-modern searchable-select" name="status">
-                                        <option value="done" selected>Sudah Dibayar (Lunas)</option>
-                                        <option value="pending">Menunggu Pembayaran (Pending)</option>
-                                    </select>
+                                    <div class="d-flex align-items-center gap-3 p-2 bg-light rounded-3 border">
+                                        <div class="form-check form-switch mb-0 fs-5">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="statusSwitch" checked onchange="toggleStatusSwitch(this)">
+                                        </div>
+                                        <div>
+                                            <span id="statusSwitchBadge" class="badge bg-success-subtle text-success fw-bold px-2.5 py-1.5 rounded-pill">
+                                                <i class="fa-solid fa-circle-check me-1"></i> Lunas (Sudah Dibayar)
+                                            </span>
+                                            <input type="hidden" name="status" id="statusHiddenInput" value="done">
+                                        </div>
+                                    </div>
+                                    <small class="text-muted d-block mt-1" style="font-size: 0.775rem;">
+                                        Geser switch untuk mengubah status: Lunas (Sudah Dibayar) / Belum Dibayar (Pending).
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -600,16 +610,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 <!-- Quick chips -->
                                 <div class="d-flex flex-wrap gap-1 mb-2">
                                     <span class="quick-cash-chip text-primary fw-bold" onclick="setCashPas()"><i class="fa-solid fa-check me-1"></i>Uang Pas</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(500)">500</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(1000)">1.000</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(2000)">2.000</span>
+                                    <span class="quick-cash-chip" onclick="setExactCash(5000)">5.000</span>
                                     <span class="quick-cash-chip" onclick="setExactCash(10000)">10.000</span>
                                     <span class="quick-cash-chip" onclick="setExactCash(20000)">20.000</span>
                                     <span class="quick-cash-chip" onclick="setExactCash(50000)">50.000</span>
                                     <span class="quick-cash-chip" onclick="setExactCash(100000)">100.000</span>
-                                </div>
-                                <div class="d-flex flex-wrap gap-1">
-                                    <span class="quick-cash-chip" onclick="addCash(10000)">+10rb</span>
-                                    <span class="quick-cash-chip" onclick="addCash(20000)">+20rb</span>
-                                    <span class="quick-cash-chip" onclick="addCash(50000)">+50rb</span>
-                                    <span class="quick-cash-chip" onclick="addCash(100000)">+100rb</span>
                                     <span class="quick-cash-chip text-danger" onclick="clearCash()"><i class="fa-solid fa-rotate-left me-1"></i>Reset</span>
                                 </div>
                             </div>
@@ -828,6 +836,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     function clearCash() {
         document.getElementById('uangBayar').value = '';
         hitungKembalian();
+    }
+
+    function toggleStatusSwitch(elem) {
+        const hidden = document.getElementById('statusHiddenInput');
+        const badge = document.getElementById('statusSwitchBadge');
+        if (elem.checked) {
+            hidden.value = 'done';
+            badge.className = 'badge bg-success-subtle text-success fw-bold px-2.5 py-1.5 rounded-pill';
+            badge.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Lunas (Sudah Dibayar)';
+        } else {
+            hidden.value = 'pending';
+            badge.className = 'badge bg-warning-subtle text-warning fw-bold px-2.5 py-1.5 rounded-pill';
+            badge.innerHTML = '<i class="fa-solid fa-clock me-1"></i> Belum Dibayar (Pending)';
+        }
     }
 
     function setCashPas() {

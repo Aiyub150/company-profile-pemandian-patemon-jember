@@ -13,6 +13,16 @@ use Dompdf\Options;
 // Hak Akses: Super Admin (1), Admin (2), dan Staf Kasir (3)
 check_auth([1, 2, 3], route_url('login'));
 
+// Rate Limiter: Maksimal 1 ekspor PDF per 5 detik per sesi pengguna untuk melindungi server
+$now = time();
+$last_pdf_export = $_SESSION['last_pdf_export_time'] ?? 0;
+if (($now - $last_pdf_export) < 5) {
+    http_response_code(429);
+    $wait = 5 - ($now - $last_pdf_export);
+    die("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Terlalu Banyak Permintaan</title><style>body{font-family:sans-serif;text-align:center;padding:50px;background:#f8fafc;color:#334155;} .box{max-width:480px;margin:0 auto;background:#fff;padding:30px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);}</style></head><body><div class='box'><h2>Mohon Tunggu Sebentar</h2><p>Server sedang memproses ekspor dokumen. Untuk menjaga performa server, silakan tunggu <strong>{$wait} detik</strong> sebelum meminta ekspor PDF kembali.</p><button onclick='window.history.back()' style='margin-top:15px;padding:8px 16px;background:#0284c7;color:#fff;border:none;border-radius:6px;cursor:pointer;'>Kembali</button></div></body></html>");
+}
+$_SESSION['last_pdf_export_time'] = $now;
+
 $user_id    = (int)($_SESSION['id_user'] ?? 0);
 $user_level = (int)($_SESSION['level'] ?? 0);
 

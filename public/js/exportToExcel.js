@@ -56,7 +56,24 @@ function formatTanggalSederhana(dateStr) {
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+let isExportingExcel = false;
+let lastExcelExportTime = 0;
+
 function exportToExcel(tableId, filename = 'Laporan') {
+    const now = Date.now();
+    if (isExportingExcel || (now - lastExcelExportTime) < 4000) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Sedang Memproses Ekspor',
+                text: 'Permintaan ekspor sedang berjalan. Mohon tunggu beberapa detik sebelum mengekspor kembali.',
+                timer: 2500,
+                showConfirmButton: false
+            });
+        }
+        return;
+    }
+
     const tableSelect = document.getElementById(tableId);
     if (!tableSelect) {
         console.error('Tabel dengan ID ' + tableId + ' tidak ditemukan.');
@@ -70,6 +87,10 @@ function exportToExcel(tableId, filename = 'Laporan') {
         }
         return;
     }
+
+    isExportingExcel = true;
+    lastExcelExportTime = now;
+    setTimeout(() => { isExportingExcel = false; }, 4000);
 
     // 1. Identifikasi Kolom yang Valid (Abaikan kolom aksi, nota, dsb)
     const headerRow = tableSelect.querySelector('thead tr');

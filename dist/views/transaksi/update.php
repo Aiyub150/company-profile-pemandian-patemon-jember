@@ -345,10 +345,17 @@ $kode_transaksi = format_kode_transaksi($data['id_transaksi'], $data['tgl_pemesa
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <label class="form-label fw-semibold text-secondary small">Status Transaksi:</label>
-                                        <select class="form-select-modern searchable-select" name="status">
-                                            <option value="done" <?= ($data['status'] === 'done') ? 'selected' : '' ?>>Selesai (Sudah Dibayar)</option>
-                                            <option value="notyet" <?= ($data['status'] !== 'done') ? 'selected' : '' ?>>Pending (Belum Dibayar)</option>
-                                        </select>
+                                        <div class="d-flex align-items-center gap-3 p-2 bg-light rounded-3 border">
+                                            <div class="form-check form-switch mb-0 fs-5">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="statusSwitch" <?= ($data['status'] === 'done') ? 'checked' : '' ?> onchange="toggleStatusSwitch(this)">
+                                            </div>
+                                            <div>
+                                                <span id="statusSwitchBadge" class="badge <?= ($data['status'] === 'done') ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning' ?> fw-bold px-2.5 py-1.5 rounded-pill">
+                                                    <i class="fa-solid <?= ($data['status'] === 'done') ? 'fa-circle-check' : 'fa-clock' ?> me-1"></i> <?= ($data['status'] === 'done') ? 'Lunas (Sudah Dibayar)' : 'Belum Dibayar (Pending)' ?>
+                                                </span>
+                                                <input type="hidden" name="status" id="statusHiddenInput" value="<?= ($data['status'] === 'done') ? 'done' : 'notyet' ?>">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -460,7 +467,21 @@ $kode_transaksi = format_kode_transaksi($data['id_transaksi'], $data['tgl_pemesa
     }
 
     // Theme Switcher Controller
-    function togglePatemonTheme() {
+    function toggleStatusSwitch(elem) {
+        const hidden = document.getElementById('statusHiddenInput');
+        const badge = document.getElementById('statusSwitchBadge');
+        if (elem.checked) {
+            hidden.value = 'done';
+            badge.className = 'badge bg-success-subtle text-success fw-bold px-2.5 py-1.5 rounded-pill';
+            badge.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Lunas (Sudah Dibayar)';
+        } else {
+            hidden.value = 'notyet';
+            badge.className = 'badge bg-warning-subtle text-warning fw-bold px-2.5 py-1.5 rounded-pill';
+            badge.innerHTML = '<i class="fa-solid fa-clock me-1"></i> Belum Dibayar (Pending)';
+        }
+    }
+
+    function toggleTheme() {
         const isDark = document.body.classList.contains('theme-dark') || document.documentElement.classList.contains('theme-dark');
         const newTheme = isDark ? 'light' : 'dark';
         applyPatemonTheme(newTheme);

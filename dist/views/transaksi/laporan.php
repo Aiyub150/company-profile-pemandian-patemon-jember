@@ -273,7 +273,7 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
                 ];
                 $pdf_url = route_url('laporan_preview', $pdf_params);
                 ?>
-                <a href="<?= $pdf_url ?>" class="btn btn-soft-danger px-3 py-2 fw-semibold" title="Buka Dokumen PDF Standar">
+                <a href="<?= $pdf_url ?>" id="btnExportPdf" onclick="return handlePdfExport(event, this)" class="btn btn-soft-danger px-3 py-2 fw-semibold" title="Buka Dokumen PDF Standar">
                     <i class="fa-solid fa-file-pdf me-1"></i> PDF
                 </a>
                 <button onclick="exportToExcel('tableLaporan', 'Laporan_Patemon_<?= $tipe ?>')" class="btn btn-soft-success px-3 py-2 fw-semibold" title="Ekspor Lembar Kerja Excel">
@@ -562,7 +562,54 @@ require_once __DIR__ . '/../../app/layouts/admin_header.php';
 $extra_js = '
 <script src="' . public_url('js/exportToExcel.js') . '"></script>
 <script>
-setupTableSearch("laporanSearch", "tableLaporan");
+let isExportingPdf = false;
+let lastPdfExportTime = 0;
+function handlePdfExport(e, link) {
+    const now = Date.now();
+    if (isExportingPdf || (now - lastPdfExportTime) < 4000) {
+        e.preventDefault();
+        if (typeof Swal !== "undefined") {
+            Swal.fire({
+                icon: "info",
+                title: "Sedang Menyiapkan Dokumen PDF",
+                text: "Permintaan ekspor sedang berjalan. Mohon tunggu beberapa detik.",
+                timer: 2500,
+                showConfirmButton: false
+            });
+        }
+        return false;
+    }
+    isExportingPdf = true;
+    lastPdfExportTime = now;
+    setTimeout(() => { isExportingPdf = false; }, 4000);
+    return true;
+}
+
+// Enhanced live search on laporan table without page reload
+function filterLaporanLive() {
+    const searchInput = document.getElementById("laporanSearch");
+    const table = document.getElementById("tableLaporan");
+    if (!searchInput || !table) return;
+
+    const query = searchInput.value.toLowerCase().trim();
+    const rows = table.querySelectorAll("tbody tr");
+    let matchCount = 0;
+
+    rows.forEach(row => {
+        if (row.cells.length < 5) return; // skip header or empty message
+        const text = row.textContent.toLowerCase();
+        const matches = text.includes(query);
+        row.style.display = matches ? "" : "none";
+        if (matches) matchCount++;
+    });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("laporanSearch");
+    if (searchInput) {
+        searchInput.addEventListener("input", filterLaporanLive);
+    }
+});
 </script>
 ';
 require_once __DIR__ . '/../../app/layouts/admin_footer.php';
