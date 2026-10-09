@@ -122,10 +122,20 @@ if (file_exists($logo_file)) {
 
         .voucher-header {
             background: linear-gradient(135deg, #0284c7, #0ea5e9);
-            color: #ffffff;
+            color: #ffffff !important;
             padding: 1.75rem 1.5rem 1.4rem;
             text-align: center;
             position: relative;
+        }
+
+        .voucher-header,
+        .voucher-header *,
+        .ticket-voucher .voucher-header,
+        .ticket-voucher .voucher-header h1,
+        .ticket-voucher .voucher-header p,
+        body.theme-dark .ticket-voucher .voucher-header *,
+        html.theme-dark .ticket-voucher .voucher-header * {
+            color: #ffffff !important;
         }
 
         .voucher-logo {
@@ -138,6 +148,7 @@ if (file_exists($logo_file)) {
         }
 
         .voucher-header h1 {
+            color: #ffffff !important;
             font-size: 1.25rem;
             font-weight: 800;
             letter-spacing: 0.05em;
@@ -146,6 +157,7 @@ if (file_exists($logo_file)) {
         }
 
         .voucher-header p {
+            color: #ffffff !important;
             font-size: 0.75rem;
             opacity: 0.92;
             margin: 0.25rem 0 0;

@@ -92,14 +92,14 @@ require '../../app/layouts/admin_header.php';
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-4">
             <form method="GET" action="" class="row g-3 align-items-end">
-                <!-- Search Multi-Kolom -->
+                <!-- Search Multi-Kolom (Live Filtering Tanpa Reload) -->
                 <div class="col-12 col-md-4">
                     <label class="form-label small fw-semibold text-muted mb-1">
                         <i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Cari Data Ulasan
                     </label>
                     <div class="input-icon-group">
                         <i class="fa-solid fa-magnifying-glass input-icon"></i>
-                        <input type="text" name="q" class="form-control-modern" placeholder="Ketik nama, kontak, atau kata kunci pesan..." value="<?= e($search_q) ?>">
+                        <input type="text" name="q" id="ulasanMainSearch" class="form-control-modern" placeholder="Ketik nama, kontak, atau kata kunci..." value="<?= e($search_q) ?>">
                     </div>
                 </div>
 
@@ -341,6 +341,52 @@ function confirmDelete(id) {
         }
     });
 }
+function filterUlasanTable(query) {
+    const table = document.getElementById("tableUlasan");
+    if (!table) return;
+    const q = query.toLowerCase().trim();
+    const rows = table.querySelectorAll("tbody tr");
+    let visibleCount = 0;
+    rows.forEach(row => {
+        // Skip empty notice row if present
+        if (row.querySelector(".no-match-row")) return;
+        const text = row.textContent.toLowerCase();
+        const match = text.includes(q);
+        row.style.display = match ? "" : "none";
+        if (match) visibleCount++;
+    });
+
+    const badge = document.querySelector(".modern-card-header .badge");
+    if (badge) {
+        badge.textContent = visibleCount + " Data Ditemukan";
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const mainInput = document.getElementById("ulasanMainSearch");
+    const liveInput = document.getElementById("liveTableSearch");
+
+    if (mainInput) {
+        mainInput.addEventListener("input", function() {
+            if (liveInput) liveInput.value = this.value;
+            filterUlasanTable(this.value);
+        });
+        // Prevent form submit on Enter so user can search seamlessly
+        mainInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                filterUlasanTable(this.value);
+            }
+        });
+    }
+
+    if (liveInput) {
+        liveInput.addEventListener("input", function() {
+            if (mainInput) mainInput.value = this.value;
+            filterUlasanTable(this.value);
+        });
+    }
+});
 </script>
 ';
 

@@ -361,7 +361,7 @@ require '../../app/layouts/admin_header.php';
                         </div>
                         <small class="text-muted">Distribusi frekuensi kedatangan pada jam operasional 07:00 - 17:00 WIB untuk optimalisasi penugasan petugas loket dan penjaga kolam (lifeguard).</small>
                     </div>
-                    <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-1.5 rounded-pill fw-semibold align-self-start align-self-sm-center">
+                    <span class="badge bg-warning text-white px-3 py-1.5 rounded-pill fw-semibold align-self-start align-self-sm-center shadow-sm">
                         <i class="fa-solid fa-person-swimming me-1"></i> Jam Operasional
                     </span>
                 </div>
