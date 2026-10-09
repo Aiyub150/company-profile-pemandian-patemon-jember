@@ -238,36 +238,96 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
 
 <link rel="stylesheet" href="<?= public_url('assets/extensions/cropperjs/cropper.min.css') ?>">
 <style>
-/* Tampilan bingkai crop lingkaran untuk foto profil */
+/* Tampilan bingkai crop lingkaran untuk foto profil standar industri */
 .cropper-view-box,
 .cropper-face {
     border-radius: 50%;
 }
 .cropper-view-box {
     outline: 2px solid #0284c7;
-    outline-color: rgba(2, 132, 199, 0.85);
+    outline-color: rgba(2, 132, 199, 0.95);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 .cropper-dashed {
-    border-color: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.35);
 }
 .cropper-point {
     background-color: #0284c7;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
+    opacity: 0.85;
 }
+.cropper-point.point-se {
+    width: 10px;
+    height: 10px;
+}
+/* Kontainer Cropper: Block display berposisi relatif (bukan flexbox yang merusak offset) */
 .img-cropper-target-container {
-    max-height: 420px;
-    min-height: 260px;
-    background-color: #0f172a;
+    width: 100%;
+    height: 460px;
+    min-height: 380px;
+    max-height: 520px;
+    background-color: #090d16;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+/* Direct child img only agar tidak merusak elemen internal cropper-container / canvas / view-box */
+.img-cropper-target-container > img {
+    display: block;
+    max-width: 100%;
+}
+/* Styling modern avatar upload form section */
+.avatar-form-card {
+    background: #f8fafc;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.25s ease;
+}
+.avatar-form-card:hover {
+    border-color: #0284c7;
+    background: #f0f9ff;
+}
+.avatar-preview-display {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 3.5px solid #0284c7;
+    box-shadow: 0 10px 25px rgba(2, 132, 199, 0.25);
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+    background: #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    border-radius: 12px;
 }
-.img-cropper-target-container img {
-    max-width: 100%;
-    max-height: 400px;
-    display: block;
+/* Live circular preview thumbnail di dalam modal */
+.cropper-live-preview-box {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #0284c7;
+    background-color: #1e293b;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+.cropper-live-preview-box-sm {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #38bdf8;
+    background-color: #1e293b;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+/* Range Slider Zoom */
+.cropper-zoom-slider {
+    cursor: pointer;
+    accent-color: #0284c7;
 }
 </style>
 
@@ -372,29 +432,49 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                             <small class="text-muted" style="font-size: 0.75rem;">Username tidak dapat diubah demi konsistensi audit log.</small>
                         </div>
                         
-                        <!-- Upload Avatar Profil -->
+                        <!-- Upload & Ganti Foto Profil (Dimensi Lebar & Standar Industri Modern) -->
                         <div class="col-12 mt-3 pt-3 border-top">
-                            <label class="form-label fw-semibold text-dark d-flex align-items-center justify-content-between">
-                                <span><i class="fa-solid fa-camera text-primary me-1"></i> Foto Profil (Avatar)</span>
-                                <?php if (!empty($avatar_url)): ?>
-                                    <span class="badge bg-soft-success text-success small"><i class="fa-solid fa-check"></i> Foto Tersimpan</span>
-                                <?php endif; ?>
+                            <label class="form-label fw-bold text-dark d-flex align-items-center justify-content-between mb-2">
+                                <span class="d-flex align-items-center gap-2">
+                                    <i class="fa-solid fa-camera text-primary"></i>
+                                    <span>Foto Profil & Identitas Akun</span>
+                                </span>
+                                <span id="avatarStatusBadge" class="badge <?= !empty($avatar_url) ? 'bg-soft-success text-success' : 'bg-soft-secondary text-secondary' ?> small">
+                                    <i class="fa-solid <?= !empty($avatar_url) ? 'fa-check' : 'fa-circle-info' ?> me-1"></i>
+                                    <?= !empty($avatar_url) ? 'Foto Aktif Tersimpan' : 'Belum Ada Foto Khusus' ?>
+                                </span>
                             </label>
-                            <div class="d-flex align-items-center gap-3">
-                                <div id="avatarPreviewContainer" style="width: 70px; height: 70px; border-radius: 50%; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2.5px solid #0284c7; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);">
-                                    <?php if (!empty($avatar_url)): ?>
-                                        <img id="avatarPreviewImg" src="<?= e($avatar_url) ?>" data-initial-src="<?= e($avatar_url) ?>" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">
-                                        <i id="avatarPreviewIcon" class="fa-solid fa-user text-muted fs-4" style="display: none;"></i>
-                                    <?php else: ?>
-                                        <i id="avatarPreviewIcon" class="fa-solid fa-user text-muted fs-4"></i>
-                                        <img id="avatarPreviewImg" src="" data-initial-src="" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                                    <?php endif; ?>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <input type="file" name="avatar" id="avatarInput" class="form-control-modern" accept=".jpg,.jpeg,.png,.webp">
-                                    <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">
-                                        <i class="fa-solid fa-circle-info text-primary"></i> Pilih foto untuk menampilkan dialog potong (crop) rasio 1:1. Maksimal 2 MB.
-                                    </small>
+
+                            <div class="avatar-form-card">
+                                <div class="d-flex flex-column flex-md-row align-items-center gap-4">
+                                    <!-- Pratinjau Avatar Besar (120x120) -->
+                                    <div class="avatar-preview-display" id="avatarPreviewContainer">
+                                        <?php if (!empty($avatar_url)): ?>
+                                            <img id="avatarPreviewImg" src="<?= e($avatar_url) ?>" data-initial-src="<?= e($avatar_url) ?>" alt="Preview Foto Profil" style="width: 100%; height: 100%; object-fit: cover;">
+                                            <i id="avatarPreviewIcon" class="fa-solid fa-user text-muted fs-1" style="display: none;"></i>
+                                        <?php else: ?>
+                                            <i id="avatarPreviewIcon" class="fa-solid fa-user text-muted fs-1"></i>
+                                            <img id="avatarPreviewImg" src="" data-initial-src="" alt="Preview Foto Profil" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Deskripsi & Kontrol Unggah -->
+                                    <div class="flex-grow-1 text-center text-md-start">
+                                        <h6 class="fw-bold text-dark mb-1">Sesuaikan Foto Profil Anda</h6>
+                                        <p class="text-muted small mb-3">
+                                            Gunakan foto wajah yang jelas. Format didukung: <strong>JPG, JPEG, PNG, WEBP</strong> (Maksimal <strong>2 MB</strong>). Sistem menyediakan dialog pemotong (*crop*) rasio 1:1 otomatis berstandar modern.
+                                        </p>
+                                        <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-start align-items-center">
+                                            <label for="avatarInput" class="btn btn-sm btn-primary px-3 py-2 cursor-pointer shadow-sm d-inline-flex align-items-center gap-2 mb-0">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                                <span>Pilih & Unggah Foto Baru</span>
+                                            </label>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-2" id="btnReopenCrop" style="display: none;">
+                                                <i class="fa-solid fa-crop-simple me-1"></i> Sesuaikan Ulang
+                                            </button>
+                                            <input type="file" name="avatar" id="avatarInput" class="form-control-modern d-none" accept=".jpg,.jpeg,.png,.webp">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -445,9 +525,9 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
     </div>
 </div>
 
-<!-- Modal Potong (Crop) Foto Profil -->
+<!-- Modal Potong (Crop) Foto Profil (Standar Modern 1:1) -->
 <div class="modal fade" id="modalCropAvatar" tabindex="-1" aria-labelledby="modalCropAvatarLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 840px;">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
             <div class="modal-header bg-primary text-white py-3 px-4">
                 <h5 class="modal-title fw-bold text-white fs-6 d-flex align-items-center gap-2 mb-0" id="modalCropAvatarLabel">
@@ -456,28 +536,69 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
                 <button type="button" class="btn-close btn-close-white" aria-label="Close" id="btnCancelCropX"></button>
             </div>
             <div class="modal-body p-4 bg-light">
-                <div class="img-cropper-target-container shadow-inner">
+                <!-- Area Kanvas Cropper Utama (Luas, Tinggi 460px, Darkroom Solid) -->
+                <div class="img-cropper-target-container shadow-sm mb-3">
                     <img id="cropperImageTarget" src="" alt="Target Crop Foto Profil">
                 </div>
-                
-                <div class="d-flex justify-content-center align-items-center gap-2 mt-3 flex-wrap">
-                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnZoomIn" title="Perbesar"><i class="fa-solid fa-magnifying-glass-plus text-primary"></i> Zoom +</button>
-                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnZoomOut" title="Perkecil"><i class="fa-solid fa-magnifying-glass-minus text-primary"></i> Zoom -</button>
-                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateLeft" title="Putar Kiri"><i class="fa-solid fa-rotate-left text-secondary"></i> Putar Kiri</button>
-                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateRight" title="Putar Kanan"><i class="fa-solid fa-rotate-right text-secondary"></i> Putar Kanan</button>
-                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnResetCrop" title="Reset"><i class="fa-solid fa-arrows-rotate text-danger"></i> Reset</button>
+
+                <!-- Kontrol Zoom & Live Preview Standar Modern -->
+                <div class="card border-0 shadow-sm p-3 bg-white rounded-3 mb-2">
+                    <div class="row align-items-center g-3">
+                        <!-- Slider Zoom Halus -->
+                        <div class="col-12 col-md-7">
+                            <label class="form-label small fw-semibold text-secondary d-flex justify-content-between mb-1">
+                                <span><i class="fa-solid fa-magnifying-glass me-1 text-primary"></i> Zoom Presisi Foto</span>
+                                <span id="zoomPercentLabel" class="text-muted fw-bold">100%</span>
+                            </label>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-light border px-2 py-1" id="btnZoomOut" title="Perkecil">
+                                    <i class="fa-solid fa-minus text-secondary"></i>
+                                </button>
+                                <input type="range" class="form-range cropper-zoom-slider flex-grow-1" id="cropZoomSlider" min="0.1" max="3" step="0.01" value="1">
+                                <button type="button" class="btn btn-sm btn-light border px-2 py-1" id="btnZoomIn" title="Perbesar">
+                                    <i class="fa-solid fa-plus text-primary"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Live Preview Thumbnail Bulat -->
+                        <div class="col-12 col-md-5 d-flex align-items-center justify-content-center justify-content-md-end gap-3 border-start-md">
+                            <div class="text-end d-none d-sm-block">
+                                <div class="small fw-semibold text-dark">Hasil Pratinjau</div>
+                                <div class="text-muted" style="font-size: 0.72rem;">Tampilan bulat avatar</div>
+                            </div>
+                            <div class="cropper-live-preview-box avatar-live-preview" title="Pratinjau Avatar Besar"></div>
+                            <div class="cropper-live-preview-box-sm avatar-live-preview d-none d-sm-block" title="Pratinjau Avatar Kecil"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-center mt-2">
-                    <span class="badge bg-soft-info text-info small px-3 py-1">
-                        <i class="fa-solid fa-circle-info me-1"></i> Geser & sesuaikan bingkai lingkaran untuk hasil foto profil terbaik.
-                    </span>
+
+                <!-- Toolbar Manipulasi Foto -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-1">
+                    <div class="d-flex gap-1.5 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateLeft" title="Putar 90° ke Kiri">
+                            <i class="fa-solid fa-rotate-left text-secondary me-1"></i> Putar Kiri
+                        </button>
+                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnRotateRight" title="Putar 90° ke Kanan">
+                            <i class="fa-solid fa-rotate-right text-secondary me-1"></i> Putar Kanan
+                        </button>
+                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnFlipH" title="Balik Horizontal">
+                            <i class="fa-solid fa-arrows-left-right text-secondary me-1"></i> Balik
+                        </button>
+                        <button type="button" class="btn btn-sm btn-white border shadow-sm px-2.5 py-1.5" id="btnResetCrop" title="Kembalikan ke Posisi Asli">
+                            <i class="fa-solid fa-arrows-rotate text-danger me-1"></i> Reset
+                        </button>
+                    </div>
+                    <div class="text-muted small">
+                        <i class="fa-solid fa-hand-pointer text-primary me-1"></i> Geser foto untuk memposisikan wajah
+                    </div>
                 </div>
             </div>
             <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
                 <button type="button" class="btn btn-light border px-4" id="btnCancelCrop">
                     <i class="fa-solid fa-xmark me-1"></i> Batal
                 </button>
-                <button type="button" class="btn btn-primary px-4 fw-bold" id="btnApplyCrop">
+                <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" id="btnApplyCrop">
                     <i class="fa-solid fa-check me-1"></i> Selesai & Terapkan Foto
                 </button>
             </div>
@@ -491,13 +612,17 @@ $extra_js = '
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     let cropper = null;
+    let scaleX = 1;
+    let rawImageDataUrl = "";
     const avatarInput = document.getElementById("avatarInput");
     const avatarCroppedData = document.getElementById("avatarCroppedData");
     const avatarPreviewImg = document.getElementById("avatarPreviewImg");
     const avatarPreviewIcon = document.getElementById("avatarPreviewIcon");
     const cropperImageTarget = document.getElementById("cropperImageTarget");
     const modalEl = document.getElementById("modalCropAvatar");
-    const originalAvatarSrc = avatarPreviewImg ? avatarPreviewImg.src : "";
+    const cropZoomSlider = document.getElementById("cropZoomSlider");
+    const zoomPercentLabel = document.getElementById("zoomPercentLabel");
+    const originalAvatarSrc = avatarPreviewImg ? (avatarPreviewImg.getAttribute("data-initial-src") || avatarPreviewImg.src) : "";
     const hadOriginalAvatar = ' . (!empty($avatar_url) ? 'true' : 'false') . ';
 
     function destroyCropper() {
@@ -513,21 +638,50 @@ document.addEventListener("DOMContentLoaded", function() {
             console.warn("Pustaka Cropper.js belum tersedia.");
             return;
         }
+        if (!cropperImageTarget || !cropperImageTarget.src || cropperImageTarget.src === window.location.href) {
+            return;
+        }
+
+        scaleX = 1;
         cropper = new Cropper(cropperImageTarget, {
             aspectRatio: 1,
-            viewMode: 1,
-            dragMode: "move",
-            autoCropArea: 0.9,
+            viewMode: 1, // Kunci Utama: Bingkai crop TIDAK BISA keluar dari batas kanvas gambar asli
+            dragMode: "move", // Geser foto bebas di belakang lingkaran
+            autoCropArea: 0.85,
             restore: false,
-            guides: true,
+            guides: false, // Tampilan lingkaran bersih tanpa grid silang
             center: true,
             highlight: false,
             cropBoxMovable: true,
             cropBoxResizable: true,
             toggleDragModeOnDblclick: false,
+            preview: ".avatar-live-preview", // Sinkronisasi live preview bulat otomatis
+            responsive: true,
+            checkCrossOrigin: false,
+            zoomOnWheel: true,
             ready: function() {
-                // Pastikan canvas cropper terukur sempurna saat siap
-                cropper?.crop();
+                try {
+                    const canvasData = cropper.getCanvasData();
+                    const initialRatio = canvasData.width / canvasData.naturalWidth;
+                    if (cropZoomSlider && initialRatio > 0) {
+                        cropZoomSlider.min = Math.max(0.1, (initialRatio * 0.4)).toFixed(2);
+                        cropZoomSlider.max = (initialRatio * 3.5).toFixed(2);
+                        cropZoomSlider.value = initialRatio.toFixed(2);
+                        if (zoomPercentLabel) {
+                            zoomPercentLabel.textContent = Math.round(initialRatio * 100) + "%";
+                        }
+                    }
+                } catch(e) {}
+            },
+            zoom: function(e) {
+                try {
+                    if (cropZoomSlider && e.detail && e.detail.ratio) {
+                        cropZoomSlider.value = e.detail.ratio.toFixed(2);
+                        if (zoomPercentLabel) {
+                            zoomPercentLabel.textContent = Math.round(e.detail.ratio * 100) + "%";
+                        }
+                    }
+                } catch(e) {}
             }
         });
     }
@@ -547,6 +701,9 @@ document.addEventListener("DOMContentLoaded", function() {
             try {
                 const inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
                 inst.show();
+                if (modalEl.classList.contains("show")) {
+                    setTimeout(initCropper, 100);
+                }
                 return;
             } catch(err) {
                 console.warn("Bootstrap modal gagal dibuka, menggunakan fallback DOM:", err);
@@ -563,7 +720,7 @@ document.addEventListener("DOMContentLoaded", function() {
             backdrop.className = "modal-backdrop fade show";
             document.body.appendChild(backdrop);
         }
-        setTimeout(initCropper, 50);
+        setTimeout(initCropper, 150);
     }
 
     function closeCropModal() {
@@ -598,7 +755,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
                 if (avatarPreviewIcon) avatarPreviewIcon.style.display = "block";
             }
-            avatarInput.value = "";
+            if (avatarInput) avatarInput.value = "";
+            const avatarStatusBadge = document.getElementById("avatarStatusBadge");
+            if (avatarStatusBadge) {
+                avatarStatusBadge.className = hadOriginalAvatar ? "badge bg-soft-success text-success small" : "badge bg-soft-secondary text-secondary small";
+                avatarStatusBadge.innerHTML = hadOriginalAvatar ? \'<i class="fa-solid fa-check me-1"></i> Foto Aktif Tersimpan\' : \'<i class="fa-solid fa-circle-info me-1"></i> Belum Ada Foto Khusus\';
+            }
         }
     }
 
@@ -607,31 +769,62 @@ document.addEventListener("DOMContentLoaded", function() {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
+        // Validasi ukuran berkas maksimal 2 MB
+        if (file.size > 2 * 1024 * 1024) {
+            if (typeof Swal !== "undefined") {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Peringatan Ukuran File",
+                    text: "gambar yang anda upload melebihi ukuran 2mb silahkan upload gambar lain"
+                });
+            } else {
+                alert("gambar yang anda upload melebihi ukuran 2mb silahkan upload gambar lain");
+            }
+            avatarInput.value = "";
+            return;
+        }
+
         if (!file.type.startsWith("image/")) {
             return;
         }
 
         const reader = new FileReader();
         reader.onload = function(evt) {
-            const rawDataUrl = evt.target.result;
-            // 1. Tampilkan pratinjau langsung di kartu profil (instant visual feedback)
-            if (avatarPreviewImg) {
-                avatarPreviewImg.src = rawDataUrl;
-                avatarPreviewImg.style.display = "block";
-            }
-            if (avatarPreviewIcon) {
-                avatarPreviewIcon.style.display = "none";
-            }
-
-            // 2. Siapkan gambar di target cropper dan buka dialog modal crop 1:1
-            cropperImageTarget.src = rawDataUrl;
-            openCropModal();
+            rawImageDataUrl = evt.target.result;
+            
+            // Siapkan element Image untuk memastikan dimensi gambar terbaca sempurna
+            const preloadImg = new Image();
+            preloadImg.onload = function() {
+                cropperImageTarget.src = rawImageDataUrl;
+                openCropModal();
+            };
+            preloadImg.src = rawImageDataUrl;
         };
         reader.readAsDataURL(file);
     });
 
+    document.getElementById("btnReopenCrop")?.addEventListener("click", function() {
+        if (rawImageDataUrl) {
+            cropperImageTarget.src = rawImageDataUrl;
+            openCropModal();
+        } else if (avatarPreviewImg && avatarPreviewImg.src) {
+            cropperImageTarget.src = avatarPreviewImg.src;
+            openCropModal();
+        }
+    });
+
     document.getElementById("btnCancelCrop")?.addEventListener("click", cancelCrop);
     document.getElementById("btnCancelCropX")?.addEventListener("click", cancelCrop);
+
+    // Kontrol Zoom Slider Halus
+    cropZoomSlider?.addEventListener("input", function(e) {
+        if (!cropper) return;
+        const val = parseFloat(e.target.value);
+        cropper.zoomTo(val);
+        if (zoomPercentLabel) {
+            zoomPercentLabel.textContent = Math.round(val * 100) + "%";
+        }
+    });
 
     document.getElementById("btnZoomIn")?.addEventListener("click", function() {
         cropper?.zoom(0.1);
@@ -645,7 +838,13 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btnRotateRight")?.addEventListener("click", function() {
         cropper?.rotate(90);
     });
+    document.getElementById("btnFlipH")?.addEventListener("click", function() {
+        if (!cropper) return;
+        scaleX = -scaleX;
+        cropper.scaleX(scaleX);
+    });
     document.getElementById("btnResetCrop")?.addEventListener("click", function() {
+        scaleX = 1;
         cropper?.reset();
     });
 
@@ -658,11 +857,12 @@ document.addEventListener("DOMContentLoaded", function() {
         const canvas = cropper.getCroppedCanvas({
             width: 512,
             height: 512,
+            imageSmoothingEnabled: true,
             imageSmoothingQuality: "high"
         });
 
         if (canvas) {
-            const croppedBase64 = canvas.toDataURL("image/jpeg", 0.9);
+            const croppedBase64 = canvas.toDataURL("image/jpeg", 0.92);
             avatarCroppedData.value = croppedBase64;
 
             if (avatarPreviewImg) {
@@ -682,6 +882,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 sidebarAvatarInitial.style.display = "none";
             }
 
+            const avatarStatusBadge = document.getElementById("avatarStatusBadge");
+            if (avatarStatusBadge) {
+                avatarStatusBadge.className = "badge bg-soft-warning text-warning small";
+                avatarStatusBadge.innerHTML = \'<i class="fa-solid fa-clock-rotate-left me-1"></i> Pratinjau Baru (Belum Disimpan)\';
+            }
+
+            const btnReopenCrop = document.getElementById("btnReopenCrop");
+            if (btnReopenCrop) {
+                btnReopenCrop.style.display = "inline-flex";
+            }
+
             // Fallback sinkronisasi ke objek File input bila browser mengizinkan DataTransfer
             if (window.DataTransfer) {
                 canvas.toBlob(function(blob) {
@@ -693,7 +904,7 @@ document.addEventListener("DOMContentLoaded", function() {
                             avatarInput.files = dt.files;
                         } catch(err) {}
                     }
-                }, "image/jpeg", 0.9);
+                }, "image/jpeg", 0.92);
             }
 
             closeCropModal();
