@@ -55,15 +55,23 @@ if (!empty($search)) {
     $result = $conn->query($sql);
 }
 
-// Hitung rekap cepat
+// Hitung rekap cepat (Termasuk Transaksi Belum Dibayar)
 $total_count = 0;
 $total_omzet = 0;
 $total_done  = 0;
-$recap_res = $conn->query("SELECT COUNT(*) as cnt, SUM(total_harga) as omzet, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_cnt FROM transaksi WHERE deleted_at IS NULL");
+$total_pending = 0;
+$recap_res = $conn->query("SELECT 
+    COUNT(*) as cnt, 
+    SUM(CASE WHEN status = 'done' THEN total_harga ELSE 0 END) as omzet, 
+    SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_cnt,
+    SUM(CASE WHEN status != 'done' THEN 1 ELSE 0 END) as pending_cnt
+FROM transaksi 
+WHERE deleted_at IS NULL");
 if ($recap_res && $recap = $recap_res->fetch_assoc()) {
-    $total_count = (int)$recap['cnt'];
-    $total_omzet = (float)($recap['omzet'] ?? 0);
-    $total_done  = (int)$recap['done_cnt'];
+    $total_count   = (int)$recap['cnt'];
+    $total_omzet   = (float)($recap['omzet'] ?? 0);
+    $total_done    = (int)$recap['done_cnt'];
+    $total_pending = (int)$recap['pending_cnt'];
 }
 
 $extra_css = '
@@ -75,9 +83,9 @@ require '../../app/layouts/admin_header.php';
 ?>
 
 <div class="page-content">
-    <!-- Mini Overview Stats -->
+    <!-- Overview Stats Transaksi Lengkap (Feedback-2 Poin 10) -->
     <div class="row g-3 mb-4">
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-6 col-xl-3">
             <div class="modern-card p-3 d-flex align-items-center gap-3">
                 <div class="metric-icon-box blue" style="width: 48px; height: 48px; font-size: 1.25rem;">
                     <i class="fa-solid fa-receipt"></i>
@@ -88,7 +96,7 @@ require '../../app/layouts/admin_header.php';
                 </div>
             </div>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-6 col-xl-3">
             <div class="modern-card p-3 d-flex align-items-center gap-3">
                 <div class="metric-icon-box green" style="width: 48px; height: 48px; font-size: 1.25rem;">
                     <i class="fa-solid fa-money-bill-trend-up"></i>
@@ -99,53 +107,113 @@ require '../../app/layouts/admin_header.php';
                 </div>
             </div>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-6 col-xl-3">
             <div class="modern-card p-3 d-flex align-items-center gap-3">
-                <div class="metric-icon-box amber" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                <div class="metric-icon-box blue" style="width: 48px; height: 48px; font-size: 1.25rem;">
                     <i class="fa-solid fa-circle-check"></i>
                 </div>
                 <div>
-                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Tiket Terverifikasi</div>
-                    <div class="fw-bold text-warning" style="font-size: 1.35rem;"><?= number_format($total_done, 0, ',', '.') ?></div>
+                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Sudah Dibayar</div>
+                    <div class="fw-bold text-primary" style="font-size: 1.35rem;"><?= number_format($total_done, 0, ',', '.') ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="modern-card p-3 d-flex align-items-center gap-3">
+                <div class="metric-icon-box amber" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Belum Dibayar</div>
+                    <div class="fw-bold text-warning" style="font-size: 1.35rem;"><?= number_format($total_pending, 0, ',', '.') ?></div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="modern-card">
-        <!-- Search & Scanner Toolbar -->
-        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <form method="GET" action="" class="d-flex align-items-center gap-2" style="max-width: 480px; width: 100%;">
-                <div class="input-icon-group flex-grow-1">
+        <!-- Search & Filter Toolbar Interaktif (Live Tanpa Reload) -->
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-wrap" style="max-width: 780px;">
+                <!-- Live Search Input -->
+                <div class="input-icon-group flex-grow-1" style="min-width: 220px;">
                     <i class="fa-solid fa-magnifying-glass input-icon"></i>
                     <input 
                         class="form-control-modern" 
                         type="text" 
-                        name="search" 
                         id="searchInput" 
                         placeholder="Cari ID, Nama, Kode TRX, Metode, Status..." 
                         value="<?= e($search) ?>"
                     >
                 </div>
-                <button type="submit" class="btn btn-brand">Cari</button>
-                <?php if (!empty($search)): ?>
-                    <a href="<?= route_url('transaksi') ?>" class="btn btn-outline-secondary">Reset</a>
-                <?php endif; ?>
-            </form>
+
+                <!-- Filter Waktu (Feedback-2 Poin 9) -->
+                <div class="d-flex align-items-center gap-1">
+                    <select id="dateFilterSelect" class="form-select-modern" style="min-width: 140px;">
+                        <option value="all">Semua Waktu</option>
+                        <option value="today">Hari Ini</option>
+                        <option value="7days">7 Hari Terakhir</option>
+                        <option value="month">Bulan Ini</option>
+                        <option value="custom">Pilih Rentang...</option>
+                    </select>
+                </div>
+
+                <!-- Kontainer Rentang Tanggal Kustom -->
+                <div id="customDateContainer" class="d-none d-flex align-items-center gap-1">
+                    <input type="date" id="dateStartInput" class="form-control-modern" style="width: 130px;" title="Mulai Tanggal">
+                    <span class="text-muted small">s/d</span>
+                    <input type="date" id="dateEndInput" class="form-control-modern" style="width: 130px;" title="Sampai Tanggal">
+                </div>
+
+                <!-- Filter Status (Lunas / Belum Dibayar) -->
+                <div>
+                    <select id="statusFilterSelect" class="form-select-modern" style="min-width: 135px;">
+                        <option value="all">Semua Status</option>
+                        <option value="done">Lunas</option>
+                        <option value="pending">Belum Dibayar</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tombol Pemindai QR & Barcode -->
             <div>
                 <button class="btn btn-soft-primary" type="button" data-bs-toggle="collapse" data-bs-target="#scannerCollapse">
-                    <i class="fa-solid fa-qrcode me-1"></i> Scan Barcode Nota
+                    <i class="fa-solid fa-qrcode me-1"></i> Scan Barcode / QR Nota
                 </button>
             </div>
         </div>
 
-        <!-- Barcode Scanner Collapse Area -->
+        <!-- Barcode Scanner Collapse Area Modern (Feedback-2 Poin 8 & 11) -->
         <div class="collapse p-4 border-bottom bg-white" id="scannerCollapse">
             <div class="text-center" style="max-width: 500px; margin: auto;">
                 <h5 class="fw-bold mb-2">Pindai Barcode / QR Code Nota</h5>
-                <p class="text-muted small mb-3">Arahkan barcode nota struk loket ke kamera untuk mencari transaksi secara instan.</p>
-                <div id="my-qr-reader" class="rounded-3 overflow-hidden shadow-sm border"></div>
-                <div id="your-qr-result" class="mt-3 text-success fw-bold"></div>
+                <p class="text-muted small mb-3">Arahkan barcode nota struk loket ke kamera. Hasil akan langsung memfilter transaksi seketika.</p>
+                
+                <!-- Pilihan Kamera Bahasa Indonesia Ramah Pengguna -->
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-3 flex-wrap">
+                    <label class="form-label small fw-semibold text-muted mb-0">
+                        <i class="fa-solid fa-camera-rotate me-1 text-primary"></i>Pilih Kamera:
+                    </label>
+                    <select id="cameraSelect" class="form-select-modern" style="max-width: 250px;">
+                        <option value="">Memuat perangkat kamera...</option>
+                    </select>
+                    <button id="btnToggleScanner" type="button" class="btn btn-sm btn-brand">
+                        <i class="fa-solid fa-play me-1"></i>Mulai Kamera
+                    </button>
+                </div>
+
+                <!-- Viewfinder Pemindai Modern -->
+                <div id="cameraViewport" class="position-relative mx-auto rounded-3 overflow-hidden shadow-sm border" style="max-width: 440px; min-height: 270px; background: #0f172a; display: flex; align-items: center; justify-content: center;">
+                    <div id="my-qr-reader" style="width: 100%;"></div>
+                    <div class="scanner-laser d-none" id="scannerLaser"></div>
+                    <div id="scannerOverlayPrompt" class="text-white text-center p-3">
+                        <i class="fa-solid fa-qrcode mb-2 text-primary" style="font-size: 2.2rem;"></i>
+                        <div class="fw-semibold">Kamera Belum Aktif</div>
+                        <div class="small text-white-50">Pilih kamera di atas lalu klik "Mulai Kamera"</div>
+                    </div>
+                </div>
+
+                <div id="your-qr-result" class="mt-2 text-center"></div>
             </div>
         </div>
 
@@ -171,8 +239,15 @@ require '../../app/layouts/admin_header.php';
                     $no = 1;
                     while ($row = $result->fetch_assoc()): 
                         $kode_trx = format_kode_transaksi($row["id_transaksi"], $row["tgl_pemesanan"]);
+                        $is_done = ($row["status"] === 'done');
+                        $cust_name = !empty($row["nama_pemesan"]) ? $row["nama_pemesan"] : $row["nama"];
+                        $pay_method = $row["metode_pembayaran"] ?? 'TUNAI';
+                        $search_metadata = strtolower($kode_trx . ' #' . $row["id_transaksi"] . ' ' . $cust_name . ' ' . $pay_method . ' ' . ($is_done ? 'lunas' : 'belum dibayar pending'));
                     ?>
-                        <tr>
+                        <tr data-id="<?= (int)$row["id_transaksi"] ?>" 
+                            data-date="<?= date('Y-m-d', strtotime($row["tgl_pemesanan"])) ?>" 
+                            data-status="<?= $is_done ? 'done' : 'pending' ?>"
+                            data-search="<?= e($search_metadata) ?>">
                             <td class="text-center text-muted fw-semibold"><?= $no++ ?></td>
                             <td>
                                 <strong class="text-primary font-monospace" style="font-size: 0.85rem;"><?= e($kode_trx) ?></strong>
@@ -248,6 +323,23 @@ require '../../app/layouts/admin_header.php';
                 </tbody>
             </table>
         </div>
+
+        <!-- Table Pagination Footer Interaktif (Feedback-2 Poin 2 & 11) -->
+        <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2 bg-light">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">Tampilkan:</span>
+                <select id="pageSizeSelect" class="form-select-modern form-select-sm" style="width: auto;">
+                    <option value="10">10 data</option>
+                    <option value="25">25 data</option>
+                    <option value="50">50 data</option>
+                    <option value="all">Semua</option>
+                </select>
+                <span id="paginationInfo" class="text-muted small ms-2"></span>
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="paginationNav"></ul>
+            </nav>
+        </div>
     </div>
 </div>
 
@@ -299,42 +391,38 @@ function printTable(tableId, title) {
 }
 </script>
 <script src="' . public_url('js/exportToExcel.js') . '"></script>
+<script src="' . public_url('js/transaction-table-controller.js') . '"></script>
 <script>
-// HTML5 QR & Barcode Scanner Otomatis
-let html5QrcodeScanner;
 document.addEventListener("DOMContentLoaded", () => {
-    const collapseElem = document.getElementById("scannerCollapse");
-    collapseElem.addEventListener("shown.bs.collapse", () => {
-        if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "my-qr-reader", 
-                { 
-                    fps: 20, 
-                    qrbox: (vfWidth, vfHeight) => ({
-                        width: Math.min(Math.floor(vfWidth * 0.92), 480),
-                        height: Math.min(Math.floor(vfHeight * 0.65), 240)
-                    }),
-                    aspectRatio: 1.777778,
-                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.QR_CODE,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.UPC_A
-                    ]
-                },
-                false
-            );
-            html5QrcodeScanner.render((decodedText) => {
-                const resEl = document.getElementById("your-qr-result");
-                if (resEl) {
-                    resEl.innerHTML = \'<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: \' + decodedText + \'</span>\';
-                }
-                setTimeout(() => {
-                    window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);
-                }, 700);
-            });
+    // 1. Inisialisasi Pengontrol Tabel Transaksi Interaktif (Live Search, Waktu & Pagination)
+    const tableManager = new TransactionTableManager({
+        tableId: "dataTable",
+        searchInputId: "searchInput",
+        datePresetId: "dateFilterSelect",
+        dateStartId: "dateStartInput",
+        dateEndId: "dateEndInput",
+        statusFilterId: "statusFilterSelect",
+        pageSizeId: "pageSizeSelect",
+        paginationInfoId: "paginationInfo",
+        paginationNavId: "paginationNav"
+    });
+
+    // 2. Inisialisasi Scanner Modern Berbahasa Indonesia Ramah Pengguna
+    new ModernScannerController({
+        collapseId: "scannerCollapse",
+        readerContainerId: "my-qr-reader",
+        cameraSelectId: "cameraSelect",
+        btnToggleId: "btnToggleScanner",
+        laserId: "scannerLaser",
+        promptId: "scannerOverlayPrompt",
+        resultId: "your-qr-result",
+        onScanSuccess: (decodedText) => {
+            const searchInput = document.getElementById("searchInput");
+            if (searchInput) {
+                searchInput.value = decodedText;
+            }
+            tableManager.applyFilters();
+            tableManager.highlightMatchingRow(decodedText);
         }
     });
 });

@@ -94,12 +94,22 @@ if (!empty($search)) {
 // Rekap Omzet Hari Ini Khusus Kasir Ini (hanya transaksi yang diproses/diinput kasir bersangkutan)
 $today_omzet = 0;
 $today_tickets = 0;
+$today_unpaid = 0;
+$total_all_tickets = 0;
 $recap_kasir_sql = " AND (transaksi.kasir_id = {$user_id} OR (transaksi.kasir_id IS NULL AND transaksi.id_user = {$user_id}))";
-$recap_sql = "SELECT SUM(total_harga) as omzet, COUNT(*) as cnt FROM transaksi WHERE DATE(tgl_pemesanan) = CURDATE() AND status = 'done' AND deleted_at IS NULL " . ($user_level === 3 ? $recap_kasir_sql : "");
+$recap_sql = "SELECT 
+    SUM(CASE WHEN DATE(tgl_pemesanan) = CURDATE() AND status = 'done' THEN total_harga ELSE 0 END) as omzet,
+    SUM(CASE WHEN DATE(tgl_pemesanan) = CURDATE() AND status = 'done' THEN 1 ELSE 0 END) as done_today_cnt,
+    SUM(CASE WHEN DATE(tgl_pemesanan) = CURDATE() AND status != 'done' THEN 1 ELSE 0 END) as unpaid_today_cnt,
+    COUNT(*) as total_cnt 
+FROM transaksi 
+WHERE deleted_at IS NULL " . ($user_level === 3 ? $recap_kasir_sql : "");
 $recap = $conn->query($recap_sql);
 if ($recap && $rc = $recap->fetch_assoc()) {
     $today_omzet = (float)($rc['omzet'] ?? 0);
-    $today_tickets = (int)$rc['cnt'];
+    $today_tickets = (int)($rc['done_today_cnt'] ?? 0);
+    $today_unpaid = (int)($rc['unpaid_today_cnt'] ?? 0);
+    $total_all_tickets = (int)($rc['total_cnt'] ?? 0);
 }
 
 // Rekap Rincian Tunai vs Non-Tunai Shift Kasir (Balancing Kasir)
@@ -147,9 +157,9 @@ require '../../app/layouts/admin_header.php';
 ?>
 
 <div class="page-content">
-    <!-- Stats Hari Ini -->
+    <!-- Stats Kasir Lengkap (Feedback-2 Poin 10: Sudah Dibayar vs Belum Dibayar) -->
     <div class="row g-3 mb-4">
-        <div class="col-12 col-sm-6">
+        <div class="col-12 col-sm-6 col-xl-3">
             <div class="modern-card p-3 d-flex align-items-center gap-3">
                 <div class="metric-icon-box green" style="width: 48px; height: 48px; font-size: 1.25rem;">
                     <i class="fa-solid fa-money-bill-wave"></i>
@@ -160,65 +170,124 @@ require '../../app/layouts/admin_header.php';
                 </div>
             </div>
         </div>
-        <div class="col-12 col-sm-6">
+        <div class="col-12 col-sm-6 col-xl-3">
             <div class="modern-card p-3 d-flex align-items-center gap-3">
                 <div class="metric-icon-box blue" style="width: 48px; height: 48px; font-size: 1.25rem;">
-                    <i class="fa-solid fa-ticket"></i>
+                    <i class="fa-solid fa-circle-check"></i>
                 </div>
                 <div>
-                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Transaksi Lunas Hari Ini</div>
+                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Sudah Dibayar</div>
                     <div class="fw-bold text-primary" style="font-size: 1.35rem;"><?= $today_tickets ?> Transaksi</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="modern-card p-3 d-flex align-items-center gap-3">
+                <div class="metric-icon-box amber" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Belum Dibayar</div>
+                    <div class="fw-bold text-warning" style="font-size: 1.35rem;"><?= $today_unpaid ?> Transaksi</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="modern-card p-3 d-flex align-items-center gap-3">
+                <div class="metric-icon-box purple" style="width: 48px; height: 48px; font-size: 1.25rem;">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Total Transaksi</div>
+                    <div class="fw-bold text-dark" style="font-size: 1.35rem;"><?= $total_all_tickets ?> Transaksi</div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="modern-card">
-        <!-- Search & Scanner Toolbar -->
-        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <form method="GET" action="" class="d-flex align-items-center gap-2" style="max-width: 480px; width: 100%;">
-                <div class="input-icon-group flex-grow-1">
+        <!-- Search & Filter Toolbar Interaktif (Live Tanpa Reload) -->
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-wrap" style="max-width: 780px;">
+                <!-- Live Search Input -->
+                <div class="input-icon-group flex-grow-1" style="min-width: 220px;">
                     <i class="fa-solid fa-magnifying-glass input-icon"></i>
                     <input 
                         class="form-control-modern" 
                         type="text" 
-                        name="search" 
                         id="searchInput" 
                         placeholder="Cari ID, Nama, Kode TRX, Metode, Status..." 
                         value="<?= e($search) ?>"
                     >
                 </div>
-                <button type="submit" class="btn btn-brand">Cari</button>
-                <?php if (!empty($search)): ?>
-                    <a href="<?= route_url('kasir') ?>" class="btn btn-outline-secondary">Reset</a>
-                <?php endif; ?>
-            </form>
+
+                <!-- Filter Waktu (Feedback-2 Poin 9) -->
+                <div class="d-flex align-items-center gap-1">
+                    <select id="dateFilterSelect" class="form-select-modern" style="min-width: 140px;">
+                        <option value="all">Semua Waktu</option>
+                        <option value="today">Hari Ini</option>
+                        <option value="7days">7 Hari Terakhir</option>
+                        <option value="month">Bulan Ini</option>
+                        <option value="custom">Pilih Rentang...</option>
+                    </select>
+                </div>
+
+                <!-- Kontainer Rentang Tanggal Kustom -->
+                <div id="customDateContainer" class="d-none d-flex align-items-center gap-1">
+                    <input type="date" id="dateStartInput" class="form-control-modern" style="width: 130px;" title="Mulai Tanggal">
+                    <span class="text-muted small">s/d</span>
+                    <input type="date" id="dateEndInput" class="form-control-modern" style="width: 130px;" title="Sampai Tanggal">
+                </div>
+
+                <!-- Filter Status (Lunas / Belum Dibayar) -->
+                <div>
+                    <select id="statusFilterSelect" class="form-select-modern" style="min-width: 135px;">
+                        <option value="all">Semua Status</option>
+                        <option value="done">Lunas</option>
+                        <option value="pending">Belum Dibayar</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tombol Pemindai QR & Barcode -->
             <div>
                 <button class="btn btn-soft-primary" type="button" data-bs-toggle="collapse" data-bs-target="#scannerCollapse">
-                    <i class="fa-solid fa-qrcode me-1"></i> Scan QR Code Nota
+                    <i class="fa-solid fa-qrcode me-1"></i> Scan Barcode / QR Nota
                 </button>
             </div>
         </div>
 
-        <!-- Barcode Scanner Collapse Area -->
+        <!-- Barcode Scanner Collapse Area Modern (Feedback-2 Poin 8 & 11) -->
         <div class="collapse p-4 border-bottom bg-white" id="scannerCollapse">
             <div class="text-center" style="max-width: 500px; margin: auto;">
-                <h5 class="fw-bold mb-2">Pindai QR Code Nota</h5>
-                <p class="text-muted small mb-3">Arahkan kamera smartphone ke QR Code nota struk untuk verifikasi tiket masuk.</p>
+                <h5 class="fw-bold mb-2">Pindai Barcode / QR Code Nota</h5>
+                <p class="text-muted small mb-3">Arahkan kamera ke barcode struk transaksi. Hasil akan memfilter tabel seketika tanpa reload.</p>
                 
-                <div id="camera-insecure-warning" class="alert alert-warning text-start d-none" style="font-size: 0.82rem; border-radius: 10px;">
-                    <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> Kamera Tidak Dapat Diakses (HTTP / Non-HTTPS)</div>
-                    <div>Browser smartphone (Chrome/Safari) secara standar keamanan memblokir akses kamera jika dibuka melalui IP (HTTP <code>http://10.20.110.168:8000</code>).</div>
-                    <div class="mt-2 fw-semibold">Solusi mudah tanpa perlu VPS:</div>
-                    <ol class="mb-1 ps-3">
-                        <li>Buka Chrome di HP, ketik di address bar: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code></li>
-                        <li>Masukkan URL: <code>http://10.20.110.168:8000</code> lalu pilih <b>Enabled</b> dan <b>Relaunch</b>.</li>
-                        <li>Atau gunakan terowongan HTTPS lokal otomatis (ngrok / Cloudflare tunnel).</li>
-                    </ol>
+                <!-- Pilihan Kamera Bahasa Indonesia Ramah Pengguna -->
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-3 flex-wrap">
+                    <label class="form-label small fw-semibold text-muted mb-0">
+                        <i class="fa-solid fa-camera-rotate me-1 text-primary"></i>Pilih Kamera:
+                    </label>
+                    <select id="cameraSelect" class="form-select-modern" style="max-width: 250px;">
+                        <option value="">Memuat perangkat kamera...</option>
+                    </select>
+                    <button id="btnToggleScanner" type="button" class="btn btn-sm btn-brand">
+                        <i class="fa-solid fa-play me-1"></i>Mulai Kamera
+                    </button>
                 </div>
 
-                <div id="my-qr-reader" class="rounded-3 overflow-hidden shadow-sm border"></div>
-                <div id="your-qr-result" class="mt-3 text-success fw-bold"></div>
+                <!-- Viewfinder Pemindai Modern -->
+                <div id="cameraViewport" class="position-relative mx-auto rounded-3 overflow-hidden shadow-sm border" style="max-width: 440px; min-height: 270px; background: #0f172a; display: flex; align-items: center; justify-content: center;">
+                    <div id="my-qr-reader" style="width: 100%;"></div>
+                    <div class="scanner-laser d-none" id="scannerLaser"></div>
+                    <div id="scannerOverlayPrompt" class="text-white text-center p-3">
+                        <i class="fa-solid fa-qrcode mb-2 text-primary" style="font-size: 2.2rem;"></i>
+                        <div class="fw-semibold">Kamera Belum Aktif</div>
+                        <div class="small text-white-50">Pilih kamera di atas lalu klik "Mulai Kamera"</div>
+                    </div>
+                </div>
+
+                <div id="your-qr-result" class="mt-2 text-center"></div>
             </div>
         </div>
 
@@ -303,8 +372,15 @@ require '../../app/layouts/admin_header.php';
                     $no = 1;
                     while ($row = $result->fetch_assoc()): 
                         $kode_trx = format_kode_transaksi($row["id_transaksi"], $row["tgl_pemesanan"]);
+                        $is_done = ($row["status"] === 'done');
+                        $cust_name = !empty($row["nama_pemesan"]) ? $row["nama_pemesan"] : $row["nama"];
+                        $pay_method = $row["metode_pembayaran"] ?? 'TUNAI';
+                        $search_metadata = strtolower($kode_trx . ' #' . $row["id_transaksi"] . ' ' . $cust_name . ' ' . $pay_method . ' ' . ($is_done ? 'lunas' : 'belum dibayar pending'));
                     ?>
-                        <tr>
+                        <tr data-id="<?= (int)$row["id_transaksi"] ?>" 
+                            data-date="<?= date('Y-m-d', strtotime($row["tgl_pemesanan"])) ?>" 
+                            data-status="<?= $is_done ? 'done' : 'pending' ?>"
+                            data-search="<?= e($search_metadata) ?>">
                             <td class="text-center text-muted fw-semibold"><?= $no++ ?></td>
                             <td>
                                 <strong class="text-primary font-monospace" style="font-size: 0.85rem;"><?= e($kode_trx) ?></strong>
@@ -379,6 +455,23 @@ require '../../app/layouts/admin_header.php';
                 <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Table Pagination Footer Interaktif (Feedback-2 Poin 2 & 11) -->
+        <div class="p-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2 bg-light">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">Tampilkan:</span>
+                <select id="pageSizeSelect" class="form-select-modern form-select-sm" style="width: auto;">
+                    <option value="10">10 data</option>
+                    <option value="25">25 data</option>
+                    <option value="50">50 data</option>
+                    <option value="all">Semua</option>
+                </select>
+                <span id="paginationInfo" class="text-muted small ms-2"></span>
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="paginationNav"></ul>
+            </nav>
         </div>
     </div>
 </div>
@@ -637,53 +730,40 @@ function cetakStrukShift() {
     win.document.close();
     setTimeout(() => { win.print(); }, 400);
 }
-
-// HTML5 QR & Barcode Scanner Otomatis
-let html5QrcodeScanner;
+</script>
+<script src="' . public_url('js/html5-qrcode.min.js') . '"></script>
+<script src="' . public_url('js/transaction-table-controller.js') . '"></script>
+<script>
 document.addEventListener("DOMContentLoaded", () => {
-    // Deteksi apakah konteks aman (HTTPS atau localhost)
-    const isSecure = window.isSecureContext || window.location.hostname === \'localhost\' || window.location.hostname === \'127.0.0.1\';
-    const warningEl = document.getElementById("camera-insecure-warning");
-    if (!isSecure && warningEl) {
-        warningEl.classList.remove("d-none");
-    }
+    // 1. Inisialisasi Pengontrol Tabel Transaksi Interaktif (Live Search, Waktu & Pagination)
+    const tableManager = new TransactionTableManager({
+        tableId: "dataTable",
+        searchInputId: "searchInput",
+        datePresetId: "dateFilterSelect",
+        dateStartId: "dateStartInput",
+        dateEndId: "dateEndInput",
+        statusFilterId: "statusFilterSelect",
+        pageSizeId: "pageSizeSelect",
+        paginationInfoId: "paginationInfo",
+        paginationNavId: "paginationNav"
+    });
 
-    const collapseElem = document.getElementById("scannerCollapse");
-    collapseElem.addEventListener("shown.bs.collapse", () => {
-        if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "my-qr-reader", 
-                { 
-                    fps: 20, 
-                    qrbox: (vfWidth, vfHeight) => {
-                        const minEdge = Math.min(vfWidth, vfHeight);
-                        const edge = Math.max(Math.floor(minEdge * 0.75), 200);
-                        return { width: edge, height: edge };
-                    },
-                    aspectRatio: 1.0,
-                    showTorchButtonIfSupported: true,
-                    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats.QR_CODE,
-                        Html5QrcodeSupportedFormats.CODE_128
-                    ]
-                },
-                false
-            );
-            html5QrcodeScanner.render(
-                (decodedText) => {
-                    const resEl = document.getElementById("your-qr-result");
-                    if (resEl) {
-                        resEl.innerHTML = \'<span class="badge bg-success fs-6"><i class="fa-solid fa-check me-1"></i> Terbaca: \' + decodedText + \'</span>\';
-                    }
-                    setTimeout(() => {
-                        window.location.href = window.location.pathname + "?search=" + encodeURIComponent(decodedText);
-                    }, 600);
-                },
-                (errorMessage) => {
-                    // Ignore transient frame scan errors
-                }
-            );
+    // 2. Inisialisasi Scanner Modern Berbahasa Indonesia Ramah Pengguna
+    new ModernScannerController({
+        collapseId: "scannerCollapse",
+        readerContainerId: "my-qr-reader",
+        cameraSelectId: "cameraSelect",
+        btnToggleId: "btnToggleScanner",
+        laserId: "scannerLaser",
+        promptId: "scannerOverlayPrompt",
+        resultId: "your-qr-result",
+        onScanSuccess: (decodedText) => {
+            const searchInput = document.getElementById("searchInput");
+            if (searchInput) {
+                searchInput.value = decodedText;
+            }
+            tableManager.applyFilters();
+            tableManager.highlightMatchingRow(decodedText);
         }
     });
 });
