@@ -761,7 +761,8 @@ img.img-cover,
     padding-right: 0 !important;
 }
 
-.modal .modal-body img {
+.portfolio-modal .modal-body img,
+.modal.portfolio-modal .modal-body img {
     max-height: 230px !important;
     width: 100% !important;
     object-fit: cover !important;

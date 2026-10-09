@@ -239,40 +239,49 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
 <link rel="stylesheet" href="<?= public_url('assets/extensions/cropperjs/cropper.min.css') ?>">
 <style>
 /* Styling Lensa Pemotong Foto & Stage Wallpaper */
-.crop-modal-stage-wrapper {
-    background: #090d16;
-    border-radius: 14px;
-    padding: 1.25rem;
+.crop-modal-stage-outer {
     display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+.crop-modal-stage-wrapper {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 6px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 380px;
-    max-height: 520px;
+    width: -moz-fit-content;
+    width: fit-content;
+    max-width: 100%;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .crop-wallpaper-stage {
     position: relative;
-    display: inline-block;
-    max-width: 100%;
-    max-height: 460px;
+    display: block;
     line-height: 0;
     overflow: hidden;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
     user-select: none;
     -webkit-user-select: none;
 }
 .crop-wallpaper-stage img.crop-wallpaper-img {
-    display: block;
-    max-width: 100%;
-    max-height: 460px;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    user-select: none;
-    -webkit-user-drag: none;
-    pointer-events: none;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    max-width: none !important;
+    aspect-ratio: unset !important;
+    object-fit: fill !important;
+    border-radius: 8px !important;
+    user-select: none !important;
+    -webkit-user-drag: none !important;
+    pointer-events: none !important;
 }
 /* Lingkaran Lensa Transparan (Spotlight Lens) */
 .crop-lens {
@@ -559,12 +568,14 @@ include __DIR__ . '/../../app/layouts/admin_header.php';
             </div>
             <div class="modal-body p-4 bg-light">
                 <!-- Area Wallpaper Backdrop & Lensa Transparan 1:1 (Single Image, No Duplication) -->
-                <div class="crop-modal-stage-wrapper shadow-sm mb-3" id="cropStageWrapper">
-                    <div class="crop-wallpaper-stage" id="cropWallpaperStage">
-                        <img id="cropWallpaperImg" class="crop-wallpaper-img" src="" alt="Pratinjau Foto Profil">
-                        <div id="cropLens" class="crop-lens">
-                            <div class="crop-lens-handle" id="cropLensHandle" title="Tarik untuk memperbesar/memperkecil lingkaran crop">
-                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                <div class="crop-modal-stage-outer">
+                    <div class="crop-modal-stage-wrapper" id="cropStageWrapper">
+                        <div class="crop-wallpaper-stage" id="cropWallpaperStage">
+                            <img id="cropWallpaperImg" class="crop-wallpaper-img" src="" alt="Pratinjau Foto Profil">
+                            <div id="cropLens" class="crop-lens">
+                                <div class="crop-lens-handle" id="cropLensHandle" title="Tarik untuk memperbesar/memperkecil lingkaran crop">
+                                    <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -627,6 +638,11 @@ document.addEventListener("DOMContentLoaded", function() {
     const stageWrapper = document.getElementById("cropStageWrapper");
     const stageEl = document.getElementById("cropWallpaperStage");
     const cropImg = document.getElementById("cropWallpaperImg");
+    if (cropImg) {
+        cropImg.onload = function() {
+            fitImageToStage(true);
+        };
+    }
     const cropLens = document.getElementById("cropLens");
     const lensHandle = document.getElementById("cropLensHandle");
     const liveCanvas = document.getElementById("liveCropPreviewCanvas");
@@ -637,6 +653,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     let rawImageDataUrl = "";
     let rawImageObj = new Image();
+    let stageRenderW = 0;
+    let stageRenderH = 0;
+    let imageScale = 1;
     let lensX = 0;
     let lensY = 0;
     let lensSize = 150;
@@ -649,14 +668,11 @@ document.addEventListener("DOMContentLoaded", function() {
     let initialLensSize = 150;
 
     function applyLensPosition() {
-        if (!cropLens || !cropImg) return;
-        const stageW = cropImg.offsetWidth;
-        const stageH = cropImg.offsetHeight;
-        if (stageW <= 0 || stageH <= 0) return;
+        if (!cropLens || stageRenderW <= 0) return;
 
-        lensSize = Math.max(cropConfig.minSize, Math.min(Math.min(stageW, stageH), lensSize));
-        lensX = Math.max(0, Math.min(stageW - lensSize, lensX));
-        lensY = Math.max(0, Math.min(stageH - lensSize, lensY));
+        lensSize = Math.max(cropConfig.minSize, Math.min(Math.min(stageRenderW, stageRenderH), lensSize));
+        lensX = Math.max(0, Math.min(stageRenderW - lensSize, lensX));
+        lensY = Math.max(0, Math.min(stageRenderH - lensSize, lensY));
 
         cropLens.style.width = lensSize + "px";
         cropLens.style.height = lensSize + "px";
@@ -665,17 +681,11 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function updateLivePreview() {
-        if (!liveCtx || !rawImageObj.complete || rawImageObj.naturalWidth === 0 || !cropImg) return;
-        const stageW = cropImg.offsetWidth;
-        const stageH = cropImg.offsetHeight;
-        if (stageW <= 0 || stageH <= 0) return;
+        if (!liveCtx || !rawImageObj.complete || rawImageObj.naturalWidth === 0 || stageRenderW <= 0) return;
 
-        const scaleX = rawImageObj.naturalWidth / stageW;
-        const scaleY = rawImageObj.naturalHeight / stageH;
-
-        const sx = Math.max(0, Math.min(rawImageObj.naturalWidth, lensX * scaleX));
-        const sy = Math.max(0, Math.min(rawImageObj.naturalHeight, lensY * scaleY));
-        const sSize = Math.min(lensSize * scaleX, Math.min(rawImageObj.naturalWidth - sx, rawImageObj.naturalHeight - sy));
+        const sx = Math.max(0, Math.min(rawImageObj.naturalWidth, Math.round(lensX * imageScale)));
+        const sy = Math.max(0, Math.min(rawImageObj.naturalHeight, Math.round(lensY * imageScale)));
+        const sSize = Math.max(1, Math.min(Math.round(lensSize * imageScale), Math.min(rawImageObj.naturalWidth - sx, rawImageObj.naturalHeight - sy)));
 
         liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
         liveCtx.save();
@@ -688,26 +698,57 @@ document.addEventListener("DOMContentLoaded", function() {
         liveCtx.restore();
     }
 
-    function initLensOnStage() {
-        if (!cropImg || !rawImageObj.complete || rawImageObj.naturalWidth === 0) return;
+    function fitImageToStage(resetPosition = false) {
+        if (!rawImageObj.complete || rawImageObj.naturalWidth === 0 || !stageWrapper) return;
 
-        requestAnimationFrame(function() {
-            const stageW = cropImg.offsetWidth;
-            const stageH = cropImg.offsetHeight;
-            if (stageW <= 0 || stageH <= 0) {
-                setTimeout(initLensOnStage, 60);
-                return;
-            }
+        // Wadah preview card yang fleksibel tanpa letterbox/kotak hitam 16:9
+        const modalBody = modalEl ? modalEl.querySelector(".modal-body") : null;
+        const availableW = modalBody ? Math.max(260, modalBody.clientWidth - 48) : 760;
+        const maxH = Math.min(window.innerHeight * 0.55, 480);
 
-            // Atur ukuran awal lingkaran sekitar 75% dari sisi terpendek gambar
-            lensSize = Math.round(Math.min(stageW, stageH) * 0.75);
-            lensX = Math.round((stageW - lensSize) / 2);
-            lensY = Math.round((stageH - lensSize) / 2);
+        const natW = rawImageObj.naturalWidth;
+        const natH = rawImageObj.naturalHeight;
 
-            applyLensPosition();
-            updateLivePreview();
-        });
+        // Skala proporsional murni berdasarkan rasio aspek alami gambar asli
+        const scale = Math.min(availableW / natW, maxH / natH, 1);
+        stageRenderW = Math.max(80, Math.round(natW * scale));
+        stageRenderH = Math.max(80, Math.round(natH * scale));
+        imageScale = natW / stageRenderW;
+
+        // Atur dimensi stage dan img secara presisi sama agar pas tanpa sisa hitam di dalam stage
+        if (stageEl) {
+            stageEl.style.width = stageRenderW + "px";
+            stageEl.style.height = stageRenderH + "px";
+        }
+        if (cropImg) {
+            cropImg.style.width = stageRenderW + "px";
+            cropImg.style.height = stageRenderH + "px";
+        }
+
+        const minDim = Math.min(stageRenderW, stageRenderH);
+        lensSize = Math.max(cropConfig.minSize, Math.min(minDim, lensSize || Math.round(minDim * 0.75)));
+
+        if (resetPosition || (lensX === 0 && lensY === 0)) {
+            lensX = Math.round((stageRenderW - lensSize) / 2);
+            lensY = Math.round((stageRenderH - lensSize) / 2);
+        } else {
+            lensX = Math.max(0, Math.min(stageRenderW - lensSize, lensX));
+            lensY = Math.max(0, Math.min(stageRenderH - lensSize, lensY));
+        }
+
+        applyLensPosition();
+        updateLivePreview();
     }
+
+    function initLensOnStage() {
+        fitImageToStage(true);
+    }
+
+    window.addEventListener("resize", function() {
+        if (modalEl && modalEl.classList.contains("show")) {
+            fitImageToStage(false);
+        }
+    });
 
     // Pasang listener drag pada lensa transparan (pointer events)
     if (cropLens) {
@@ -724,14 +765,12 @@ document.addEventListener("DOMContentLoaded", function() {
         });
 
         cropLens.addEventListener("pointermove", function(e) {
-            if (!isDragging || !cropImg) return;
-            const stageW = cropImg.offsetWidth;
-            const stageH = cropImg.offsetHeight;
+            if (!isDragging || stageRenderW <= 0) return;
             const dx = e.clientX - dragStartX;
             const dy = e.clientY - dragStartY;
 
-            lensX = Math.max(0, Math.min(stageW - lensSize, initialLensX + dx));
-            lensY = Math.max(0, Math.min(stageH - lensSize, initialLensY + dy));
+            lensX = Math.max(0, Math.min(stageRenderW - lensSize, initialLensX + dx));
+            lensY = Math.max(0, Math.min(stageRenderH - lensSize, initialLensY + dy));
 
             applyLensPosition();
             updateLivePreview();
@@ -761,11 +800,9 @@ document.addEventListener("DOMContentLoaded", function() {
         });
 
         lensHandle.addEventListener("pointermove", function(e) {
-            if (!isResizing || !cropImg) return;
-            const stageW = cropImg.offsetWidth;
-            const stageH = cropImg.offsetHeight;
+            if (!isResizing || stageRenderW <= 0) return;
             const delta = Math.max(e.clientX - dragStartX, e.clientY - dragStartY);
-            const maxPossible = Math.min(stageW - lensX, stageH - lensY);
+            const maxPossible = Math.min(stageRenderW - lensX, stageRenderH - lensY);
 
             lensSize = Math.max(cropConfig.minSize, Math.min(maxPossible, initialLensSize + delta));
             applyLensPosition();
@@ -784,35 +821,39 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Tombol Preset Ukuran Lingkaran
     document.getElementById("btnLensSizeSm")?.addEventListener("click", function() {
-        if (!cropImg) return;
-        const minDim = Math.min(cropImg.offsetWidth, cropImg.offsetHeight);
+        if (stageRenderW <= 0) return;
+        const minDim = Math.min(stageRenderW, stageRenderH);
         lensSize = Math.max(cropConfig.minSize, Math.round(minDim * 0.45));
+        lensX = Math.max(0, Math.min(stageRenderW - lensSize, lensX));
+        lensY = Math.max(0, Math.min(stageRenderH - lensSize, lensY));
         applyLensPosition();
         updateLivePreview();
     });
 
     document.getElementById("btnLensSizeMd")?.addEventListener("click", function() {
-        if (!cropImg) return;
-        const minDim = Math.min(cropImg.offsetWidth, cropImg.offsetHeight);
+        if (stageRenderW <= 0) return;
+        const minDim = Math.min(stageRenderW, stageRenderH);
         lensSize = Math.max(cropConfig.minSize, Math.round(minDim * 0.70));
+        lensX = Math.max(0, Math.min(stageRenderW - lensSize, lensX));
+        lensY = Math.max(0, Math.min(stageRenderH - lensSize, lensY));
         applyLensPosition();
         updateLivePreview();
     });
 
     document.getElementById("btnLensSizeLg")?.addEventListener("click", function() {
-        if (!cropImg) return;
-        const minDim = Math.min(cropImg.offsetWidth, cropImg.offsetHeight);
+        if (stageRenderW <= 0) return;
+        const minDim = Math.min(stageRenderW, stageRenderH);
         lensSize = minDim;
-        lensX = Math.round((cropImg.offsetWidth - lensSize) / 2);
-        lensY = Math.round((cropImg.offsetHeight - lensSize) / 2);
+        lensX = Math.round((stageRenderW - lensSize) / 2);
+        lensY = Math.round((stageRenderH - lensSize) / 2);
         applyLensPosition();
         updateLivePreview();
     });
 
     document.getElementById("btnResetLens")?.addEventListener("click", function() {
-        if (!cropImg) return;
-        lensX = Math.round((cropImg.offsetWidth - lensSize) / 2);
-        lensY = Math.round((cropImg.offsetHeight - lensSize) / 2);
+        if (stageRenderW <= 0) return;
+        lensX = Math.round((stageRenderW - lensSize) / 2);
+        lensY = Math.round((stageRenderH - lensSize) / 2);
         applyLensPosition();
         updateLivePreview();
     });
@@ -945,24 +986,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Terapkan Crop Foto ke Format 1:1 Resolusi Tinggi
     document.getElementById("btnApplyCrop")?.addEventListener("click", function() {
-        if (!rawImageObj.complete || rawImageObj.naturalWidth === 0 || !cropImg) {
+        if (!rawImageObj.complete || rawImageObj.naturalWidth === 0 || stageRenderW <= 0) {
             closeCropModal();
             return;
         }
 
-        const stageW = cropImg.offsetWidth;
-        const stageH = cropImg.offsetHeight;
-        if (stageW <= 0 || stageH <= 0) {
-            closeCropModal();
-            return;
-        }
-
-        const scaleX = rawImageObj.naturalWidth / stageW;
-        const scaleY = rawImageObj.naturalHeight / stageH;
-
-        const sx = Math.max(0, Math.min(rawImageObj.naturalWidth, lensX * scaleX));
-        const sy = Math.max(0, Math.min(rawImageObj.naturalHeight, lensY * scaleY));
-        const sSize = Math.min(lensSize * scaleX, Math.min(rawImageObj.naturalWidth - sx, rawImageObj.naturalHeight - sy));
+        const sx = Math.max(0, Math.min(rawImageObj.naturalWidth, Math.round(lensX * imageScale)));
+        const sy = Math.max(0, Math.min(rawImageObj.naturalHeight, Math.round(lensY * imageScale)));
+        const sSize = Math.max(1, Math.min(Math.round(lensSize * imageScale), Math.min(rawImageObj.naturalWidth - sx, rawImageObj.naturalHeight - sy)));
 
         const exportCanvas = document.createElement("canvas");
         exportCanvas.width = cropConfig.exportSize;
