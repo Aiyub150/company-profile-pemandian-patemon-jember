@@ -8,6 +8,11 @@
  *   php serve.php --host=0.0.0.0 --port=8080
  */
 
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    die("Akses ditolak: Skrip ini hanya dapat dijalankan melalui antarmuka baris perintah (CLI).");
+}
+
 // 1. Parse CLI Arguments
 $options = getopt("h:p:", ["host:", "port:"]);
 $host = $options['host'] ?? $options['h'] ?? '0.0.0.0';

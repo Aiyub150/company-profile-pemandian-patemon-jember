@@ -42,7 +42,10 @@ $blockedPatterns = [
     '/composer\.(json|lock)$/i',
     '/package\.(json|lock)$/i',
     '/\.md$/i',
-    '/database\//i'
+    '/database\//i',
+    '/\/(scratch|tests|tools)\//i',
+    '/\/local(\.pub)?$/i',
+    '/\/serve\.php$/i'
 ];
 
 foreach ($blockedPatterns as $pattern) {

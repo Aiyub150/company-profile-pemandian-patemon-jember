@@ -35,15 +35,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $timeWindow = time() - 900;
         $conn->query("DELETE FROM login_attempts WHERE attempt_time < {$timeWindow}");
 
-        // Cek jumlah percobaan gagal dalam 15 menit
-        $stmtChk = $conn->prepare("SELECT COUNT(*) FROM login_attempts WHERE (ip_address = ? OR username = ?) AND attempt_time > ?");
-        $stmtChk->bind_param("ssi", $ip, $username, $timeWindow);
+        // Cek jumlah percobaan gagal dalam 15 menit (Anti-Account DoS & Brute Force Prevention)
+        // Batasi 5 kegagalan per kombinasi IP+Username, atau 15 kegagalan per IP global
+        $stmtChk = $conn->prepare("SELECT 
+            SUM(CASE WHEN ip_address = ? AND username = ? THEN 1 ELSE 0 END) AS pair_attempts,
+            SUM(CASE WHEN ip_address = ? THEN 1 ELSE 0 END) AS ip_attempts
+            FROM login_attempts WHERE attempt_time > ?");
+        $stmtChk->bind_param("sssi", $ip, $username, $ip, $timeWindow);
         $stmtChk->execute();
-        $attempts = (int)($stmtChk->get_result()->fetch_row()[0] ?? 0);
+        $resAttempts = $stmtChk->get_result()->fetch_assoc();
+        $pairAttempts = (int)($resAttempts['pair_attempts'] ?? 0);
+        $ipAttempts = (int)($resAttempts['ip_attempts'] ?? 0);
         $stmtChk->close();
 
-        if ($attempts >= 5) {
-            $error = "Akses login dikunci sementara karena terdeteksi 5 kali percobaan gagal berturut-turut. Silakan tunggu 15 menit sebelum mencoba kembali.";
+        if ($pairAttempts >= 5 || $ipAttempts >= 15) {
+            $error = "Akses login dikunci sementara karena terdeteksi terlalu banyak percobaan gagal. Silakan tunggu 15 menit sebelum mencoba kembali.";
             if (function_exists('log_activity')) {
                 log_activity('LOGIN_BLOCKED', 'auth', "Percobaan login diblokir oleh rate limiting (IP: {$ip}, Username: {$username})");
             }

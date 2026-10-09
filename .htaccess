@@ -21,6 +21,9 @@ Options -Indexes
     RewriteRule package\.(json|lock)$ - [F,L,NC]
     RewriteRule \.md$ - [F,L,NC]
     RewriteRule ^database/ - [F,L,NC]
+    RewriteRule ^(scratch|tests|tools)/ - [F,L,NC]
+    RewriteRule ^local(\.pub)?$ - [F,L,NC]
+    RewriteRule ^serve\.php$ - [F,L,NC]
 
     # Jangan rewrite jika file fisik / direktori aset ada (CSS, JS, gambar)
     RewriteCond %{REQUEST_FILENAME} -f [OR]
