@@ -10,7 +10,7 @@ EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 USER_DATA_DIR = os.path.join(os.environ.get("LOCALAPPDATA", "C:\\Temp"), "edge_test_profile_visual")
 PORT = 9223
 BASE_URL = "http://127.0.0.1:8000"
-SAMPLE_CAT_IMG = r"C:\Users\aiyub\AppData\Roaming\Hermes\composer-images\image_f77a15.png"
+SAMPLE_CAT_IMG = r"C:\Users\aiyub\Downloads\cat thinking.jpg"
 
 async def send_cmd(ws, msg_id, method, params=None):
     payload = {"id": msg_id, "method": method}
@@ -114,7 +114,7 @@ async def main():
                 import base64
                 with open(SAMPLE_CAT_IMG, "rb") as f:
                     cat_b64 = base64.b64encode(f.read()).decode("utf-8")
-                mime_type = "image/png"
+                mime_type = "image/jpeg" if SAMPLE_CAT_IMG.lower().endswith((".jpg", ".jpeg")) else "image/png"
             else:
                 cat_b64 = ""
                 mime_type = "image/jpeg"
@@ -131,34 +131,76 @@ async def main():
                         }}
                         const byteArray = new Uint8Array(byteNums);
                         const blob = new Blob([byteArray], {{ type: "{mime_type}" }});
-                        const file = new File([blob], 'user_cat_sample.png', {{ type: "{mime_type}" }});
+                        const file = new File([blob], 'cat_thinking.jpg', {{ type: "{mime_type}" }});
                         const dt = new DataTransfer();
                         dt.items.add(file);
                         const input = document.getElementById('avatarInput');
                         input.files = dt.files;
                         input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    }} else {{
-                        const c = document.createElement('canvas');
-                        c.width = 640;
-                        c.height = 400;
-                        const ctx = c.getContext('2d');
-                        ctx.fillStyle = '#0f172a';
-                        ctx.fillRect(0, 0, 640, 400);
-                        c.toBlob(blob => {{
-                            const file = new File([blob], 'sample.jpg', {{ type: 'image/jpeg' }});
-                            const dt = new DataTransfer();
-                            dt.items.add(file);
-                            const input = document.getElementById('avatarInput');
-                            input.files = dt.files;
-                            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                        }});
                     }}
                 }})()
             """); msg_id += 1
 
             await asyncio.sleep(2)
 
-            # 4. Verifikasi Single-Image Backdrop & Transparent Lens di DOM
+            # 4. Uji tombol preset ukuran lensa (Kecil, Sedang, Maksimal)
+            print("\n▶ Menguji preset ukuran lensa...")
+            test_sizes = await evaluate(ws, msg_id, """
+                (() => {
+                    const lens = document.getElementById('cropLens');
+                    const btnSm = document.getElementById('btnLensSizeSm');
+                    const btnLg = document.getElementById('btnLensSizeLg');
+                    
+                    btnSm.click();
+                    const smSize = lens.offsetWidth;
+
+                    btnLg.click();
+                    const lgSize = lens.offsetWidth;
+
+                    // Kembalikan ke sedang
+                    document.getElementById('btnLensSizeMd').click();
+                    const mdSize = lens.offsetWidth;
+
+                    return { smSize, mdSize, lgSize };
+                })()
+            """); msg_id += 1
+            print(f"  Preset Ukuran Lensa: {json.dumps(test_sizes, indent=2)}")
+
+            # 5. Posisikan lensa secara presisi membingkai kepala & wajah kucing berpikir
+            print("\n▶ Menggeser lensa bidik tepat di wajah kucing berpikir...")
+            await evaluate(ws, msg_id, """
+                (() => {
+                    const lens = document.getElementById('cropLens');
+                    const img = document.getElementById('cropWallpaperImg');
+                    if (!lens || !img) return;
+
+                    const stageW = img.offsetWidth;
+                    const stageH = img.offsetHeight;
+
+                    // Gunakan preset sedang (~160px)
+                    document.getElementById('btnLensSizeMd').click();
+
+                    // Wajah kucing berada di koordinat ~70% horizontal, ~45% vertikal
+                    const curLensSize = lens.offsetWidth;
+                    const targetX = Math.round(stageW * 0.70 - curLensSize / 2);
+                    const targetY = Math.round(stageH * 0.45 - curLensSize / 2);
+
+                    const rect = lens.getBoundingClientRect();
+                    const startX = rect.left + rect.width / 2;
+                    const startY = rect.top + rect.height / 2;
+
+                    lens.dispatchEvent(new PointerEvent('pointerdown', { clientX: startX, clientY: startY, bubbles: true }));
+                    lens.dispatchEvent(new PointerEvent('pointermove', { 
+                        clientX: startX + (targetX - (rect.left - img.getBoundingClientRect().left)), 
+                        clientY: startY + (targetY - (rect.top - img.getBoundingClientRect().top)), 
+                        bubbles: true 
+                    }));
+                    lens.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+                })()
+            """); msg_id += 1
+            await asyncio.sleep(0.5)
+
+            # Verifikasi Single-Image Backdrop & Transparent Lens di DOM
             lens_metrics = await evaluate(ws, msg_id, """
                 (() => {
                     const modal = document.getElementById('modalCropAvatar');
@@ -186,31 +228,8 @@ async def main():
             """); msg_id += 1
             print(f"  Metrik Transparent Lens Viewfinder: {json.dumps(lens_metrics, indent=2)}")
 
-            # Simpan screenshot modal crop single-backdrop
+            # Simpan screenshot modal crop dengan lensa membingkai wajah kucing berpikir
             await take_screenshot(ws, msg_id, "docs/screenshots/modal_crop_v2.png"); msg_id += 1
-
-            # 5. Uji tombol preset ukuran lensa (Kecil, Sedang, Maksimal)
-            print("\n▶ Menguji preset ukuran lensa...")
-            test_sizes = await evaluate(ws, msg_id, """
-                (() => {
-                    const lens = document.getElementById('cropLens');
-                    const btnSm = document.getElementById('btnLensSizeSm');
-                    const btnLg = document.getElementById('btnLensSizeLg');
-                    
-                    btnSm.click();
-                    const smSize = lens.offsetWidth;
-
-                    btnLg.click();
-                    const lgSize = lens.offsetWidth;
-
-                    // Kembalikan ke sedang
-                    document.getElementById('btnLensSizeMd').click();
-                    const mdSize = lens.offsetWidth;
-
-                    return { smSize, mdSize, lgSize };
-                })()
-            """); msg_id += 1
-            print(f"  Preset Ukuran Lensa: {json.dumps(test_sizes, indent=2)}")
 
             # 6. Terapkan Crop
             print("\n▶ Menekan Selesai & Terapkan Foto...")
