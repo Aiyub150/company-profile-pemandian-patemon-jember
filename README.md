@@ -42,7 +42,8 @@ Berikut adalah dokumentasi visual menyeluruh dari setiap halaman, alur kerja (*w
 | **Halaman Masuk (Login)** | <img src="docs/screenshots/login.png" width="480" alt="Halaman Login"> | Gerbang masuk terproteksi Rate Limiting & CSRF Shield untuk Super Admin, Admin, Kasir, dan Pengunjung terdaftar. |
 | **Pendaftaran Akun Baru** | <img src="docs/screenshots/register.png" width="480" alt="Pendaftaran Akun"> | Form registrasi akun wisatawan baru dengan verifikasi kata sandi kuat dan sanitasi input keamanan. |
 | **Lupa Password & Pemulihan** | <img src="docs/screenshots/forgot_password.png" width="480" alt="Lupa Password"> | Alur reset kata sandi mandiri menggunakan token acak aman yang dikirimkan via SMTP email lokal / Mailpit. |
-| **Profil & Cropper Avatar 1:1** | <img src="docs/screenshots/profile.png" width="480" alt="Profil Pengguna"> | Tata kelola akun pengguna, ubah kata sandi, dan pemotong foto profil rasio 1:1 berbasis Cropper.js dengan validasi batas 2 MB. |
+| **Profil Pengguna** | <img src="docs/screenshots/profile.png" width="480" alt="Profil Pengguna"> | Tata kelola akun pengguna, form identitas profil berdimensi luas, ubah kata sandi, dan status keamanan terlindungi. |
+| **Modal Pemotong Foto (Cropper 1:1)** | <img src="docs/screenshots/modal_crop_v2.png" width="480" alt="Modal Pemotong Foto Profil 1:1"> | Alat pemotong foto rasio 1:1 berstandar industri dengan kanvas luas 460px, pembatas *clamping*, slider zoom presisi, rotasi, flip, dan *live preview* bulat *real-time*. |
 
 ### C. Point of Sale (POS) Kasir Loket & Cetak Struk
 
