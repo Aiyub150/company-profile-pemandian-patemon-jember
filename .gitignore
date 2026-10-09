@@ -24,6 +24,14 @@ public/img/6d3b467491ead78c513664437c2237f1.jpg
 public/img/9bf92621cecb41779f3a87793b660059.jpg
 public/img/a5da67ed6ed7d4a8352507bdb00d217f.webp
 
+# Storage & Application Cache
+storage/logs/*
+!storage/logs/.gitkeep
+storage/cache/*
+!storage/cache/.gitkeep
+storage/uploads/*
+!storage/uploads/.gitkeep
+
 # Feedback folder (internal use)
 Feedback/
 

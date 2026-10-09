@@ -203,6 +203,25 @@ flowchart TD
 4. **Data Access Layer Terproteksi:** Seluruh komunikasi ke database diwajibkan melewati mekanisme *parameterized prepared statements* untuk menjamin kekebalan dari manipulasi query SQL.
 5. **Universal Component Ecosystem:** Dilengkapi komponen frontend modular tanpa dependensi berat, seperti modul pencarian dropdown interaktif (*Searchable Select*) dan mesin dwibahasa (*i18n engine*).
 
+### 📂 Struktur Direktori Terstandarisasi
+
+```text
+pemandian-patemon/
+├── database/            # Skema basis data & file inisialisasi SQL
+├── dist/                # Sumber daya modul backend & antarmuka view
+│   ├── app/             # Konfigurasi inti, helper, layout, partials & mailer
+│   └── views/           # Modular view-controllers per domain operasional
+├── docs/                # Dokumentasi arsitektur, catatan desain & tangkapan layar
+│   ├── architecture/    # Dokumen konsep & rancangan sistem
+│   └── screenshots/     # Portofolio tangkapan layar antarmuka aplikasi
+├── public/              # Aset publik statis (CSS, JS, Fonts, Web Icons)
+├── storage/             # Direktori penyimpanan terisolasi (Logs, Cache, Uploads)
+├── tests/               # Pengujian otomatis terpadu (Unit, Integrasi, Security)
+├── index.php            # Universal Front Controller & Root Entry Point
+├── router.php           # Routing Engine & Application Firewall
+└── serve.php            # CLI Development Server & Local Mailpit Orchestrator
+```
+
 ---
 
 ## 🗄️ 4. Model Data & Relasi Entitas

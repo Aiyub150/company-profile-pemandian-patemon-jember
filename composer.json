@@ -10,7 +10,7 @@
     "scripts": {
         "test": "php tests/run_all.php",
         "serve": "php -S localhost:8000 router.php",
-        "setup": "@php -r \"echo 'Menyiapkan direktori uploads dan aset...' . PHP_EOL; @mkdir('dist/app/payment', 0777, true); echo 'Selesai.' . PHP_EOL;\""
+        "setup": "@php -r \"echo 'Menyiapkan direktori uploads dan aset...' . PHP_EOL; @mkdir('dist/app/payment', 0777, true); @mkdir('storage/logs', 0777, true); @mkdir('storage/cache', 0777, true); @mkdir('storage/uploads', 0777, true); echo 'Selesai.' . PHP_EOL;\""
     },
     "config": {
         "allow-plugins": {}

@@ -43,7 +43,7 @@ $blockedPatterns = [
     '/package\.(json|lock)$/i',
     '/\.md$/i',
     '/database\//i',
-    '/\/(scratch|tests|tools)\//i',
+    '/\/(storage\/(logs|cache)|scratch|tests|tools)\//i',
     '/\/local(\.pub)?$/i',
     '/\/serve\.php$/i'
 ];
