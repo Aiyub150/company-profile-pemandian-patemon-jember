@@ -101,37 +101,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         }
                         exit();
                     } else {
-                        // Catat kegagalan password
-                        $now = time();
-                        $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
-                        $stmtRec->bind_param("ssi", $ip, $username, $now);
-                        $stmtRec->execute();
-                        $stmtRec->close();
+                                            // Catat kegagalan password
+                                            $now = time();
+                                            $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
+                                            $stmtRec->bind_param("ssi", $ip, $username, $now);
+                                            $stmtRec->execute();
+                                            $stmtRec->close();
 
-                        $remaining = max(0, 5 - ($attempts + 1));
-                        $error = ($remaining > 0) 
-                            ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
-                            : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
+                                            $currentAttempts = $pairAttempts + 1;
+                                            $remaining = max(0, 5 - $currentAttempts);
+                                            $error = ($remaining > 0)
+                                                ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
+                                                : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
 
-                        if (function_exists('log_activity')) {
-                            log_activity('LOGIN_FAILED', 'auth', "Login gagal untuk username: {$username} (Password salah)");
-                        }
-                    }
-                }
-            } else {
-                // Catat kegagalan username tidak ditemukan
-                $now = time();
-                $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
-                $stmtRec->bind_param("ssi", $ip, $username, $now);
-                $stmtRec->execute();
-                $stmtRec->close();
+                                            if (function_exists('log_activity')) {
+                                                log_activity('LOGIN_FAILED', 'auth', "Login gagal untuk username: {$username} (Password salah)");
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Catat kegagalan username tidak ditemukan
+                                    $now = time();
+                                    $stmtRec = $conn->prepare("INSERT INTO login_attempts (ip_address, username, attempt_time) VALUES (?, ?, ?)");
+                                    $stmtRec->bind_param("ssi", $ip, $username, $now);
+                                    $stmtRec->execute();
+                                    $stmtRec->close();
 
-                $remaining = max(0, 5 - ($attempts + 1));
-                $error = ($remaining > 0)
-                    ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
-                    : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
+                                    $currentAttempts = $pairAttempts + 1;
+                                    $remaining = max(0, 5 - $currentAttempts);
+                                    $error = ($remaining > 0)
+                                        ? "Username atau password salah. Sisa percobaan: {$remaining} kali sebelum akun dikunci sementara."
+                                        : "Terlalu banyak percobaan gagal. Akses login Anda dikunci selama 15 menit.";
 
-                if (function_exists('log_activity')) {
+                                    if (function_exists('log_activity')) {
                     log_activity('LOGIN_FAILED', 'auth', "Login gagal: username '{$username}' tidak terdaftar");
                 }
             }
